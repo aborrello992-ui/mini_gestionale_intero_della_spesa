@@ -18,7 +18,7 @@ class DebtController extends Controller
             ->whereHas('memberDebts', fn ($q) => $q->where('status', 'open'))
             ->withSum(['memberDebts as open_debt_cents' => fn ($q) => $q->where('status', 'open')], 'remaining_amount_cents')
             ->withCount(['memberDebts as open_debts_count' => fn ($q) => $q->where('status', 'open')])
-            ->withMax(['withdrawals as last_coppone_at' => fn ($q) => $q->where('payment_status', 'coppone')], 'withdrawn_at')
+            ->withMax(['memberDebts as last_debt_at' => fn ($q) => $q->where('status', 'open')], 'created_at')
             ->orderByDesc('open_debt_cents')
             ->get(['id', 'name', 'avatar_path']);
     }

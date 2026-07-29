@@ -13,8 +13,8 @@ class CashService
 {
     public function balanceCents(): int
     {
-        $income = CashMovement::whereIn('status', ['active', 'reversed'])->where('direction', 'entrata')->sum('amount_cents');
-        $outcome = CashMovement::whereIn('status', ['active', 'reversed'])->where('direction', 'uscita')->sum('amount_cents');
+        $income = CashMovement::whereIn('status', ['active', 'reversed'])->where('affects_current_balance', true)->where('direction', 'entrata')->sum('amount_cents');
+        $outcome = CashMovement::whereIn('status', ['active', 'reversed'])->where('affects_current_balance', true)->where('direction', 'uscita')->sum('amount_cents');
 
         return (int) $income - (int) $outcome;
     }

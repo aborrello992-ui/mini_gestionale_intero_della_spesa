@@ -32,13 +32,14 @@ Web app MVP per gestire prodotti condivisi, prelievi, acquisti, lista della spes
 
 ```text
 Admin
-email: admin@locale.test
+email: borrello@locale.test
 password: password
+PIN: 314
 
 Membro
-email: membro1@locale.test
+email: luca.manca@locale.test
 password: password
-PIN: 001
+PIN: 527
 
 Dispositivo condiviso
 email: device@locale.test
@@ -98,6 +99,7 @@ npm run build
 - Il saldo cassa e i movimenti passano da `CashService`.
 - I debiti dei membri sono salvati in `member_debts` e collegati al prelievo originale.
 - I PIN sono salvati come hash, mai in chiaro.
+- I seed reali iniziali caricano Borrello, Luca Manca, Roberto Squeo, Nello Lorusso e Saverio Squeo, saldo iniziale di 22,40 euro, debiti pregressi per 64,30 euro e storico spese gia contabilizzate per 166,07 euro.
 - Gli importi sono salvati in centesimi (`amount_cents`, `total_cents`, prezzi).
 - Le quantita usano campi `decimal(12,3)`.
 - I movimenti non vengono eliminati: gli annullamenti generano movimenti compensativi.

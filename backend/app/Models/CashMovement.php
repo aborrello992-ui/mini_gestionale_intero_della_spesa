@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'user_id', 'member_id', 'product_id', 'purchase_id', 'withdrawal_id', 'debt_payment_id',
     'reverses_movement_id', 'amount_cents', 'resulting_balance_cents', 'direction',
     'type', 'category', 'description', 'movement_date', 'movement_time', 'note', 'status',
+    'affects_current_balance', 'is_opening_historical_record',
 ])]
 class CashMovement extends Model
 {
@@ -18,7 +19,11 @@ class CashMovement extends Model
 
     protected function casts(): array
     {
-        return ['movement_date' => 'date'];
+        return [
+            'movement_date' => 'date',
+            'affects_current_balance' => 'boolean',
+            'is_opening_historical_record' => 'boolean',
+        ];
     }
 
     public function user(): BelongsTo

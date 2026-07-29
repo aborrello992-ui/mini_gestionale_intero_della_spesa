@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['withdrawal_id', 'user_id', 'original_amount_cents', 'paid_amount_cents', 'remaining_amount_cents', 'status', 'notes'])]
+#[Fillable(['withdrawal_id', 'user_id', 'original_amount_cents', 'paid_amount_cents', 'remaining_amount_cents', 'type', 'description', 'status', 'notes'])]
 class MemberDebt extends Model
 {
     use HasFactory;

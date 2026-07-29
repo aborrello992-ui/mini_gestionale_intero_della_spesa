@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::table('users', function (Blueprint $table) {
             $table->string('pin_hash')->nullable()->after('password');
             $table->string('avatar_path')->nullable()->after('is_active');
+            $table->json('aliases')->nullable()->after('name');
         });
 
         Schema::table('products', function (Blueprint $table) {
@@ -56,11 +57,13 @@ return new class extends Migration
 
         Schema::create('member_debts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('withdrawal_id')->constrained();
+            $table->foreignId('withdrawal_id')->nullable()->constrained();
             $table->foreignId('user_id')->constrained();
             $table->unsignedInteger('original_amount_cents');
             $table->unsignedInteger('paid_amount_cents')->default(0);
             $table->unsignedInteger('remaining_amount_cents');
+            $table->string('type')->default('withdrawal');
+            $table->string('description')->nullable();
             $table->string('status')->default('open');
             $table->text('notes')->nullable();
             $table->timestamps();
@@ -99,6 +102,8 @@ return new class extends Migration
             $table->unsignedBigInteger('debt_payment_id')->nullable()->after('withdrawal_id');
             $table->time('movement_time')->nullable()->after('movement_date');
             $table->integer('resulting_balance_cents')->nullable()->after('amount_cents');
+            $table->boolean('affects_current_balance')->default(true)->after('resulting_balance_cents');
+            $table->boolean('is_opening_historical_record')->default(false)->after('affects_current_balance');
         });
     }
 
@@ -108,7 +113,7 @@ return new class extends Migration
             $table->dropConstrainedForeignId('member_id');
             $table->dropConstrainedForeignId('product_id');
             $table->dropConstrainedForeignId('withdrawal_id');
-            $table->dropColumn(['debt_payment_id', 'movement_time', 'resulting_balance_cents']);
+            $table->dropColumn(['debt_payment_id', 'movement_time', 'resulting_balance_cents', 'affects_current_balance', 'is_opening_historical_record']);
         });
 
         Schema::table('inventory_movements', function (Blueprint $table) {
@@ -129,7 +134,7 @@ return new class extends Migration
         });
 
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['pin_hash', 'avatar_path']);
+            $table->dropColumn(['pin_hash', 'avatar_path', 'aliases']);
         });
     }
 };

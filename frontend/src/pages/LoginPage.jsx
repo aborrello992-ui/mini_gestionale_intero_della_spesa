@@ -7,7 +7,7 @@ import { errorMessage } from '../utils/format'
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [form, setForm] = useState({ email: 'admin@locale.test', password: 'password' })
+  const [form, setForm] = useState({ email: 'borrello@locale.test', password: 'password' })
   const [error, setError] = useState('')
 
   async function submit(event) {
