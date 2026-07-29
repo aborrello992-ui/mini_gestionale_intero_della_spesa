@@ -8,10 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'user_id', 'member_id', 'product_id', 'purchase_id', 'withdrawal_id', 'debt_payment_id',
+    'restoration_key', 'user_id', 'member_id', 'product_id', 'purchase_id', 'withdrawal_id', 'debt_payment_id',
     'reverses_movement_id', 'amount_cents', 'resulting_balance_cents', 'direction',
-    'type', 'category', 'description', 'movement_date', 'movement_time', 'note', 'status',
-    'affects_current_balance', 'is_opening_historical_record',
+    'type', 'category', 'description', 'movement_date', 'movement_time', 'occurred_at',
+    'occurred_at_is_approximate', 'note', 'status', 'affects_current_balance', 'is_opening_historical_record',
 ])]
 class CashMovement extends Model
 {
@@ -21,6 +21,8 @@ class CashMovement extends Model
     {
         return [
             'movement_date' => 'date',
+            'occurred_at' => 'datetime',
+            'occurred_at_is_approximate' => 'boolean',
             'affects_current_balance' => 'boolean',
             'is_opening_historical_record' => 'boolean',
         ];

@@ -11,7 +11,7 @@ class UserController extends Controller
 {
     public function index()
     {
-        return User::orderBy('name')->get();
+        return User::whereIn('role', [User::ROLE_ADMIN, User::ROLE_MEMBER])->orderBy('name')->get();
     }
 
     public function store(Request $request)
