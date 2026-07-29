@@ -8,8 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
-    'user_id', 'purchase_id', 'reverses_movement_id', 'amount_cents', 'direction',
-    'type', 'category', 'description', 'movement_date', 'note', 'status',
+    'user_id', 'member_id', 'product_id', 'purchase_id', 'withdrawal_id', 'debt_payment_id',
+    'reverses_movement_id', 'amount_cents', 'resulting_balance_cents', 'direction',
+    'type', 'category', 'description', 'movement_date', 'movement_time', 'note', 'status',
 ])]
 class CashMovement extends Model
 {
@@ -23,5 +24,15 @@ class CashMovement extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'member_id');
+    }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class);
     }
 }

@@ -22,7 +22,15 @@ class UserController extends Controller
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', Rule::in([User::ROLE_ADMIN, User::ROLE_MEMBER])],
             'is_active' => ['sometimes', 'boolean'],
-        ])), 201);
+            'pin' => ['nullable', 'regex:/^\d{3}$/'],
+        ]);
+
+        if (! empty($data['pin'])) {
+            $data['pin_hash'] = $data['pin'];
+        }
+        unset($data['pin']);
+
+        return response()->json(User::create($data), 201);
     }
 
     public function update(Request $request, User $user)
@@ -33,11 +41,17 @@ class UserController extends Controller
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', Rule::in([User::ROLE_ADMIN, User::ROLE_MEMBER])],
             'is_active' => ['required', 'boolean'],
+            'pin' => ['nullable', 'regex:/^\d{3}$/'],
         ]);
 
         if (blank($data['password'] ?? null)) {
             unset($data['password']);
         }
+
+        if (! empty($data['pin'])) {
+            $data['pin_hash'] = $data['pin'];
+        }
+        unset($data['pin']);
 
         $user->update($data);
 

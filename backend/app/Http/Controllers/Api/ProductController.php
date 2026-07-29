@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Support\NameNormalizer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -30,8 +31,10 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request);
+        $this->normalizePrices($data);
         $this->ensureUniqueNormalizedName($data['name']);
         $warning = $this->similarWarning($data['name']);
+        $this->storeImage($request, $data);
         $product = Product::create($data)->load('category:id,name', 'location:id,name');
 
         return response()->json(['data' => $product, 'warning' => $warning], 201);
@@ -45,8 +48,10 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         $data = $this->validated($request, $product);
+        $this->normalizePrices($data);
         $this->ensureUniqueNormalizedName($data['name'], $product->id);
         $warning = $this->similarWarning($data['name'], $product->id);
+        $this->storeImage($request, $data, $product);
         $product->update($data);
 
         return ['data' => $product->fresh()->load('category:id,name', 'location:id,name'), 'warning' => $warning];
@@ -73,13 +78,42 @@ class ProductController extends Controller
             'location_id' => ['required', 'exists:locations,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'image' => ['sometimes', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'image_alt' => ['nullable', 'string', 'max:255'],
             'unit' => ['required', Rule::in(['pezzi', 'bottiglie', 'confezioni', 'chilogrammi', 'grammi', 'litri', 'millilitri'])],
             'current_quantity' => ['required', 'numeric', 'min:0'],
             'minimum_threshold' => ['required', 'numeric', 'min:0'],
+            'stock_reference_quantity' => ['nullable', 'numeric', 'min:0'],
+            'selling_price' => ['sometimes', 'numeric', 'min:0'],
+            'selling_price_cents' => ['sometimes', 'integer', 'min:0'],
             'average_price_cents' => ['sometimes', 'integer', 'min:0'],
             'last_purchase_price_cents' => ['sometimes', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
+    }
+
+    private function normalizePrices(array &$data): void
+    {
+        if (isset($data['selling_price'])) {
+            $data['selling_price_cents'] = (int) round(((float) str_replace(',', '.', (string) $data['selling_price'])) * 100);
+            unset($data['selling_price']);
+        }
+    }
+
+    private function storeImage(Request $request, array &$data, ?Product $product = null): void
+    {
+        unset($data['image']);
+
+        if (! $request->hasFile('image')) {
+            return;
+        }
+
+        if ($product?->image_path) {
+            Storage::disk('public')->delete($product->image_path);
+        }
+
+        $data['image_path'] = $request->file('image')->store('products', 'public');
+        $data['image_alt'] = $data['image_alt'] ?? $data['name'];
     }
 
     private function ensureUniqueNormalizedName(string $name, ?int $ignoreId = null): void

@@ -6,7 +6,7 @@ import { errorMessage } from '../utils/format'
 export default function UsersPage() {
   const [users, setUsers] = useState([])
   const [message, setMessage] = useState('')
-  const [form, setForm] = useState({ name: '', email: '', password: 'password', role: 'member', is_active: true })
+  const [form, setForm] = useState({ name: '', email: '', password: 'password', role: 'member', pin: '123', is_active: true })
   async function load() { setUsers((await api.get('/users')).data) }
   useEffect(() => { load() }, [])
   async function submit(event) {
@@ -21,6 +21,7 @@ export default function UsersPage() {
         <input className="form-control" placeholder="Nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <input className="form-control" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         <input className="form-control" placeholder="Password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+        <input className="form-control" placeholder="PIN 3 cifre" inputMode="numeric" maxLength="3" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 3) })} />
         <select className="form-select" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="member">membro</option><option value="admin">admin</option></select>
         <button className="btn btn-primary">Crea</button>
       </form>

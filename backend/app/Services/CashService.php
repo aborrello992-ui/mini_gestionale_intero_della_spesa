@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\CashMovement;
+use App\Models\MemberDebt;
+use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -19,11 +21,37 @@ class CashService
 
     public function create(array $data, User $user): CashMovement
     {
+        return $this->createFromCents([
+            ...$data,
+            'amount_cents' => $this->toCents($data['amount']),
+        ], $user);
+    }
+
+    public function createFromCents(array $data, User $user): CashMovement
+    {
+        $amountCents = (int) $data['amount_cents'];
+        $directionSign = $data['direction'] === 'entrata' ? 1 : -1;
+        $resultingBalance = $this->balanceCents() + ($directionSign * $amountCents);
+        unset($data['amount'], $data['quantity_purchased'], $data['new_selling_price'], $data['new_purchase_cost']);
+
         return CashMovement::create([
             ...$data,
             'user_id' => $user->id,
-            'amount_cents' => $this->toCents($data['amount']),
+            'amount_cents' => $amountCents,
+            'movement_time' => $data['movement_time'] ?? now()->format('H:i:s'),
+            'resulting_balance_cents' => $resultingBalance,
         ]);
+    }
+
+    public function counters(): array
+    {
+        return [
+            'balance_cents' => $this->balanceCents(),
+            'inventory_potential_cents' => (int) Product::query()->active()->get()
+                ->sum(fn (Product $product) => round((float) $product->current_quantity * (int) $product->selling_price_cents)),
+            'open_coppone_cents' => (int) MemberDebt::where('status', 'open')->sum('remaining_amount_cents'),
+            'currency' => 'EUR',
+        ];
     }
 
     public function reverse(CashMovement $movement, User $user): CashMovement
@@ -44,6 +72,7 @@ class CashService
                 'category' => 'correzione',
                 'description' => 'Annullamento cassa #'.$movement->id,
                 'movement_date' => now()->toDateString(),
+                'movement_time' => now()->format('H:i:s'),
             ]);
         });
     }

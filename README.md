@@ -12,7 +12,13 @@ Web app MVP per gestire prodotti condivisi, prelievi, acquisti, lista della spes
 
 - Login/logout con token Sanctum.
 - Ruoli `admin` e `member`, controllati lato backend.
-- Dashboard con saldo cassa, prodotti attivi, sottoscorta, esauriti e ultimi movimenti.
+- Pagina Prodotti come schermata iniziale, con card prodotto e pulsante `Prendi`.
+- Identificazione membri tramite PIN personale di tre cifre, verificato lato backend.
+- Prelievo da card con modalita `Pagato` oppure `Coppone`.
+- Pagina Debiti con soli membri che hanno copponi aperti.
+- Pagamenti parziali o totali dei debiti con entrata in cassa.
+- Pagina Cassa con saldo reale, incasso potenziale magazzino e totale copponi da incassare.
+- Sezione Gestione per entrate, uscite, spese, accrediti, quote, correzioni e carico prodotto singolo.
 - Prodotti, categorie e posizioni.
 - Prelievo rapido con blocco dello stock negativo.
 - Registrazione acquisti transazionale con incremento stock, prezzi aggiornati, movimenti magazzino e uscita cassa.
@@ -31,6 +37,11 @@ password: password
 
 Membro
 email: membro1@locale.test
+password: password
+PIN: 001
+
+Dispositivo condiviso
+email: device@locale.test
 password: password
 ```
 
@@ -82,9 +93,11 @@ npm run build
 
 ## Note architetturali
 
-- La modifica dello stock passa da `InventoryService`.
+- La modifica dello stock passa da `InventoryService` per le correzioni e da `WithdrawalService` per i prelievi da card.
 - Gli acquisti passano da `PurchaseService` e usano transazioni database.
 - Il saldo cassa e i movimenti passano da `CashService`.
+- I debiti dei membri sono salvati in `member_debts` e collegati al prelievo originale.
+- I PIN sono salvati come hash, mai in chiaro.
 - Gli importi sono salvati in centesimi (`amount_cents`, `total_cents`, prezzi).
 - Le quantita usano campi `decimal(12,3)`.
 - I movimenti non vengono eliminati: gli annullamenti generano movimenti compensativi.

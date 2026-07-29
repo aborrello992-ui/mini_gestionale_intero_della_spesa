@@ -1,20 +1,19 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Boxes, ClipboardList, Gauge, History, LogOut, ShoppingCart, Users, WalletCards, Zap } from 'lucide-react'
+import { Boxes, ClipboardList, History, LogOut, ReceiptText, ShoppingCart, Users, WalletCards } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 
 const links = [
-  ['/', 'Dashboard', Gauge],
-  ['/products', 'Prodotti', Boxes],
-  ['/withdraw', 'Prelievo', Zap],
-  ['/shopping-list', 'Spesa', ShoppingCart],
+  ['/', 'Prodotti', Boxes],
+  ['/debts', 'Debiti', ReceiptText],
   ['/cash', 'Cassa', WalletCards],
-  ['/history', 'Storico', History],
+  ['/movements', 'Movimenti', History],
+  ['/shopping-list', 'Lista spesa', ShoppingCart],
 ]
 
 export default function AppLayout() {
   const { user, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
-  const visibleLinks = isAdmin ? [...links, ['/users', 'Utenti', Users], ['/purchases', 'Acquisti', ClipboardList]] : links
+  const visibleLinks = isAdmin ? [...links, ['/management', 'Gestione', ClipboardList], ['/users', 'Utenti', Users]] : links
 
   return (
     <div className="app-shell">

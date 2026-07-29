@@ -11,18 +11,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'category_id', 'location_id', 'name', 'normalized_name', 'description', 'unit',
-    'current_quantity', 'minimum_threshold', 'average_price_cents',
+    'image_path', 'image_alt', 'current_quantity', 'minimum_threshold',
+    'stock_reference_quantity', 'selling_price_cents', 'average_price_cents',
     'last_purchase_price_cents', 'is_active', 'archived_at',
 ])]
 class Product extends Model
 {
     use HasFactory;
 
+    protected $appends = ['image_url'];
+
     protected function casts(): array
     {
         return [
             'current_quantity' => 'decimal:3',
             'minimum_threshold' => 'decimal:3',
+            'stock_reference_quantity' => 'decimal:3',
             'archived_at' => 'datetime',
             'is_active' => 'boolean',
         ];
@@ -53,5 +57,10 @@ class Product extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true)->whereNull('archived_at');
+    }
+
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->image_path ? url('storage/'.$this->image_path) : null;
     }
 }

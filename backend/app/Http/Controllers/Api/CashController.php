@@ -12,13 +12,16 @@ class CashController extends Controller
 {
     public function balance(CashService $service)
     {
-        return ['balance_cents' => $service->balanceCents(), 'currency' => 'EUR'];
+        return $service->counters();
     }
 
     public function index(Request $request)
     {
-        return CashMovement::with('user:id,name')
+        return CashMovement::with('user:id,name', 'member:id,name', 'product:id,name')
             ->when($request->direction, fn ($q, $direction) => $q->where('direction', $direction))
+            ->when($request->type, fn ($q, $type) => $q->where('type', $type))
+            ->when($request->category, fn ($q, $category) => $q->where('category', $category))
+            ->when($request->user_id, fn ($q, $id) => $q->where('user_id', $id))
             ->when($request->date_from, fn ($q, $date) => $q->whereDate('movement_date', '>=', $date))
             ->when($request->date_to, fn ($q, $date) => $q->whereDate('movement_date', '<=', $date))
             ->latest()
@@ -30,10 +33,13 @@ class CashController extends Controller
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01'],
             'direction' => ['required', 'in:entrata,uscita'],
-            'type' => ['required', 'in:versamento,acquisto_prodotti,altra_spesa,rimborso,correzione,annullamento'],
+            'type' => ['required', 'in:versamento,acquisto_prodotti,altra_spesa,rimborso,correzione,annullamento,accredito,quota,spesa_locale,altro'],
             'category' => ['nullable', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:255'],
             'movement_date' => ['required', 'date'],
+            'movement_time' => ['nullable', 'date_format:H:i'],
+            'member_id' => ['nullable', 'exists:users,id'],
+            'product_id' => ['nullable', 'exists:products,id'],
             'note' => ['nullable', 'string'],
         ]);
 

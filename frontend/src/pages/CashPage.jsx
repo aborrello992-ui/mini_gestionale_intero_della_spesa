@@ -1,37 +1,39 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import api from '../api/client'
-import AlertMessage from '../components/AlertMessage'
-import { useAuth } from '../hooks/useAuth'
-import { errorMessage, money } from '../utils/format'
+import { dateTime, money } from '../utils/format'
 
 export default function CashPage() {
-  const { isAdmin } = useAuth()
-  const [balance, setBalance] = useState(0)
+  const [counters, setCounters] = useState(null)
   const [rows, setRows] = useState([])
-  const [message, setMessage] = useState('')
-  const [form, setForm] = useState({ amount: '', direction: 'entrata', type: 'versamento', description: '', movement_date: new Date().toISOString().slice(0, 10) })
-  async function load() {
-    const [b, m] = await Promise.all([api.get('/cash/balance'), api.get('/cash/movements')])
-    setBalance(b.data.balance_cents); setRows(m.data.data)
-  }
-  useEffect(() => { load() }, [])
-  async function submit(event) {
-    event.preventDefault()
-    try { await api.post('/cash/movements', form); setMessage('Movimento registrato.'); load() } catch (err) { setMessage(errorMessage(err)) }
-  }
+  const [filters, setFilters] = useState({ direction: '', type: '' })
+
+  const load = useCallback(async () => {
+    const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value))
+    const [balance, movements] = await Promise.all([api.get('/cash/balance'), api.get(`/cash/movements?${params}`)])
+    setCounters(balance.data); setRows(movements.data.data)
+  }, [filters])
+
+  useEffect(() => { load() }, [load])
+
   return (
     <section>
-      <div className="page-title"><h1>Cassa</h1><strong className="balance">{money(balance)}</strong></div>
-      <AlertMessage type={message === 'Movimento registrato.' ? 'success' : 'danger'}>{message}</AlertMessage>
-      {isAdmin && <form className="app-card form-grid mb-3" onSubmit={submit}>
-        <input className="form-control" type="number" step="0.01" placeholder="Importo" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
-        <select className="form-select" value={form.direction} onChange={(e) => setForm({ ...form, direction: e.target.value })}><option>entrata</option><option>uscita</option></select>
-        <select className="form-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{['versamento', 'altra_spesa', 'rimborso', 'correzione'].map((t) => <option key={t}>{t}</option>)}</select>
-        <input className="form-control" placeholder="Descrizione" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-        <input className="form-control" type="date" value={form.movement_date} onChange={(e) => setForm({ ...form, movement_date: e.target.value })} />
-        <button className="btn btn-primary">Salva</button>
-      </form>}
-      <div className="app-card">{rows.map((m) => <div className="list-row" key={m.id}><strong>{money(m.amount_cents)}</strong> · {m.direction} · {m.description}</div>)}</div>
+      <div className="page-title"><h1>Cassa</h1></div>
+      <div className="metric-grid mb-3">
+        <div className="metric"><span>Saldo attuale</span><strong>{money(counters?.balance_cents || 0)}</strong></div>
+        <div className="metric"><span>Incasso potenziale magazzino</span><strong>{money(counters?.inventory_potential_cents || 0)}</strong></div>
+        <div className="metric"><span>Da incassare dai copponi</span><strong>{money(counters?.open_coppone_cents || 0)}</strong></div>
+      </div>
+      <div className="app-card form-grid mb-3">
+        <select className="form-select" value={filters.direction} onChange={(e) => setFilters({ ...filters, direction: e.target.value })}><option value="">Entrate e uscite</option><option value="entrata">Entrate</option><option value="uscita">Uscite</option></select>
+        <select className="form-select" value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}><option value="">Tutte le tipologie</option>{['prodotto_pagato', 'pagamento_debito', 'spesa_locale', 'accredito', 'quota', 'correzione', 'acquisto_prodotti'].map((t) => <option key={t} value={t}>{t}</option>)}</select>
+      </div>
+      <div className="app-card">
+        {rows.map((m) => <div className="list-row" key={m.id}>
+          <strong>{money(m.amount_cents)}</strong> · {m.direction} · {m.type} · {m.description}
+          <div className="small text-secondary">{dateTime(`${m.movement_date}T${m.movement_time || '00:00'}`)} · membro {m.member?.name || '-'} · prodotto {m.product?.name || '-'} · saldo {money(m.resulting_balance_cents || 0)} · {m.status}</div>
+        </div>)}
+        {!rows.length && <p className="text-secondary mb-0">Nessun movimento di cassa.</p>}
+      </div>
     </section>
   )
 }
