@@ -31,8 +31,9 @@ class CashService
     {
         $amountCents = (int) $data['amount_cents'];
         $directionSign = $data['direction'] === 'entrata' ? 1 : -1;
-        $resultingBalance = $this->balanceCents() + ($directionSign * $amountCents);
-        unset($data['amount'], $data['quantity_purchased'], $data['new_selling_price'], $data['new_purchase_cost']);
+        $affectsBalance = $data['affects_current_balance'] ?? true;
+        $resultingBalance = $affectsBalance ? $this->balanceCents() + ($directionSign * $amountCents) : $this->balanceCents();
+        unset($data['amount'], $data['quantity_purchased'], $data['new_selling_price'], $data['new_purchase_cost'], $data['reason']);
 
         return CashMovement::create([
             ...$data,

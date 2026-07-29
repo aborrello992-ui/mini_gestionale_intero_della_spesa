@@ -4,6 +4,7 @@ import { AdminRoute, ProtectedRoute } from './routes/ProtectedRoute'
 import CashPage from './pages/CashPage'
 import DebtsPage from './pages/DebtsPage'
 import HistoryPage from './pages/HistoryPage'
+import GuestPage from './pages/GuestPage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProductFormPage from './pages/ProductFormPage'
@@ -17,6 +18,8 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/admin/login" element={<LoginPage />} />
+        <Route path="/guest" element={<GuestPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route index element={<ProductsPage />} />
@@ -27,8 +30,8 @@ export default function App() {
             <Route path="cash" element={<CashPage />} />
             <Route path="movements" element={<HistoryPage />} />
             <Route element={<AdminRoute />}>
-              <Route path="users" element={<UsersPage />} />
-              <Route path="management" element={<ManagementPage />} />
+              <Route path="admin/users" element={<UsersPage />} />
+              <Route path="admin/management" element={<ManagementPage />} />
             </Route>
           </Route>
         </Route>

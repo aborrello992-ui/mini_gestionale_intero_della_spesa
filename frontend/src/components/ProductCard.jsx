@@ -1,7 +1,7 @@
 import StockBadge from './StockBadge'
 import { money, quantity } from '../utils/format'
 
-export default function ProductCard({ product, onTake }) {
+export default function ProductCard({ product, onTake, onAddToShoppingList }) {
   const current = Number(product.current_quantity || 0)
   const threshold = Number(product.minimum_threshold || 0)
   const reference = Number(product.stock_reference_quantity || Math.max(threshold * 3, current, 1))
@@ -28,7 +28,8 @@ export default function ProductCard({ product, onTake }) {
         <div style={{ width: `${percent}%` }} />
       </div>
       <div className="small text-secondary mb-3">Disponibilità: {level}</div>
-      <button className="btn btn-primary btn-lg w-100" onClick={() => onTake(product)} disabled={current <= 0}>Prendi</button>
+      <button className="btn btn-primary btn-lg w-100" onClick={() => onTake(product)} disabled={current <= 0}>{current <= 0 ? 'Esaurito' : 'Prendi'}</button>
+      {current <= 0 && <button className="btn btn-outline-secondary w-100 mt-2" onClick={() => onAddToShoppingList(product)}>Aggiungi alla lista spesa</button>}
     </div>
   )
 }

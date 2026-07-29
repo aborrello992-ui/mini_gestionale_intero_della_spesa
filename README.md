@@ -32,7 +32,7 @@ Web app MVP per gestire prodotti condivisi, prelievi, acquisti, lista della spes
 
 ```text
 Admin
-email: borrello@locale.test
+email: admin@locale.test
 password: password
 PIN: 314
 
@@ -41,12 +41,11 @@ email: luca.manca@locale.test
 password: password
 PIN: 527
 
-Dispositivo condiviso
-email: device@locale.test
-password: password
+Accesso ospite
+http://localhost:5173/guest
 ```
 
-Queste credenziali sono solo per sviluppo locale.
+Queste credenziali e i PIN sono solo per sviluppo locale. I PIN dei membri servono solo per confermare il prelievo.
 
 ## Avvio backend
 
@@ -59,6 +58,8 @@ touch database/database.sqlite
 php artisan migrate:fresh --seed
 php artisan serve
 ```
+
+Non eseguire `php artisan migrate:fresh --seed` su un database che contiene dati reali da conservare: cancella e ricrea tutte le tabelle. In quel caso usa `php artisan migrate` e poi `php artisan db:seed` solo se devi reinserire seed controllati.
 
 Il backend sara disponibile su `http://localhost:8000`.
 

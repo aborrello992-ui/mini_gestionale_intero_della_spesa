@@ -12,20 +12,24 @@ class ManagementController extends Controller
     public function store(Request $request, ManagementMovementService $service)
     {
         $data = $request->validate([
-            'type' => ['required', 'in:acquisto_prodotti,spesa_locale,accredito,quota,rimborso,pagamento_debito,correzione,altro'],
+            'type' => ['required', 'in:accredito,quota,spesa_generica,rimborso,correzione,altro'],
             'direction' => ['required', 'in:entrata,uscita'],
             'amount' => ['required', 'numeric', 'min:0.01'],
-            'description' => ['required', 'string', 'max:255'],
-            'category' => ['nullable', 'string', 'max:255'],
+            'reason' => ['required_if:type,altro', 'nullable', 'string', 'max:255'],
             'movement_date' => ['required', 'date'],
             'movement_time' => ['required', 'date_format:H:i'],
-            'member_id' => ['nullable', 'exists:users,id'],
-            'product_id' => ['nullable', 'exists:products,id'],
-            'quantity_purchased' => ['nullable', 'numeric', 'min:0.001'],
-            'new_selling_price' => ['nullable', 'numeric', 'min:0'],
-            'new_purchase_cost' => ['nullable', 'numeric', 'min:0'],
-            'note' => ['nullable', 'string'],
         ]);
+
+        $labels = [
+            'accredito' => 'Accredito',
+            'quota' => 'Quota',
+            'spesa_generica' => 'Spesa generica',
+            'rimborso' => 'Rimborso',
+            'correzione' => 'Correzione',
+            'altro' => $data['reason'] ?? 'Altro',
+        ];
+        $data['description'] = $labels[$data['type']];
+        $data['category'] = 'gestione';
 
         try {
             return response()->json($service->create($data, $request->user()), 201);

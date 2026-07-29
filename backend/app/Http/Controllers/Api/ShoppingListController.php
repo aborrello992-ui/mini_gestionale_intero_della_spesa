@@ -4,13 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ShoppingListItem;
+use App\Services\CashService;
+use App\Services\RestockSessionService;
 use Illuminate\Http\Request;
 
 class ShoppingListController extends Controller
 {
     public function index(Request $request)
     {
-        return ShoppingListItem::with('product:id,name,unit,current_quantity,minimum_threshold', 'user:id,name')
+        return ShoppingListItem::with('product:id,name,unit,current_quantity,minimum_threshold,selling_price_cents', 'user:id,name')
             ->when($request->status, fn ($q, $status) => $q->where('status', $status))
             ->latest()
             ->paginate($request->integer('per_page', 20));
@@ -21,9 +23,15 @@ class ShoppingListController extends Controller
         $data = $request->validate([
             'product_id' => ['required', 'exists:products,id'],
             'suggested_quantity' => ['required', 'numeric', 'min:0.001'],
+            'estimated_price' => ['nullable', 'numeric', 'min:0'],
             'priority' => ['required', 'in:bassa,media,alta'],
             'note' => ['nullable', 'string'],
         ]);
+
+        if (isset($data['estimated_price'])) {
+            $data['estimated_price_cents'] = app(CashService::class)->toCents($data['estimated_price']);
+            unset($data['estimated_price']);
+        }
 
         $item = ShoppingListItem::updateOrCreate(
             ['product_id' => $data['product_id'], 'status' => 'da_acquistare'],
@@ -54,5 +62,28 @@ class ShoppingListController extends Controller
         $item->update(['status' => 'annullato', 'completed_at' => now()]);
 
         return response()->noContent();
+    }
+
+    public function registerRestock(Request $request, RestockSessionService $service)
+    {
+        $data = $request->validate([
+            'total_amount' => ['required', 'numeric', 'min:0.01'],
+            'purchased_at' => ['required', 'date'],
+            'purchased_time' => ['required', 'date_format:H:i'],
+            'note' => ['nullable', 'string'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.shopping_list_item_id' => ['nullable', 'exists:shopping_list_items,id'],
+            'items.*.product_id' => ['nullable', 'exists:products,id'],
+            'items.*.name' => ['required_without:items.*.product_id', 'string', 'max:255'],
+            'items.*.category' => ['nullable', 'string', 'max:255'],
+            'items.*.unit' => ['required_without:items.*.product_id', 'string', 'max:40'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
+            'items.*.minimum_threshold' => ['nullable', 'numeric', 'min:0'],
+            'items.*.selling_price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.cost_amount' => ['nullable', 'numeric', 'min:0'],
+            'items.*.location' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        return response()->json($service->register($data, $request->user()), 201);
     }
 }

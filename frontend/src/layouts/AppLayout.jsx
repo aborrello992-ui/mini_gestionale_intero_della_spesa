@@ -13,7 +13,7 @@ const links = [
 export default function AppLayout() {
   const { user, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
-  const visibleLinks = isAdmin ? [...links, ['/management', 'Gestione', ClipboardList], ['/users', 'Utenti', Users]] : links
+  const visibleLinks = isAdmin ? [...links, ['/admin/management', 'Gestione', ClipboardList], ['/admin/users', 'Utenti', Users]] : links
 
   return (
     <div className="app-shell">

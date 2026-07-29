@@ -113,7 +113,7 @@ class CardWithdrawalAndDebtTest extends TestCase
         ])->assertCreated();
 
         $this->postJson('/api/management/movements', [
-            'type' => 'spesa_locale',
+            'type' => 'spesa_generica',
             'direction' => 'uscita',
             'amount' => '4.00',
             'description' => 'Spesa demo',

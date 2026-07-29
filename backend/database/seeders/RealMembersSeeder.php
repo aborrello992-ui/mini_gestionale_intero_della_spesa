@@ -17,7 +17,7 @@ class RealMembersSeeder extends Seeder
         ]);
 
         collect([
-            ['Borrello', 'borrello@locale.test', User::ROLE_ADMIN, '314', ['Borre', 'Borry']],
+            ['Borrello', 'admin@locale.test', User::ROLE_ADMIN, '314', ['Borre', 'Borry']],
             ['Luca Manca', 'luca.manca@locale.test', User::ROLE_MEMBER, '527', []],
             ['Roberto Squeo', 'roberto.squeo@locale.test', User::ROLE_MEMBER, '681', []],
             ['Nello Lorusso', 'nello.lorusso@locale.test', User::ROLE_MEMBER, '742', []],

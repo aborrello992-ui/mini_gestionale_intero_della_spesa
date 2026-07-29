@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WithdrawalController;
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/guest', [AuthController::class, 'guest']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -53,6 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/locations', [LocationController::class, 'store']);
         Route::put('/locations/{location}', [LocationController::class, 'update']);
         Route::post('/management/movements', [ManagementController::class, 'store']);
+        Route::post('/shopping-list/restock-sessions', [ShoppingListController::class, 'registerRestock']);
         Route::post('/debts/{member}/payments', [DebtController::class, 'pay']);
         Route::get('/purchases', [PurchaseController::class, 'index']);
         Route::post('/purchases', [PurchaseController::class, 'store']);
@@ -64,5 +66,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);
         Route::put('/users/{user}', [UserController::class, 'update']);
+        Route::put('/users/{user}/pin', [UserController::class, 'updatePin']);
     });
 });
