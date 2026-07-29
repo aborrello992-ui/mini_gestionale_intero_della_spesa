@@ -1,0 +1,107 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Product;
+use App\Support\NameNormalizer;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+
+class ProductController extends Controller
+{
+    public function index(Request $request)
+    {
+        $query = Product::with('category:id,name', 'location:id,name');
+
+        if (! $request->boolean('include_archived')) {
+            $query->active();
+        }
+
+        $query->when($request->search, fn ($q, $search) => $q->where('name', 'like', "%{$search}%"))
+            ->when($request->category_id, fn ($q, $id) => $q->where('category_id', $id))
+            ->when($request->location_id, fn ($q, $id) => $q->where('location_id', $id))
+            ->when($request->boolean('low_stock'), fn ($q) => $q->whereColumn('current_quantity', '<=', 'minimum_threshold'));
+
+        return $query->orderBy('name')->paginate($request->integer('per_page', 20));
+    }
+
+    public function store(Request $request)
+    {
+        $data = $this->validated($request);
+        $this->ensureUniqueNormalizedName($data['name']);
+        $warning = $this->similarWarning($data['name']);
+        $product = Product::create($data)->load('category:id,name', 'location:id,name');
+
+        return response()->json(['data' => $product, 'warning' => $warning], 201);
+    }
+
+    public function show(Product $product)
+    {
+        return $product->load('category:id,name', 'location:id,name');
+    }
+
+    public function update(Request $request, Product $product)
+    {
+        $data = $this->validated($request, $product);
+        $this->ensureUniqueNormalizedName($data['name'], $product->id);
+        $warning = $this->similarWarning($data['name'], $product->id);
+        $product->update($data);
+
+        return ['data' => $product->fresh()->load('category:id,name', 'location:id,name'), 'warning' => $warning];
+    }
+
+    public function destroy(Product $product)
+    {
+        $product->update(['is_active' => false, 'archived_at' => now()]);
+
+        return response()->noContent();
+    }
+
+    public function restore(Product $product)
+    {
+        $product->update(['is_active' => true, 'archived_at' => null]);
+
+        return $product;
+    }
+
+    private function validated(Request $request, ?Product $product = null): array
+    {
+        return $request->validate([
+            'category_id' => ['required', 'exists:categories,id'],
+            'location_id' => ['required', 'exists:locations,id'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'unit' => ['required', Rule::in(['pezzi', 'bottiglie', 'confezioni', 'chilogrammi', 'grammi', 'litri', 'millilitri'])],
+            'current_quantity' => ['required', 'numeric', 'min:0'],
+            'minimum_threshold' => ['required', 'numeric', 'min:0'],
+            'average_price_cents' => ['sometimes', 'integer', 'min:0'],
+            'last_purchase_price_cents' => ['sometimes', 'integer', 'min:0'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+    }
+
+    private function ensureUniqueNormalizedName(string $name, ?int $ignoreId = null): void
+    {
+        $exists = Product::query()
+            ->where('normalized_name', NameNormalizer::normalize($name))
+            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages(['name' => 'Esiste gia un prodotto con questo nome normalizzato.']);
+        }
+    }
+
+    private function similarWarning(string $name, ?int $ignoreId = null): ?string
+    {
+        $normalized = NameNormalizer::normalize($name);
+        $similar = Product::query()
+            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->get(['name', 'normalized_name'])
+            ->first(fn ($product) => levenshtein($normalized, $product->normalized_name) <= 2);
+
+        return $similar ? "Esiste gia un prodotto molto simile: {$similar->name}." : null;
+    }
+}
