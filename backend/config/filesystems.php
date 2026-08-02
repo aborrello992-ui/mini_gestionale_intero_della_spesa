@@ -40,9 +40,9 @@ return [
 
         'public' => [
             'driver' => env('PUBLIC_FILESYSTEM_DRIVER', 'local'),
-            'root' => storage_path('app/public'),
+            'root' => env('PUBLIC_FILESYSTEM_ROOT', env('PUBLIC_FILESYSTEM_DRIVER', 'local') === 's3' ? '' : storage_path('app/public')),
             'url' => env('PUBLIC_FILESYSTEM_URL', rtrim(env('APP_URL', 'http://localhost'), '/').'/storage'),
-            'visibility' => 'public',
+            'visibility' => env('PUBLIC_FILESYSTEM_DRIVER', 'local') === 's3' ? null : 'public',
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION'),
