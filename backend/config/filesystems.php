@@ -38,9 +38,9 @@ return [
             'report' => false,
         ],
 
-        'public' => [
+        'public' => array_filter([
             'driver' => env('PUBLIC_FILESYSTEM_DRIVER', 'local'),
-            'root' => env('PUBLIC_FILESYSTEM_ROOT', env('PUBLIC_FILESYSTEM_DRIVER', 'local') === 's3' ? '' : storage_path('app/public')),
+            'root' => env('PUBLIC_FILESYSTEM_DRIVER', 'local') === 's3' ? null : storage_path('app/public'),
             'url' => env('PUBLIC_FILESYSTEM_URL', rtrim(env('APP_URL', 'http://localhost'), '/').'/storage'),
             'visibility' => env('PUBLIC_FILESYSTEM_DRIVER', 'local') === 's3' ? null : 'public',
             'key' => env('AWS_ACCESS_KEY_ID'),
@@ -51,7 +51,7 @@ return [
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => env('PUBLIC_FILESYSTEM_THROW', false),
             'report' => env('PUBLIC_FILESYSTEM_REPORT', false),
-        ],
+        ], fn ($value) => $value !== null),
 
         's3' => [
             'driver' => 's3',
