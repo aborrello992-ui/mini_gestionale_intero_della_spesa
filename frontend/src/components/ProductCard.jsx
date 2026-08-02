@@ -10,22 +10,22 @@ export default function ProductCard({ product, onTake, onAddToShoppingList }) {
 
   return (
     <article className={`app-card product-card ${current <= 0 ? 'is-empty' : ''}`}>
-      <div className="stack-sm">
+      <div className="product-card-media">
         <div className="product-image" aria-label={product.image_alt || product.name}>
           {product.image_url ? <img src={product.image_url} alt={product.image_alt || product.name} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none' }} /> : <span>{product.name.slice(0, 1)}</span>}
         </div>
-        <div className="split">
+        <div className="product-card-badges">
           <StatusBadge tone="primary">{product.category?.name || 'Categoria'}</StatusBadge>
           <StatusBadge status={level.status}>{level.label}</StatusBadge>
         </div>
       </div>
 
-      <div className="stack-md">
+      <div className="product-card-body">
         <div>
           <h3 className="product-card-title">{product.name}</h3>
           <div className="product-meta">{product.location?.name || 'Locale'} · {product.unit}</div>
         </div>
-        <div className="split">
+        <div className="product-card-metrics">
           <div>
             <div className="small text-muted-app">Prezzo</div>
             <span className="price">{money(product.selling_price_cents)}</span>
@@ -38,7 +38,7 @@ export default function ProductCard({ product, onTake, onAddToShoppingList }) {
         <StockIndicator product={product} />
       </div>
 
-      <div>
+      <div className="product-card-actions">
         <button className="btn btn-primary btn-lg w-100" onClick={() => onTake(product)} disabled={current <= 0}>
           {current <= 0 ? 'Esaurito' : 'Prendi'}
         </button>
