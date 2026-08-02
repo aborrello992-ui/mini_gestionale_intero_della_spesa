@@ -14,7 +14,7 @@ class ProductController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with('category:id,name', 'location:id,name');
+        $query = Product::with('category:id,name', 'location:id,name', 'archivedBy:id,name');
 
         if (! $request->boolean('include_archived')) {
             $query->active();
@@ -23,6 +23,11 @@ class ProductController extends Controller
         $query->when($request->search, fn ($q, $search) => $q->where('name', 'like', "%{$search}%"))
             ->when($request->category_id, fn ($q, $id) => $q->where('category_id', $id))
             ->when($request->location_id, fn ($q, $id) => $q->where('location_id', $id))
+            ->when($request->image_state === 'with', fn ($q) => $q->whereNotNull('image_path')->where('image_path', '!=', ''))
+            ->when($request->image_state === 'without', fn ($q) => $q->where(fn ($sub) => $sub->whereNull('image_path')->orWhere('image_path', '')))
+            ->when($request->state === 'archived', fn ($q) => $q->whereNotNull('archived_at'))
+            ->when($request->state === 'empty', fn ($q) => $q->where('current_quantity', '<=', 0)->whereNull('archived_at'))
+            ->when($request->state === 'active', fn ($q) => $q->where('is_active', true)->whereNull('archived_at'))
             ->when($request->boolean('low_stock'), fn ($q) => $q->whereColumn('current_quantity', '<=', 'minimum_threshold'));
 
         return $query->orderBy('name')->paginate($request->integer('per_page', 20));
@@ -42,7 +47,7 @@ class ProductController extends Controller
 
     public function show(Product $product)
     {
-        return $product->load('category:id,name', 'location:id,name');
+        return $product->load('category:id,name', 'location:id,name', 'archivedBy:id,name', 'movements.user:id,name');
     }
 
     public function update(Request $request, Product $product)
@@ -57,18 +62,60 @@ class ProductController extends Controller
         return ['data' => $product->fresh()->load('category:id,name', 'location:id,name'), 'warning' => $warning];
     }
 
-    public function destroy(Product $product)
+    public function destroy(Product $product, Request $request)
     {
-        $product->update(['is_active' => false, 'archived_at' => now()]);
+        $data = $request->validate(['archive_reason' => ['nullable', 'string', 'max:255']]);
+        $product->update([
+            'is_active' => false,
+            'archived_at' => now(),
+            'archived_by' => $request->user()->id,
+            'archive_reason' => $data['archive_reason'] ?? null,
+        ]);
 
         return response()->noContent();
     }
 
     public function restore(Product $product)
     {
-        $product->update(['is_active' => true, 'archived_at' => null]);
+        $product->update(['is_active' => true, 'archived_at' => null, 'archived_by' => null, 'archive_reason' => null]);
 
         return $product;
+    }
+
+    public function image(Request $request, Product $product)
+    {
+        $data = $request->validate([
+            'image' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'image_alt' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $this->storeImage($request, $data, $product);
+        $product->update(['image_path' => $data['image_path'], 'image_alt' => $data['image_alt'] ?? $product->name]);
+
+        return $product->fresh()->load('category:id,name', 'location:id,name');
+    }
+
+    public function removeImage(Product $product)
+    {
+        if ($product->image_path) {
+            Storage::disk('public')->delete($product->image_path);
+        }
+        $product->update(['image_path' => null, 'image_alt' => $product->name]);
+
+        return $product->fresh()->load('category:id,name', 'location:id,name');
+    }
+
+    public function quickUpdate(Request $request, Product $product)
+    {
+        $data = $request->validate([
+            'selling_price' => ['nullable', 'numeric', 'min:0'],
+            'current_quantity' => ['nullable', 'numeric', 'min:0'],
+            'minimum_threshold' => ['nullable', 'numeric', 'min:0'],
+        ]);
+        $this->normalizePrices($data);
+        $product->update($data);
+
+        return $product->fresh()->load('category:id,name', 'location:id,name');
     }
 
     private function validated(Request $request, ?Product $product = null): array

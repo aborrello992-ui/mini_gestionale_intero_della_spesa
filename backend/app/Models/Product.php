@@ -8,12 +8,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'category_id', 'location_id', 'name', 'normalized_name', 'description', 'unit',
     'image_path', 'image_alt', 'current_quantity', 'minimum_threshold',
     'stock_reference_quantity', 'selling_price_cents', 'average_price_cents',
-    'last_purchase_price_cents', 'is_active', 'archived_at',
+    'last_purchase_price_cents', 'is_active', 'archived_at', 'archived_by', 'archive_reason',
 ])]
 class Product extends Model
 {
@@ -54,6 +55,11 @@ class Product extends Model
         return $this->hasMany(InventoryMovement::class);
     }
 
+    public function archivedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'archived_by');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true)->whereNull('archived_at');
@@ -61,6 +67,6 @@ class Product extends Model
 
     public function getImageUrlAttribute(): ?string
     {
-        return $this->image_path ? url('storage/'.$this->image_path) : null;
+        return $this->image_path ? Storage::disk('public')->url($this->image_path) : null;
     }
 }

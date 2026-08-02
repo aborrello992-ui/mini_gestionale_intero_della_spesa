@@ -82,7 +82,7 @@ class RealLocaleDataSeeder extends Seeder
             ['Ghiacciolo', ['Ghiaccioli'], 'Gelati', 18, 50],
             ['Mini cono', ['Mini coni'], 'Gelati', 14, 60],
             ['Gelato Luke', ['Gelati Luke'], 'Gelati', 3, 60],
-            ['Croccante sandwich', [], 'Gelati', 7, 100],
+            ['Gelato croccante alla gianduia', ['Croccante sandwich', 'Gelato croccante janduia'], 'Gelati', 7, 100],
             ['Mini stecchino', ['Mini stecchini'], 'Gelati', 9, 60],
             ['Cucciolone', [], 'Gelati', 1, 100],
             ['Gelato al pistacchio', [], 'Gelati', 1, 100],

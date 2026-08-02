@@ -11,7 +11,7 @@ export const dateTime = (value) => {
 
 export const errorMessage = (error) => {
   console.error('API error', error)
-  if (!error?.response) return 'Backend non raggiungibile. Verifica che Laravel sia avviato su http://localhost:8000.'
+  if (!error?.response) return 'Backend non raggiungibile. Verifica che il servizio Laravel sia attivo.'
   if (error.response.status === 401) return 'Sessione scaduta o non autorizzata. Accedi di nuovo.'
   if (error.response.status === 419) return 'Sessione scaduta. Ricarica la pagina e riprova.'
   if (error.response.status === 422) return error.response.data?.message || Object.values(error.response.data?.errors || {})?.[0]?.[0] || 'Dati non validi.'

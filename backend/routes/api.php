@@ -14,18 +14,19 @@ use App\Http\Controllers\Api\ManagementController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\PurchaseController;
+use App\Http\Controllers\Api\ReceiptController;
 use App\Http\Controllers\Api\ShoppingListController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\WithdrawalController;
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/guest', [AuthController::class, 'guest']);
+Route::get('/members', [MemberController::class, 'index']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::get('/dashboard', DashboardController::class);
-    Route::get('/members', [MemberController::class, 'index']);
     Route::get('/products/low-stock', [InventoryController::class, 'lowStock']);
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{product}', [ProductController::class, 'show']);
@@ -47,6 +48,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('admin')->group(function () {
         Route::post('/products', [ProductController::class, 'store']);
         Route::put('/products/{product}', [ProductController::class, 'update']);
+        Route::patch('/products/{product}/quick', [ProductController::class, 'quickUpdate']);
+        Route::post('/products/{product}/image', [ProductController::class, 'image']);
+        Route::delete('/products/{product}/image', [ProductController::class, 'removeImage']);
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);
         Route::post('/products/{product}/restore', [ProductController::class, 'restore']);
         Route::post('/categories', [CategoryController::class, 'store']);
@@ -55,6 +59,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/locations/{location}', [LocationController::class, 'update']);
         Route::post('/management/movements', [ManagementController::class, 'store']);
         Route::post('/shopping-list/restock-sessions', [ShoppingListController::class, 'registerRestock']);
+        Route::get('/receipts', [ReceiptController::class, 'index']);
+        Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);
         Route::post('/debts/{member}/payments', [DebtController::class, 'pay']);
         Route::get('/purchases', [PurchaseController::class, 'index']);
         Route::post('/purchases', [PurchaseController::class, 'store']);

@@ -12,31 +12,36 @@ import ProductsPage from './pages/ProductsPage'
 import ManagementPage from './pages/ManagementPage'
 import ShoppingListPage from './pages/ShoppingListPage'
 import UsersPage from './pages/UsersPage'
+import ErrorBoundary from './components/feedback/ErrorBoundary'
+import AdminProductsPage from './pages/AdminProductsPage'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/admin/login" element={<LoginPage />} />
-        <Route path="/guest" element={<GuestPage />} />
-        <Route element={<ProtectedRoute />}>
-          <Route element={<AppLayout />}>
-            <Route index element={<ProductsPage />} />
-            <Route path="products" element={<ProductsPage />} />
-            <Route path="products/new" element={<ProductFormPage />} />
-            <Route path="debts" element={<DebtsPage />} />
-            <Route path="shopping-list" element={<ShoppingListPage />} />
-            <Route path="cash" element={<CashPage />} />
-            <Route path="movements" element={<HistoryPage />} />
-            <Route element={<AdminRoute />}>
-              <Route path="admin/users" element={<UsersPage />} />
-              <Route path="admin/management" element={<ManagementPage />} />
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/admin/login" element={<LoginPage />} />
+          <Route path="/guest" element={<GuestPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
+              <Route index element={<ProductsPage />} />
+              <Route path="products" element={<ProductsPage />} />
+              <Route path="products/new" element={<ProductFormPage />} />
+              <Route path="debts" element={<DebtsPage />} />
+              <Route path="shopping-list" element={<ShoppingListPage />} />
+              <Route path="cash" element={<CashPage />} />
+              <Route path="movements" element={<HistoryPage />} />
+              <Route element={<AdminRoute />}>
+                <Route path="admin/users" element={<UsersPage />} />
+                <Route path="admin/management" element={<ManagementPage />} />
+                <Route path="admin/products" element={<AdminProductsPage />} />
+              </Route>
             </Route>
           </Route>
-        </Route>
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </BrowserRouter>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }

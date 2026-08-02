@@ -43,20 +43,20 @@ class LocaleManagementTest extends TestCase
 
     public function test_login_correct(): void
     {
-        $user = User::factory()->create(['email' => 'login@locale.test', 'password' => Hash::make('password')]);
+        $user = User::factory()->create(['email' => 'login@locale.test', 'pin_hash' => '123']);
 
-        $this->postJson('/api/login', ['email' => $user->email, 'password' => 'password'])
+        $this->postJson('/api/login', ['member_id' => $user->id, 'pin' => '123'])
             ->assertOk()
             ->assertJsonStructure(['token', 'user']);
     }
 
     public function test_inactive_user_cannot_login(): void
     {
-        $user = User::factory()->create(['is_active' => false, 'password' => Hash::make('password')]);
+        $user = User::factory()->create(['is_active' => false, 'pin_hash' => '123']);
 
-        $this->postJson('/api/login', ['email' => $user->email, 'password' => 'password'])
+        $this->postJson('/api/login', ['member_id' => $user->id, 'pin' => '123'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('email');
+            ->assertJsonValidationErrors('member_id');
     }
 
     public function test_member_cannot_access_admin_routes(): void

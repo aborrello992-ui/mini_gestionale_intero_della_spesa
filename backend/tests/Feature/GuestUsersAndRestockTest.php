@@ -90,13 +90,13 @@ class GuestUsersAndRestockTest extends TestCase
         Sanctum::actingAs($admin);
 
         $this->postJson('/api/management/movements', [
-            'type' => 'accredito',
+            'type' => 'spesa_generica',
             'direction' => 'entrata',
             'amount' => '10.00',
             'movement_date' => now()->toDateString(),
             'movement_time' => now()->format('H:i'),
         ])->assertCreated();
 
-        $this->assertDatabaseHas('cash_movements', ['category' => 'gestione', 'description' => 'Accredito', 'amount_cents' => 1000]);
+        $this->assertDatabaseHas('cash_movements', ['category' => 'spesa_generica', 'description' => 'Spesa generica', 'amount_cents' => 1000]);
     }
 }

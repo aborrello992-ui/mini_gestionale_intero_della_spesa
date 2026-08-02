@@ -23,7 +23,12 @@ class WithdrawalController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $member = User::where('role', User::ROLE_MEMBER)->whereKey($data['member_id'])->firstOrFail();
+        $member = User::query()
+            ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_MEMBER])
+            ->where('is_active', true)
+            ->where('can_consume', true)
+            ->whereKey($data['member_id'])
+            ->firstOrFail();
         $pinService->verify($member, $data['pin'], $request->ip() ?: 'local');
 
         try {

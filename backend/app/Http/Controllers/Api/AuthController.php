@@ -4,31 +4,33 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\PinService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
+    public function login(Request $request, PinService $pinService)
     {
         $data = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
+            'member_id' => ['required', 'exists:users,id'],
+            'pin' => ['required', 'regex:/^\d{3}$/'],
         ]);
 
-        $user = User::where('email', $data['email'])->first();
+        $user = User::findOrFail($data['member_id']);
 
-        if (! $user || ! Hash::check($data['password'], $user->password)) {
-            throw ValidationException::withMessages(['email' => 'Credenziali non valide.']);
+        if (! $user->is_active || ! $user->can_consume) {
+            throw ValidationException::withMessages(['member_id' => 'Membro non attivo.']);
         }
 
-        if (! $user->is_active) {
-            throw ValidationException::withMessages(['email' => 'Account disattivato.']);
+        if (! in_array($user->role, [User::ROLE_ADMIN, User::ROLE_MEMBER], true)) {
+            throw ValidationException::withMessages(['member_id' => 'Questo utente non può accedere da qui.']);
         }
+
+        $pinService->verify($user, $data['pin'], $request->ip() ?: 'local');
 
         return [
-            'token' => $user->createToken('locale-web')->plainTextToken,
+            'token' => $user->createToken($user->isAdmin() ? 'admin-pin-session' : 'member-pin-session')->plainTextToken,
             'user' => $user,
         ];
     }

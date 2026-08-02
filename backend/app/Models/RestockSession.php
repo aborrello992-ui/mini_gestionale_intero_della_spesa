@@ -5,9 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'total_cents', 'purchased_at', 'purchased_time', 'status', 'note'])]
+#[Fillable(['user_id', 'total_cents', 'difference_cents', 'difference_reason', 'purchased_at', 'purchased_time', 'receipt_image_path', 'status', 'note'])]
 class RestockSession extends Model
 {
     use HasFactory;
@@ -20,5 +21,10 @@ class RestockSession extends Model
     public function items(): HasMany
     {
         return $this->hasMany(RestockSessionItem::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

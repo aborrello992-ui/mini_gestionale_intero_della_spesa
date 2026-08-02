@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['product_id', 'user_id', 'suggested_quantity', 'estimated_price_cents', 'priority', 'note', 'status', 'completed_at', 'restock_session_id'])]
+#[Fillable(['product_id', 'user_id', 'suggested_quantity', 'purchased_quantity', 'estimated_price_cents', 'priority', 'note', 'status', 'completed_at', 'restock_session_id'])]
 class ShoppingListItem extends Model
 {
     use HasFactory;

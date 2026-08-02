@@ -27,4 +27,22 @@ class PinService
 
         Cache::forget($key);
     }
+
+    public function ensureUniqueForActiveConsumer(string $pin, ?int $ignoreUserId = null): void
+    {
+        if (! preg_match('/^\d{3}$/', $pin)) {
+            throw ValidationException::withMessages(['pin' => 'Il PIN deve contenere esattamente tre cifre.']);
+        }
+
+        $duplicate = User::query()
+            ->where('is_active', true)
+            ->where('can_consume', true)
+            ->when($ignoreUserId, fn ($query) => $query->whereKeyNot($ignoreUserId))
+            ->get(['id', 'pin_hash'])
+            ->contains(fn (User $user) => $user->pin_hash && Hash::check($pin, $user->pin_hash));
+
+        if ($duplicate) {
+            throw ValidationException::withMessages(['pin' => 'Questo PIN è già assegnato a un altro membro attivo.']);
+        }
+    }
 }

@@ -106,6 +106,7 @@ class CardWithdrawalAndDebtTest extends TestCase
         $this->postJson('/api/management/movements', [
             'type' => 'accredito',
             'direction' => 'entrata',
+            'member_id' => $this->member->id,
             'amount' => '10.00',
             'description' => 'Accredito demo',
             'movement_date' => now()->toDateString(),

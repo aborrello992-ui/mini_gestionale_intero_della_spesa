@@ -25,8 +25,11 @@ class RestockSessionService
             $session = RestockSession::create([
                 'user_id' => $admin->id,
                 'total_cents' => $totalCents,
+                'difference_cents' => $this->lineItemsDifferenceCents($data['items'], $totalCents),
+                'difference_reason' => $data['difference_reason'] ?? null,
                 'purchased_at' => $data['purchased_at'],
                 'purchased_time' => $data['purchased_time'],
+                'receipt_image_path' => $data['receipt_image_path'] ?? null,
                 'note' => $data['note'] ?? null,
             ]);
 
@@ -46,26 +49,41 @@ class RestockSessionService
                     ? Product::query()->whereKey($item['product_id'])->lockForUpdate()->firstOrFail()
                     : $this->createProductFromItem($item);
 
-                $quantity = (float) $item['quantity'];
+                $quantity = isset($item['quantity']) && (float) $item['quantity'] > 0
+                    ? (float) $item['quantity']
+                    : (float) ($item['package_count'] ?? 0) * (float) ($item['pieces_per_package'] ?? 0);
                 if ($quantity <= 0) {
                     throw new RuntimeException('La quantita acquistata deve essere maggiore di zero.');
                 }
 
                 $previous = (float) $product->current_quantity;
                 $resulting = $previous + $quantity;
+                $lineCostCents = ! blank($item['cost_amount'] ?? null) ? $this->cashService->toCents($item['cost_amount']) : null;
+                $unitCostCents = $lineCostCents ? (int) round($lineCostCents / $quantity) : null;
+                $previousAverage = (int) ($product->average_price_cents ?? 0);
+                $newAverage = $unitCostCents ? $this->weightedAverageCost($previous, $previousAverage, $quantity, $unitCostCents) : $previousAverage;
 
                 $updates = ['current_quantity' => $resulting];
                 if (! blank($item['selling_price'] ?? null)) {
                     $updates['selling_price_cents'] = $this->cashService->toCents($item['selling_price']);
+                }
+                if ($unitCostCents) {
+                    $updates['last_purchase_price_cents'] = $unitCostCents;
+                    $updates['average_price_cents'] = $newAverage;
                 }
                 $product->update($updates);
 
                 $sessionItem = $session->items()->create([
                     'product_id' => $product->id,
                     'shopping_list_item_id' => $item['shopping_list_item_id'] ?? null,
+                    'package_count' => $item['package_count'] ?? null,
+                    'pieces_per_package' => $item['pieces_per_package'] ?? null,
                     'quantity' => $quantity,
                     'selling_price_cents' => $updates['selling_price_cents'] ?? null,
-                    'cost_cents' => ! blank($item['cost_amount'] ?? null) ? $this->cashService->toCents($item['cost_amount']) : null,
+                    'cost_cents' => $lineCostCents,
+                    'unit_cost_cents' => $unitCostCents,
+                    'previous_average_cost_cents' => $previousAverage,
+                    'new_average_cost_cents' => $newAverage,
                 ]);
 
                 InventoryMovement::create([
@@ -82,6 +100,7 @@ class RestockSessionService
                 if (! empty($item['shopping_list_item_id'])) {
                     ShoppingListItem::whereKey($item['shopping_list_item_id'])->update([
                         'status' => 'acquistato',
+                        'purchased_quantity' => $quantity,
                         'completed_at' => now(),
                         'restock_session_id' => $session->id,
                     ]);
@@ -108,7 +127,24 @@ class RestockSessionService
             'minimum_threshold' => $item['minimum_threshold'] ?? 1,
             'stock_reference_quantity' => max((float) ($item['quantity'] ?? 1), 10),
             'selling_price_cents' => $this->cashService->toCents($item['selling_price']),
+            'image_path' => isset($item['image']) ? $item['image']->store('products', 'public') : null,
             'image_alt' => $item['name'],
         ]);
+    }
+
+    private function weightedAverageCost(float $previousQuantity, int $previousAverageCents, float $newQuantity, int $newUnitCostCents): int
+    {
+        if ($previousQuantity <= 0 || $previousAverageCents <= 0) {
+            return $newUnitCostCents;
+        }
+
+        return (int) round((($previousQuantity * $previousAverageCents) + ($newQuantity * $newUnitCostCents)) / ($previousQuantity + $newQuantity));
+    }
+
+    private function lineItemsDifferenceCents(array $items, int $totalCents): int
+    {
+        $lineTotal = collect($items)->sum(fn (array $item) => blank($item['cost_amount'] ?? null) ? 0 : $this->cashService->toCents($item['cost_amount']));
+
+        return $totalCents - $lineTotal;
     }
 }

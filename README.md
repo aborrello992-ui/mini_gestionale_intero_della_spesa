@@ -55,11 +55,12 @@ cp .env.example .env
 composer install
 php artisan key:generate
 touch database/database.sqlite
-php artisan migrate:fresh --seed
+php artisan migrate
+php artisan db:seed --class=RealLocaleDataSeeder
 php artisan serve
 ```
 
-Non eseguire `php artisan migrate:fresh --seed` su un database che contiene dati reali da conservare: cancella e ricrea tutte le tabelle. In quel caso usa `php artisan migrate` e poi `php artisan db:seed` solo se devi reinserire seed controllati.
+Non usare `php artisan migrate:fresh --seed`, `db:wipe` o comandi equivalenti su un database che contiene dati reali da conservare. Usa solo `php artisan migrate` e seeder idempotenti controllati.
 
 Il backend sara disponibile su `http://localhost:8000`.
 

@@ -1,0 +1,45 @@
+.text-muted-app {
+  color: var(--color-muted);
+}
+
+.text-subtle {
+  color: var(--color-subtle);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.stack-sm {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.stack-md {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.cluster {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.min-0 {
+  min-width: 0;
+}
+
+.quick-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
