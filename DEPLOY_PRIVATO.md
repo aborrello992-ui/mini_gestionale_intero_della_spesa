@@ -71,10 +71,17 @@ CACHE_STORE=database
 QUEUE_CONNECTION=database
 ```
 
-Dopo il primo deploy eseguire solo migrazioni non distruttive:
+Sul piano Free, se Shell/Pre-Deploy Command non sono disponibili, usare le variabili Docker controllate dall'entrypoint:
 
-```bash
-php artisan migrate --force
+```env
+RUN_MIGRATIONS=true
+RUN_REAL_DATA_SEEDER=false
+```
+
+Questo esegue solo migrazioni non distruttive (`php artisan migrate --force`) prima dell'avvio. Dopo aver verificato le migrazioni, il seeder reale si abilita temporaneamente con:
+
+```env
+RUN_REAL_DATA_SEEDER=true
 ```
 
 Per importare dati reali usare seeder idempotenti dedicati, mai `migrate:fresh`.

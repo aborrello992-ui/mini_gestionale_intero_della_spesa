@@ -18,9 +18,11 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction --no-script
 
 COPY . .
 
-RUN composer dump-autoload --optimize \
+RUN chmod +x docker-entrypoint.sh \
+    && composer dump-autoload --optimize \
     && php artisan package:discover --ansi
 
 EXPOSE 10000
 
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-10000}
+ENTRYPOINT ["./docker-entrypoint.sh"]
+CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-10000}"]
