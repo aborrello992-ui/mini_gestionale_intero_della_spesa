@@ -49,8 +49,8 @@ return [
             'bucket' => env('AWS_BUCKET'),
             'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
-            'throw' => false,
-            'report' => false,
+            'throw' => env('PUBLIC_FILESYSTEM_THROW', false),
+            'report' => env('PUBLIC_FILESYSTEM_REPORT', false),
         ],
 
         's3' => [

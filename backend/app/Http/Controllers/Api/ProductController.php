@@ -159,7 +159,15 @@ class ProductController extends Controller
             Storage::disk('public')->delete($product->image_path);
         }
 
-        $data['image_path'] = $request->file('image')->store('products', 'public');
+        $path = $request->file('image')->store('products', 'public');
+
+        if (! is_string($path) || $path === '') {
+            throw ValidationException::withMessages([
+                "image" => "Impossibile salvare l'immagine nello storage configurato.",
+            ]);
+        }
+
+        $data['image_path'] = $path;
         $data['image_alt'] = $data['image_alt'] ?? $data['name'];
     }
 
