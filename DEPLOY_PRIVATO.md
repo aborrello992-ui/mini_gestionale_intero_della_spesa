@@ -46,11 +46,15 @@ Le immagini locali in `product-images/` vanno preservate e caricate/importate so
 
 ## 3. Render per Laravel
 
-Creare un Web Service collegato alla repository. Configurazione consigliata:
+Creare un Web Service collegato alla repository. Se il runtime PHP non e disponibile nel menu, usare Docker. Configurazione consigliata:
 
+- Language: `Docker`
+- Branch: `main`
 - Root directory: `backend`
-- Build command: `composer install --no-dev --optimize-autoloader && php artisan config:cache && php artisan route:cache`
-- Start command: `php artisan serve --host 0.0.0.0 --port $PORT`
+- Dockerfile path: `Dockerfile`
+- Docker command: lasciare vuoto, usa il `CMD` del Dockerfile
+
+Il container avvia Laravel con `php artisan serve --host=0.0.0.0 --port=$PORT`.
 
 Variabili base:
 
