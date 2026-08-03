@@ -17,6 +17,8 @@ export default function DebtsPage() {
   const [debtors, setDebtors] = useState(null)
   const [detail, setDetail] = useState(null)
   const [amount, setAmount] = useState('')
+  const [paymentForms, setPaymentForms] = useState({})
+  const [payingMemberId, setPayingMemberId] = useState(null)
   const [message, setMessage] = useState('')
 
   async function load() {
@@ -30,14 +32,32 @@ export default function DebtsPage() {
 
   async function pay(event) {
     event.preventDefault()
+    if (payingMemberId) return
     setMessage('')
+    setPayingMemberId(detail.member.id)
     try {
       await api.post(`/debts/${detail.member.id}/payments`, { amount })
       setMessage('Pagamento registrato.')
       setAmount('')
       await open(detail.member)
       await load()
-    } catch (err) { setMessage(errorMessage(err)) }
+    } catch (err) { setMessage(errorMessage(err)) } finally { setPayingMemberId(null) }
+  }
+
+  async function payFromCard(event, member) {
+    event.preventDefault()
+    event.stopPropagation()
+    if (payingMemberId) return
+    const cardAmount = paymentForms[member.id] || ''
+    setMessage('')
+    setPayingMemberId(member.id)
+    try {
+      await api.post(`/debts/${member.id}/payments`, { amount: cardAmount })
+      setMessage('Pagamento registrato.')
+      setPaymentForms({ ...paymentForms, [member.id]: '' })
+      if (detail?.member?.id === member.id) await open(member)
+      await load()
+    } catch (err) { setMessage(errorMessage(err)) } finally { setPayingMemberId(null) }
   }
 
   if (!debtors) return <Loading />
@@ -55,7 +75,7 @@ export default function DebtsPage() {
       </div>
       <div className="card-grid">
         {debtors.map((member) => (
-          <button className="app-card debtor-card stack-md" key={member.id} onClick={() => open(member)}>
+          <article className="app-card debtor-card stack-md" key={member.id}>
             <div className="split">
               <div className="cluster">
                 <UserAvatar name={member.name} />
@@ -65,8 +85,16 @@ export default function DebtsPage() {
             </div>
             <strong className="metric-value num">{money(member.open_debt_cents)}</strong>
             <div className="small text-muted-app">Ultimo movimento: {dateTime(member.last_debt_at)}</div>
-            <span className="btn btn-outline-primary w-100">Vedi dettaglio</span>
-          </button>
+            {isAdmin && <form className="stack-sm" onSubmit={(event) => payFromCard(event, member)}>
+              <FormField label="Importo pagato" help={`Massimo ${money(member.open_debt_cents)}`}>
+                <input className="form-control" type="number" step="0.01" min="0.01" max={member.open_debt_cents / 100} value={paymentForms[member.id] || ''} onChange={(e) => setPaymentForms({ ...paymentForms, [member.id]: e.target.value })} />
+              </FormField>
+              <button className="btn btn-primary w-100" disabled={payingMemberId === member.id}>
+                {payingMemberId === member.id ? 'Registrazione...' : 'Registra pagamento'}
+              </button>
+            </form>}
+            <button type="button" className="btn btn-outline-primary w-100" onClick={() => open(member)}>Vedi dettaglio</button>
+          </article>
         ))}
       </div>
       {!debtors.length && <EmptyState title="Nessun debito aperto" message="Tutti hanno saldato. Bella schermata da vedere vuota." />}
@@ -92,7 +120,7 @@ export default function DebtsPage() {
           <FormField label="Importo saldato" help={`Massimo ${money(detail.remaining_cents)}`}>
             <input className="form-control" type="number" step="0.01" min="0.01" max={detail.remaining_cents / 100} value={amount} onChange={(e) => setAmount(e.target.value)} />
           </FormField>
-          <button className="btn btn-primary">Registra pagamento</button>
+          <button className="btn btn-primary" disabled={payingMemberId === detail.member.id}>{payingMemberId === detail.member.id ? 'Registrazione...' : 'Registra pagamento'}</button>
         </form>}
       </div>}
     </section>

@@ -84,6 +84,7 @@ class ShoppingListController extends Controller
             'items.*.quantity' => ['nullable', 'numeric', 'min:0.001'],
             'items.*.minimum_threshold' => ['nullable', 'numeric', 'min:0'],
             'items.*.selling_price' => ['nullable', 'numeric', 'min:0'],
+            'items.*.unit_cost' => ['nullable', 'numeric', 'min:0'],
             'items.*.cost_amount' => ['nullable', 'numeric', 'min:0'],
             'items.*.location' => ['nullable', 'string', 'max:255'],
             'items.*.image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],

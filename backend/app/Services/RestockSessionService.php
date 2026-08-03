@@ -58,8 +58,8 @@ class RestockSessionService
 
                 $previous = (float) $product->current_quantity;
                 $resulting = $previous + $quantity;
-                $lineCostCents = ! blank($item['cost_amount'] ?? null) ? $this->cashService->toCents($item['cost_amount']) : null;
-                $unitCostCents = $lineCostCents ? (int) round($lineCostCents / $quantity) : null;
+                $unitCostCents = $this->unitCostCents($item);
+                $lineCostCents = $unitCostCents ? (int) round($quantity * $unitCostCents) : null;
                 $previousAverage = (int) ($product->average_price_cents ?? 0);
                 $newAverage = $unitCostCents ? $this->weightedAverageCost($previous, $previousAverage, $quantity, $unitCostCents) : $previousAverage;
 
@@ -111,6 +111,13 @@ class RestockSessionService
         });
     }
 
+    private function unitCostCents(array $item): ?int
+    {
+        $value = $item['unit_cost'] ?? $item['cost_amount'] ?? null;
+
+        return blank($value) ? null : $this->cashService->toCents($value);
+    }
+
     private function createProductFromItem(array $item): Product
     {
         $category = Category::firstOrCreate(['name' => $item['category'] ?? 'Altro']);
@@ -143,7 +150,14 @@ class RestockSessionService
 
     private function lineItemsDifferenceCents(array $items, int $totalCents): int
     {
-        $lineTotal = collect($items)->sum(fn (array $item) => blank($item['cost_amount'] ?? null) ? 0 : $this->cashService->toCents($item['cost_amount']));
+        $lineTotal = collect($items)->sum(function (array $item) {
+            $quantity = isset($item['quantity']) && (float) $item['quantity'] > 0
+                ? (float) $item['quantity']
+                : (float) ($item['package_count'] ?? 0) * (float) ($item['pieces_per_package'] ?? 0);
+            $unitCost = $this->unitCostCents($item);
+
+            return $quantity > 0 && $unitCost ? (int) round($quantity * $unitCost) : 0;
+        });
 
         return $totalCents - $lineTotal;
     }

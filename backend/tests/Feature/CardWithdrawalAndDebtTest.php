@@ -89,6 +89,38 @@ class CardWithdrawalAndDebtTest extends TestCase
         $this->getJson('/api/cash/balance')->assertJsonPath('balance_cents', 300);
     }
 
+    public function test_invalid_debt_payment_amounts_are_rejected_and_member_cannot_pay(): void
+    {
+        Sanctum::actingAs($this->device);
+        $this->postJson('/api/withdrawals', $this->payload(['payment_status' => 'coppone', 'quantity' => 2]))->assertCreated();
+
+        Sanctum::actingAs($this->admin);
+        $this->postJson("/api/debts/{$this->member->id}/payments", ['amount' => '0'])->assertUnprocessable();
+        $this->postJson("/api/debts/{$this->member->id}/payments", ['amount' => '99.00'])->assertUnprocessable();
+        $this->assertDatabaseHas('member_debts', ['paid_amount_cents' => 0, 'remaining_amount_cents' => 300, 'status' => 'open']);
+        $this->assertDatabaseCount('cash_movements', 0);
+
+        Sanctum::actingAs($this->member);
+        $this->postJson("/api/debts/{$this->member->id}/payments", ['amount' => '1.00'])->assertForbidden();
+    }
+
+    public function test_debt_payment_cash_movement_is_linked_to_member(): void
+    {
+        Sanctum::actingAs($this->device);
+        $this->postJson('/api/withdrawals', $this->payload(['payment_status' => 'coppone', 'quantity' => 2]))->assertCreated();
+
+        Sanctum::actingAs($this->admin);
+        $this->postJson("/api/debts/{$this->member->id}/payments", ['amount' => '3.00'])->assertCreated();
+
+        $this->assertDatabaseHas('cash_movements', [
+            'direction' => 'entrata',
+            'amount_cents' => 300,
+            'type' => 'pagamento_debito',
+            'member_id' => $this->member->id,
+            'user_id' => $this->admin->id,
+        ]);
+    }
+
     public function test_debts_page_only_lists_members_with_open_debts(): void
     {
         Sanctum::actingAs($this->device);
