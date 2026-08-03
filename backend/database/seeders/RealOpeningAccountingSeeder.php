@@ -15,8 +15,8 @@ class RealOpeningAccountingSeeder extends Seeder
 
         CashMovement::create([
             'user_id' => $admin->id,
-            'amount_cents' => 2240,
-            'resulting_balance_cents' => 2240,
+            'amount_cents' => 2130,
+            'resulting_balance_cents' => 2130,
             'direction' => 'entrata',
             'type' => 'saldo_iniziale',
             'category' => 'apertura',

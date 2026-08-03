@@ -32,7 +32,7 @@ class RealInitialDataTest extends TestCase
         $this->assertSame('5.000', Product::where('name', 'Tè alla pesca')->firstOrFail()->current_quantity);
 
         $counters = app(CashService::class)->counters();
-        $this->assertSame(2240, $counters['balance_cents']);
+        $this->assertSame(2130, $counters['balance_cents']);
         $this->assertSame(6430, $counters['open_coppone_cents']);
         $this->assertSame(10820, $counters['inventory_potential_cents']);
 

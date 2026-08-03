@@ -134,8 +134,8 @@ class RealLocaleDataSeeder extends Seeder
     {
         $payload = [
                 'user_id' => $admin->id,
-                'amount_cents' => 2240,
-                'resulting_balance_cents' => 2240,
+                'amount_cents' => 2130,
+                'resulting_balance_cents' => 2130,
                 'direction' => 'entrata',
                 'type' => 'saldo_iniziale',
                 'category' => 'apertura',
@@ -152,7 +152,7 @@ class RealLocaleDataSeeder extends Seeder
             'opening_cash_balance_2026_07_29',
             fn () => CashMovement::whereNull('restoration_key')
                 ->where('type', 'saldo_iniziale')
-                ->where('amount_cents', 2240)
+                ->whereIn('amount_cents', [2240, 2130])
                 ->where('direction', 'entrata')
                 ->first(),
             $payload,
