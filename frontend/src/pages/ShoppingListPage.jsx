@@ -99,9 +99,6 @@ export default function ShoppingListPage() {
   }
 
   const allRows = useMemo(() => [...session.items, ...session.extraProducts, ...session.newProducts], [session.items, session.extraProducts, session.newProducts])
-  const declaredTotalCents = toCents(session.total_amount)
-  const rowsTotalCents = allRows.reduce((sum, row) => sum + lineTotalCents(row), 0)
-  const differenceCents = declaredTotalCents - rowsTotalCents
 
   function restockPayload() {
     const formData = new FormData()
@@ -165,9 +162,8 @@ export default function ShoppingListPage() {
         </div>
 
         <div className="summary-box stack-sm mb-3">
-          <div className="split"><span>Totale righe</span><strong>{money(rowsTotalCents)}</strong></div>
-          <div className="split"><span>Totale dichiarato</span><strong>{money(declaredTotalCents)}</strong></div>
-          <div className="split"><span>Differenza</span><strong className={differenceCents === 0 ? 'text-success' : 'text-danger'}>{money(differenceCents)}</strong></div>
+          <div className="split"><span>Totale ufficiale scontrino</span><strong>{money(toCents(session.total_amount))}</strong></div>
+          <div className="small text-muted-app">Le righe servono per aggiornare magazzino, costi e prezzi. La cassa usa solo il totale ufficiale dello scontrino.</div>
         </div>
 
         {session.items.map((row, index) => {
