@@ -766,12 +766,39 @@
 
 .login-box {
   width: min(100%, 440px);
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.58);
+  color: #ffffff;
+  background: linear-gradient(145deg, rgba(6, 14, 26, 0.28), rgba(6, 14, 26, 0.12));
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
-  box-shadow: 0 28px 90px rgba(2, 10, 21, 0.42);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 28px 90px rgba(2, 10, 21, 0.48);
+  backdrop-filter: blur(14px) saturate(132%);
+}
+
+.login-page .text-muted-app,
+.login-page .form-text {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.login-page .form-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.login-page .btn-outline-secondary {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.58);
+}
+
+.login-page .btn-outline-secondary:hover,
+.login-page .btn-outline-secondary:focus-visible {
+  color: #10232a;
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.login-page .btn-link {
+  color: #ffffff;
 }
 
 .login-brand {
