@@ -121,6 +121,55 @@ class CardWithdrawalAndDebtTest extends TestCase
         ]);
     }
 
+
+    public function test_management_accredito_reduces_open_debt_without_double_cash_entry(): void
+    {
+        Sanctum::actingAs($this->device);
+        $this->postJson('/api/withdrawals', $this->payload(['payment_status' => 'coppone', 'quantity' => 2]))->assertCreated();
+
+        Sanctum::actingAs($this->admin);
+        $this->postJson('/api/management/movements', [
+            'type' => 'accredito',
+            'direction' => 'entrata',
+            'member_id' => $this->member->id,
+            'amount' => '1.00',
+            'reason' => 'Versamento parziale',
+            'movement_date' => now()->toDateString(),
+            'movement_time' => now()->format('H:i'),
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('member_debts', ['paid_amount_cents' => 100, 'remaining_amount_cents' => 200, 'status' => 'open']);
+        $this->assertDatabaseCount('cash_movements', 1);
+        $this->assertDatabaseHas('cash_movements', [
+            'direction' => 'entrata',
+            'amount_cents' => 100,
+            'type' => 'pagamento_debito',
+            'member_id' => $this->member->id,
+        ]);
+    }
+
+    public function test_management_accredito_over_debt_keeps_residual_as_normal_accredito(): void
+    {
+        Sanctum::actingAs($this->device);
+        $this->postJson('/api/withdrawals', $this->payload(['payment_status' => 'coppone', 'quantity' => 2]))->assertCreated();
+
+        Sanctum::actingAs($this->admin);
+        $this->postJson('/api/management/movements', [
+            'type' => 'accredito',
+            'direction' => 'entrata',
+            'member_id' => $this->member->id,
+            'amount' => '5.00',
+            'reason' => 'Versamento con residuo',
+            'movement_date' => now()->toDateString(),
+            'movement_time' => now()->format('H:i'),
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('member_debts', ['paid_amount_cents' => 300, 'remaining_amount_cents' => 0, 'status' => 'settled']);
+        $this->assertDatabaseCount('cash_movements', 2);
+        $this->assertDatabaseHas('cash_movements', ['type' => 'pagamento_debito', 'amount_cents' => 300, 'member_id' => $this->member->id]);
+        $this->assertDatabaseHas('cash_movements', ['type' => 'accredito', 'amount_cents' => 200, 'member_id' => $this->member->id]);
+    }
+
     public function test_debts_page_only_lists_members_with_open_debts(): void
     {
         Sanctum::actingAs($this->device);

@@ -74,7 +74,7 @@ class DebtService
                 'note' => $note,
             ], $admin);
 
-            DB::table('debt_payments')->whereKey($payment->id)->update(['updated_at' => now()]);
+            DB::table('debt_payments')->where('id', $payment->id)->update(['updated_at' => now()]);
 
             return $payment->fresh()->setAttribute('cash_movement_id', $cash->id);
         });

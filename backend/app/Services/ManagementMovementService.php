@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\InventoryMovement;
+use App\Models\MemberDebt;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -10,11 +11,32 @@ use RuntimeException;
 
 class ManagementMovementService
 {
-    public function __construct(private CashService $cashService) {}
+    public function __construct(private CashService $cashService, private DebtService $debtService) {}
 
     public function create(array $data, User $admin)
     {
         return DB::transaction(function () use ($data, $admin) {
+            if ($this->shouldUseAccreditoForDebt($data)) {
+                $member = User::query()->whereKey($data['member_id'])->firstOrFail();
+                $openDebtCents = (int) MemberDebt::query()
+                    ->where('user_id', $member->id)
+                    ->where('status', 'open')
+                    ->sum('remaining_amount_cents');
+                $amountCents = $this->cashService->toCents($data['amount']);
+                $debtAmountCents = min($amountCents, $openDebtCents);
+
+                if ($debtAmountCents > 0) {
+                    $payment = $this->debtService->pay($member, $admin, $debtAmountCents, $data['reason'] ?? 'Accredito usato per saldare debiti');
+
+                    if ($amountCents === $debtAmountCents) {
+                        return $payment;
+                    }
+
+                    $data['amount'] = ($amountCents - $debtAmountCents) / 100;
+                    $data['description'] = trim(($data['description'] ?? 'Accredito').' - residuo dopo saldo debiti');
+                }
+            }
+
             $cash = $this->cashService->create($data, $admin);
 
             if (! empty($data['product_id']) && ! empty($data['quantity_purchased'])) {
@@ -51,5 +73,12 @@ class ManagementMovementService
 
             return $cash;
         });
+    }
+
+    private function shouldUseAccreditoForDebt(array $data): bool
+    {
+        return ($data['type'] ?? null) === 'accredito'
+            && ($data['direction'] ?? null) === 'entrata'
+            && ! empty($data['member_id']);
     }
 }
