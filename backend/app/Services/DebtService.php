@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CashMovement;
 use App\Models\DebtPayment;
 use App\Models\MemberDebt;
 use App\Models\User;
@@ -19,6 +20,8 @@ class DebtService
         }
 
         return DB::transaction(function () use ($member, $admin, $amountCents, $note) {
+            $this->applyWalletCreditToOpenDebts($member, $admin, 'Credito usato automaticamente per saldare debiti aperti');
+
             $remaining = $amountCents;
             $debts = MemberDebt::query()
                 ->where('user_id', $member->id)
@@ -96,6 +99,99 @@ class DebtService
                 ->setAttribute('cash_movement_id', $cash->id)
                 ->setAttribute('wallet_credit_cents', $creditAmountCents)
                 ->setAttribute('wallet_cash_movement_id', $creditCash?->id);
+        });
+    }
+
+    public function walletCreditCents(User $member): int
+    {
+        $credited = CashMovement::query()
+            ->where('member_id', $member->id)
+            ->where('status', 'active')
+            ->where('type', 'accredito')
+            ->where('direction', 'entrata')
+            ->where('affects_current_balance', true)
+            ->sum('amount_cents');
+
+        $used = CashMovement::query()
+            ->where('member_id', $member->id)
+            ->where('status', 'active')
+            ->where('type', 'utilizzo_accredito')
+            ->where('direction', 'uscita')
+            ->where('affects_current_balance', false)
+            ->sum('amount_cents');
+
+        return max(0, (int) $credited - (int) $used);
+    }
+
+    public function applyWalletCreditToOpenDebts(User $member, User $admin, ?string $note = null): int
+    {
+        return DB::transaction(function () use ($member, $admin, $note) {
+            $availableCredit = $this->walletCreditCents($member);
+            if ($availableCredit <= 0) {
+                return 0;
+            }
+
+            $debts = MemberDebt::query()
+                ->where('user_id', $member->id)
+                ->where('status', 'open')
+                ->orderBy('created_at')
+                ->lockForUpdate()
+                ->get();
+            $amountToApply = min($availableCredit, (int) $debts->sum('remaining_amount_cents'));
+            if ($amountToApply <= 0) {
+                return 0;
+            }
+
+            $payment = DebtPayment::create([
+                'user_id' => $member->id,
+                'admin_user_id' => $admin->id,
+                'amount_cents' => $amountToApply,
+                'paid_at' => now(),
+                'type' => 'wallet_credit',
+                'note' => $note,
+            ]);
+
+            $remaining = $amountToApply;
+            foreach ($debts as $debt) {
+                if ($remaining <= 0) {
+                    break;
+                }
+
+                $applied = min($remaining, $debt->remaining_amount_cents);
+                $debt->paid_amount_cents += $applied;
+                $debt->remaining_amount_cents -= $applied;
+                $debt->status = $debt->remaining_amount_cents === 0 ? 'settled' : 'open';
+                $debt->save();
+
+                DB::table('debt_payment_items')->insert([
+                    'debt_payment_id' => $payment->id,
+                    'member_debt_id' => $debt->id,
+                    'amount_cents' => $applied,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                $remaining -= $applied;
+            }
+
+            $cash = $this->cashService->createFromCents([
+                'amount_cents' => $amountToApply,
+                'direction' => 'uscita',
+                'type' => 'utilizzo_accredito',
+                'category' => 'portafoglio',
+                'description' => "Uso accredito per debito {$member->name}",
+                'movement_date' => now()->toDateString(),
+                'movement_time' => now()->format('H:i:s'),
+                'member_id' => $member->id,
+                'debt_payment_id' => $payment->id,
+                'note' => $note,
+                'affects_current_balance' => false,
+            ], $admin);
+
+            DB::table('debt_payments')->where('id', $payment->id)->update(['updated_at' => now()]);
+            $payment->setAttribute('cash_movement_id', $cash->id);
+
+            return $amountToApply;
         });
     }
 

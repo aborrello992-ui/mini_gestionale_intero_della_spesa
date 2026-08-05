@@ -13,7 +13,7 @@ use RuntimeException;
 
 class WithdrawalService
 {
-    public function __construct(private CashService $cashService) {}
+    public function __construct(private CashService $cashService, private DebtService $debtService) {}
 
     public function take(Product $product, User $member, User $actor, float $quantity, string $paymentStatus, ?string $notes = null): Withdrawal
     {
@@ -88,6 +88,8 @@ class WithdrawalService
                     'remaining_amount_cents' => $total,
                     'notes' => $notes,
                 ]);
+
+                $this->debtService->applyWalletCreditToOpenDebts($member, $actor, 'Credito usato per il nuovo coppone');
             }
 
             return $withdrawal->load('member:id,name,avatar_path', 'product');

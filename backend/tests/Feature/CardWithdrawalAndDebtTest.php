@@ -153,6 +153,23 @@ class CardWithdrawalAndDebtTest extends TestCase
     }
 
 
+    public function test_existing_wallet_credit_is_used_before_showing_new_open_debt(): void
+    {
+        Sanctum::actingAs($this->admin);
+        $this->postJson("/api/debts/{$this->member->id}/payments", ['amount' => '5.00'])->assertCreated();
+
+        Sanctum::actingAs($this->device);
+        $this->postJson('/api/withdrawals', $this->payload(['payment_status' => 'coppone', 'quantity' => 2]))->assertCreated();
+
+        $this->assertDatabaseHas('member_debts', ['paid_amount_cents' => 300, 'remaining_amount_cents' => 0, 'status' => 'settled']);
+        $this->assertDatabaseHas('cash_movements', ['type' => 'utilizzo_accredito', 'amount_cents' => 300, 'member_id' => $this->member->id, 'affects_current_balance' => false]);
+        $this->getJson('/api/debts')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $this->member->id, 'open_debt_cents' => null, 'wallet_credit_cents' => 200]);
+        $this->getJson('/api/cash/balance')->assertJsonPath('balance_cents', 500);
+    }
+
+
     public function test_management_accredito_reduces_open_debt_without_double_cash_entry(): void
     {
         Sanctum::actingAs($this->device);
