@@ -38,6 +38,11 @@ class User extends Authenticatable
         return $this->hasMany(MemberDebt::class, 'user_id');
     }
 
+    public function personalCashMovements(): HasMany
+    {
+        return $this->hasMany(CashMovement::class, 'member_id');
+    }
+
     /**
      * Get the attributes that should be cast.
      *

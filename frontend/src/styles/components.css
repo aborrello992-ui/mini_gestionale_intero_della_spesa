@@ -561,6 +561,32 @@
   box-shadow: var(--shadow-md);
 }
 
+.wallet-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.wallet-summary > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.wallet-summary span {
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.wallet-summary strong {
+  font-size: 1.35rem;
+}
+
 .avatar {
   width: 42px;
   height: 42px;

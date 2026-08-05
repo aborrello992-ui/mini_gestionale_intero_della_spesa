@@ -96,7 +96,6 @@ class CardWithdrawalAndDebtTest extends TestCase
 
         Sanctum::actingAs($this->admin);
         $this->postJson("/api/debts/{$this->member->id}/payments", ['amount' => '0'])->assertUnprocessable();
-        $this->postJson("/api/debts/{$this->member->id}/payments", ['amount' => '99.00'])->assertUnprocessable();
         $this->assertDatabaseHas('member_debts', ['paid_amount_cents' => 0, 'remaining_amount_cents' => 300, 'status' => 'open']);
         $this->assertDatabaseCount('cash_movements', 0);
 
@@ -119,6 +118,38 @@ class CardWithdrawalAndDebtTest extends TestCase
             'member_id' => $this->member->id,
             'user_id' => $this->admin->id,
         ]);
+    }
+
+
+    public function test_debt_overpayment_settles_debt_and_stores_residual_as_wallet_credit(): void
+    {
+        Sanctum::actingAs($this->device);
+        $this->postJson('/api/withdrawals', $this->payload(['payment_status' => 'coppone', 'quantity' => 2]))->assertCreated();
+
+        Sanctum::actingAs($this->admin);
+        $this->postJson("/api/debts/{$this->member->id}/payments", ['amount' => '5.00'])->assertCreated()
+            ->assertJsonPath('amount_cents', 300)
+            ->assertJsonPath('wallet_credit_cents', 200);
+
+        $this->assertDatabaseHas('member_debts', ['paid_amount_cents' => 300, 'remaining_amount_cents' => 0, 'status' => 'settled']);
+        $this->assertDatabaseHas('cash_movements', ['type' => 'pagamento_debito', 'amount_cents' => 300, 'member_id' => $this->member->id]);
+        $this->assertDatabaseHas('cash_movements', ['type' => 'accredito', 'category' => 'portafoglio', 'amount_cents' => 200, 'member_id' => $this->member->id]);
+        $this->getJson('/api/cash/balance')->assertJsonPath('balance_cents', 500);
+    }
+
+    public function test_debt_payment_without_open_debt_creates_wallet_credit(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $this->postJson("/api/debts/{$this->member->id}/payments", ['amount' => '4.00'])->assertCreated()
+            ->assertJsonPath('amount_cents', 0)
+            ->assertJsonPath('wallet_credit_cents', 400);
+
+        $this->assertDatabaseCount('member_debts', 0);
+        $this->assertDatabaseHas('cash_movements', ['type' => 'accredito', 'category' => 'portafoglio', 'amount_cents' => 400, 'member_id' => $this->member->id]);
+        $this->getJson('/api/debts')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $this->member->id, 'wallet_credit_cents' => 400]);
     }
 
 
@@ -170,14 +201,18 @@ class CardWithdrawalAndDebtTest extends TestCase
         $this->assertDatabaseHas('cash_movements', ['type' => 'accredito', 'amount_cents' => 200, 'member_id' => $this->member->id]);
     }
 
-    public function test_debts_page_only_lists_members_with_open_debts(): void
+    public function test_debts_page_lists_active_people_with_debts_and_wallet_credit(): void
     {
         Sanctum::actingAs($this->device);
         $this->postJson('/api/withdrawals', $this->payload(['payment_status' => 'coppone']))->assertCreated();
 
+        Sanctum::actingAs($this->admin);
+        $this->postJson("/api/debts/{$this->admin->id}/payments", ['amount' => '2.50'])->assertCreated();
+
         $this->getJson('/api/debts')
             ->assertOk()
-            ->assertJsonFragment(['name' => $this->member->name]);
+            ->assertJsonFragment(['name' => $this->member->name, 'open_debt_cents' => 150])
+            ->assertJsonFragment(['name' => $this->admin->name, 'wallet_credit_cents' => 250]);
     }
 
     public function test_admin_can_register_generic_expense_and_income(): void

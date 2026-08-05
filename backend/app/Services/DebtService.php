@@ -26,15 +26,27 @@ class DebtService
                 ->orderBy('created_at')
                 ->lockForUpdate()
                 ->get();
+            $openDebtCents = (int) $debts->sum('remaining_amount_cents');
+            $debtAmountCents = min($amountCents, $openDebtCents);
+            $creditAmountCents = $amountCents - $debtAmountCents;
 
-            if ($debts->sum('remaining_amount_cents') < $amountCents) {
-                throw new RuntimeException('Importo superiore al debito residuo.');
+            if ($debtAmountCents <= 0) {
+                $cash = $this->createWalletCredit($member, $admin, $creditAmountCents, $note);
+
+                return DebtPayment::create([
+                    'user_id' => $member->id,
+                    'admin_user_id' => $admin->id,
+                    'amount_cents' => 0,
+                    'paid_at' => now(),
+                    'note' => $note,
+                ])->setAttribute('cash_movement_id', $cash->id)
+                    ->setAttribute('wallet_credit_cents', $creditAmountCents);
             }
 
             $payment = DebtPayment::create([
                 'user_id' => $member->id,
                 'admin_user_id' => $admin->id,
-                'amount_cents' => $amountCents,
+                'amount_cents' => $debtAmountCents,
                 'paid_at' => now(),
                 'note' => $note,
             ]);
@@ -62,7 +74,7 @@ class DebtService
             }
 
             $cash = $this->cashService->createFromCents([
-                'amount_cents' => $amountCents,
+                'amount_cents' => $debtAmountCents,
                 'direction' => 'entrata',
                 'type' => 'pagamento_debito',
                 'category' => 'copponi',
@@ -74,9 +86,31 @@ class DebtService
                 'note' => $note,
             ], $admin);
 
+            $creditCash = $creditAmountCents > 0
+                ? $this->createWalletCredit($member, $admin, $creditAmountCents, $note)
+                : null;
+
             DB::table('debt_payments')->where('id', $payment->id)->update(['updated_at' => now()]);
 
-            return $payment->fresh()->setAttribute('cash_movement_id', $cash->id);
+            return $payment->fresh()
+                ->setAttribute('cash_movement_id', $cash->id)
+                ->setAttribute('wallet_credit_cents', $creditAmountCents)
+                ->setAttribute('wallet_cash_movement_id', $creditCash?->id);
         });
+    }
+
+    private function createWalletCredit(User $member, User $admin, int $amountCents, ?string $note = null)
+    {
+        return $this->cashService->createFromCents([
+            'amount_cents' => $amountCents,
+            'direction' => 'entrata',
+            'type' => 'accredito',
+            'category' => 'portafoglio',
+            'description' => "Accredito portafoglio {$member->name}",
+            'movement_date' => now()->toDateString(),
+            'movement_time' => now()->format('H:i:s'),
+            'member_id' => $member->id,
+            'note' => $note,
+        ], $admin);
     }
 }
