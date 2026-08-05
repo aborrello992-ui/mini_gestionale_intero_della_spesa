@@ -102,6 +102,28 @@ class DebtService
         });
     }
 
+    public function addManualDebt(User $member, User $admin, int $amountCents, string $note): MemberDebt
+    {
+        if ($amountCents <= 0) {
+            throw new RuntimeException('Importo non valido.');
+        }
+
+        return DB::transaction(function () use ($member, $admin, $amountCents, $note) {
+            $debt = MemberDebt::create([
+                'user_id' => $member->id,
+                'original_amount_cents' => $amountCents,
+                'remaining_amount_cents' => $amountCents,
+                'type' => 'rettifica_manuale',
+                'description' => 'Rettifica manuale debito',
+                'notes' => $note,
+            ]);
+
+            $this->applyWalletCreditToOpenDebts($member, $admin, 'Credito usato automaticamente dopo rettifica debito');
+
+            return $debt->fresh();
+        });
+    }
+
     public function walletCreditCents(User $member): int
     {
         $credited = CashMovement::query()

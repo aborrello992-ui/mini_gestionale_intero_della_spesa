@@ -587,6 +587,15 @@
   font-size: 1.35rem;
 }
 
+.manual-debt-form {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
 .avatar {
   width: 42px;
   height: 42px;

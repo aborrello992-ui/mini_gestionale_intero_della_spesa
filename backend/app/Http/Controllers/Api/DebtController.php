@@ -50,6 +50,20 @@ class DebtController extends Controller
         ];
     }
 
+    public function adjust(User $member, Request $request, DebtService $service, CashService $cashService)
+    {
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'note' => ['required', 'string', 'min:3', 'max:500'],
+        ]);
+
+        try {
+            return response()->json($service->addManualDebt($member, $request->user(), $cashService->toCents($data['amount']), $data['note']), 201);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
     public function pay(User $member, Request $request, DebtService $service, CashService $cashService)
     {
         $data = $request->validate([

@@ -153,6 +153,29 @@ class CardWithdrawalAndDebtTest extends TestCase
     }
 
 
+    public function test_admin_can_add_manual_debt_adjustment_without_touching_cash_or_inventory(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $this->postJson("/api/debts/{$this->member->id}/adjustments", [
+            'amount' => '2.50',
+            'note' => 'Correzione conteggio manuale',
+        ])->assertCreated()
+            ->assertJsonPath('type', 'rettifica_manuale')
+            ->assertJsonPath('remaining_amount_cents', 250);
+
+        $this->assertDatabaseHas('member_debts', [
+            'user_id' => $this->member->id,
+            'original_amount_cents' => 250,
+            'remaining_amount_cents' => 250,
+            'type' => 'rettifica_manuale',
+            'notes' => 'Correzione conteggio manuale',
+        ]);
+        $this->assertDatabaseCount('cash_movements', 0);
+        $this->assertSame('10.000', $this->product->fresh()->current_quantity);
+    }
+
+
     public function test_existing_wallet_credit_is_used_before_showing_new_open_debt(): void
     {
         Sanctum::actingAs($this->admin);

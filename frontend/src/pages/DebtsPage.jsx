@@ -17,6 +17,7 @@ export default function DebtsPage() {
   const [debtors, setDebtors] = useState(null)
   const [detail, setDetail] = useState(null)
   const [amount, setAmount] = useState('')
+  const [adjustmentForm, setAdjustmentForm] = useState({ amount: '', note: '' })
   const [paymentForms, setPaymentForms] = useState({})
   const [payingMemberId, setPayingMemberId] = useState(null)
   const [message, setMessage] = useState('')
@@ -60,6 +61,20 @@ export default function DebtsPage() {
     } catch (err) { setMessage(errorMessage(err)) } finally { setPayingMemberId(null) }
   }
 
+  async function addManualDebt(event) {
+    event.preventDefault()
+    if (payingMemberId) return
+    setMessage('')
+    setPayingMemberId(detail.member.id)
+    try {
+      await api.post(`/debts/${detail.member.id}/adjustments`, adjustmentForm)
+      setMessage('Rettifica debito registrata.')
+      setAdjustmentForm({ amount: '', note: '' })
+      await open(detail.member)
+      await load()
+    } catch (err) { setMessage(errorMessage(err)) } finally { setPayingMemberId(null) }
+  }
+
   if (!debtors) return <Loading />
   const totalDebt = debtors.reduce((sum, member) => sum + Number(member.open_debt_cents || 0), 0)
   const totalWallet = debtors.reduce((sum, member) => sum + Number(member.wallet_credit_cents || 0), 0)
@@ -69,7 +84,7 @@ export default function DebtsPage() {
   return (
     <section>
       <PageHeader title="Debiti" subtitle="Debiti aperti e accrediti personali lasciati in cassa." />
-      <AlertMessage type={message === 'Movimento registrato.' ? 'success' : 'danger'}>{message}</AlertMessage>
+      <AlertMessage type={['Movimento registrato.', 'Rettifica debito registrata.'].includes(message) ? 'success' : 'danger'}>{message}</AlertMessage>
       <div className="metric-grid mb-3">
         <MetricCard emphasis icon={ReceiptText} tone="warning" label="Totale da incassare" value={money(totalDebt)} help="Non è incluso nel saldo reale della cassa." />
         <MetricCard icon={WalletCards} tone="success" label="Portafogli" value={money(totalWallet)} help="Accrediti personali già lasciati in cassa." />
@@ -126,12 +141,27 @@ export default function DebtsPage() {
             <div className="small text-muted-app mt-2">{dateTime(debt.withdrawal?.withdrawn_at || debt.created_at)} · {debt.withdrawal?.notes || debt.notes || 'nessuna nota'}</div>
           </div>
         })}
-        {isAdmin && <form className="form-grid mt-3" onSubmit={pay}>
-          <FormField label="Importo versato" help={detail.remaining_cents > 0 ? `Scala il debito; oltre ${money(detail.remaining_cents)} diventa accredito.` : 'Viene registrato come accredito personale.'}>
-            <input className="form-control" type="number" step="0.01" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </FormField>
-          <button className="btn btn-primary" disabled={payingMemberId === detail.member.id}>{payingMemberId === detail.member.id ? 'Registrazione...' : 'Registra versamento'}</button>
-        </form>}
+        {isAdmin && <>
+          <form className="form-grid mt-3" onSubmit={pay}>
+            <FormField label="Importo versato" help={detail.remaining_cents > 0 ? `Scala il debito; oltre ${money(detail.remaining_cents)} diventa accredito.` : 'Viene registrato come accredito personale.'}>
+              <input className="form-control" type="number" step="0.01" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </FormField>
+            <button className="btn btn-primary" disabled={payingMemberId === detail.member.id}>{payingMemberId === detail.member.id ? 'Registrazione...' : 'Registra versamento'}</button>
+          </form>
+          <form className="manual-debt-form mt-3" onSubmit={addManualDebt}>
+            <div>
+              <h3 className="h6 mb-1">Aggiungi debito manuale</h3>
+              <p className="small text-muted-app mb-0">Rettifica il debito senza toccare prodotti, inventario o cassa.</p>
+            </div>
+            <FormField label="Importo debito">
+              <input className="form-control" type="number" step="0.01" min="0.01" value={adjustmentForm.amount} onChange={(e) => setAdjustmentForm({ ...adjustmentForm, amount: e.target.value })} />
+            </FormField>
+            <FormField label="Nota obbligatoria">
+              <textarea className="form-control" rows="2" value={adjustmentForm.note} onChange={(e) => setAdjustmentForm({ ...adjustmentForm, note: e.target.value })} placeholder="Es. correzione conteggio prodotti" />
+            </FormField>
+            <button className="btn btn-outline-primary" disabled={payingMemberId === detail.member.id || !adjustmentForm.amount || adjustmentForm.note.trim().length < 3}>Registra rettifica</button>
+          </form>
+        </>}
       </div>}
     </section>
   )

@@ -61,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/shopping-list/restock-sessions', [ShoppingListController::class, 'registerRestock']);
         Route::get('/receipts', [ReceiptController::class, 'index']);
         Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);
+        Route::post('/debts/{member}/adjustments', [DebtController::class, 'adjust']);
         Route::post('/debts/{member}/payments', [DebtController::class, 'pay']);
         Route::get('/purchases', [PurchaseController::class, 'index']);
         Route::post('/purchases', [PurchaseController::class, 'store']);
