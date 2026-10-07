@@ -10,13 +10,14 @@ import AppModal from '../components/ui/AppModal'
 import ProductThumb from '../components/ui/ProductThumb'
 import ComboAdminPanel from '../components/ComboAdminPanel'
 import { errorMessage, money, quantity } from '../utils/format'
+import { MB, shrinkImage } from '../utils/image'
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])
   const [filters, setFilters] = useState({ state: 'active', image_state: '', category_id: '' })
   const [imageEdit, setImageEdit] = useState(null)
-  const [imageForm, setImageForm] = useState({ image: null, image_alt: '', preview: '' })
+  const [imageForm, setImageForm] = useState({ name: '', image: null, image_alt: '', preview: '', preparing: false, saving: false })
   const [message, setMessage] = useState('')
   const [confirm, setConfirm] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -46,32 +47,45 @@ export default function AdminProductsPage() {
 
   function startImageEdit(product) {
     setImageEdit(product)
-    setImageForm({ image: null, image_alt: product.image_alt || product.name, preview: product.image_url || '' })
+    setImageForm({ name: product.name, image: null, image_alt: product.image_alt || product.name, preview: product.image_url || '', preparing: false, saving: false })
   }
 
-  function pickImage(file) {
-    if (file && !['image/webp', 'image/png', 'image/jpeg'].includes(file.type)) {
-      setMessage('Formato immagine non valido. Usa WebP, PNG o JPEG.')
-      return
+  async function pickImage(file) {
+    if (!file) return
+    setImageForm((current) => ({ ...current, preparing: true }))
+    try {
+      const image = await shrinkImage(file, { maxBytes: 2 * MB, maxSide: 1200 })
+      setImageForm((current) => ({ ...current, image, preview: URL.createObjectURL(image), preparing: false }))
+    } catch (err) {
+      setImageForm((current) => ({ ...current, preparing: false }))
+      setMessage(err.message)
     }
-    if (file && file.size > 2 * 1024 * 1024) {
-      setMessage('Immagine troppo grande. Limite 2 MB.')
-      return
-    }
-    setImageForm({ ...imageForm, image: file || null, preview: file ? URL.createObjectURL(file) : imageEdit?.image_url || '' })
   }
 
+  const nameChanged = imageEdit ? imageForm.name.trim() !== imageEdit.name : false
+  const canSaveEdit = imageEdit && !imageForm.preparing && !imageForm.saving && imageForm.name.trim().length >= 2 && (nameChanged || imageForm.image)
+
+  // Nome e immagine sono indipendenti: si può cambiare uno solo dei due o entrambi.
   async function saveImage(event) {
     event.preventDefault()
-    const data = new FormData()
-    data.append('image', imageForm.image)
-    data.append('image_alt', imageForm.image_alt || imageEdit.name)
+    if (!canSaveEdit) return
+    setImageForm((current) => ({ ...current, saving: true }))
+    const name = imageForm.name.trim()
     try {
-      await api.post(`/products/${imageEdit.id}/image`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
-      setMessage('Immagine prodotto aggiornata.')
+      if (nameChanged) await api.patch(`/products/${imageEdit.id}/quick`, { name })
+      if (imageForm.image) {
+        const data = new FormData()
+        data.append('image', imageForm.image)
+        data.append('image_alt', imageForm.image_alt && imageForm.image_alt !== imageEdit.name ? imageForm.image_alt : name)
+        await api.post(`/products/${imageEdit.id}/image`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+      }
+      setMessage(nameChanged && imageForm.image ? 'Nome e immagine aggiornati.' : nameChanged ? `Nome aggiornato: ${name}.` : 'Immagine prodotto aggiornata.')
       setImageEdit(null)
       load()
-    } catch (err) { setMessage(errorMessage(err)) }
+    } catch (err) {
+      setMessage(errorMessage(err))
+      setImageForm((current) => ({ ...current, saving: false }))
+    }
   }
 
   async function removeImage(product) {
@@ -110,13 +124,13 @@ export default function AdminProductsPage() {
     } catch (err) { setMessage(errorMessage(err)) }
   }
 
-  const isSuccess = /aggiornata|rimossa|archiviato|ripristinato|eliminato/.test(message)
+  const isSuccess = /aggiornat|rimossa|archiviato|ripristinato|eliminato/.test(message)
 
   function renderActions(product, large = false) {
     const size = large ? '' : 'btn-sm'
     const icon = large ? 17 : 15
     return <div className={large ? 'product-admin-actions' : 'cluster'}>
-      <button type="button" className={`btn ${size} btn-outline-primary`} onClick={() => startImageEdit(product)}><ImagePlus size={icon} /> {large ? 'Modifica immagine' : 'Immagine'}</button>
+      <button type="button" className={`btn ${size} btn-outline-primary`} onClick={() => startImageEdit(product)}><ImagePlus size={icon} /> {large ? 'Modifica nome/immagine' : 'Modifica'}</button>
       {product.image_path && <button type="button" className={`btn ${size} btn-outline-secondary`} onClick={() => removeImage(product)}><ImageOff size={icon} /> Rimuovi immagine</button>}
       {product.archived_at
         ? <button type="button" className={`btn ${size} btn-outline-primary`} onClick={() => restore(product)}><RotateCcw size={icon} /> Ripristina</button>
@@ -193,12 +207,21 @@ export default function AdminProductsPage() {
           </div>
         </div>
       </AppModal>}
-      {imageEdit && <AppModal title="Modifica immagine" subtitle={imageEdit.name} onClose={() => setImageEdit(null)}>
+      {imageEdit && <AppModal title="Modifica prodotto" subtitle={imageEdit.name} onClose={() => !imageForm.saving && setImageEdit(null)} labelledBy="product-edit-title">
         <form className="stack-md" onSubmit={saveImage}>
-          <div className="product-image" style={{ maxWidth: 220 }}>{imageForm.preview ? <img src={imageForm.preview} alt={imageForm.image_alt || imageEdit.name} /> : <span>{imageEdit.name.slice(0, 1)}</span>}</div>
-          <FormField label="Immagine" help="WebP, PNG o JPEG. Limite 2 MB."><input className="form-control" type="file" accept="image/webp,image/png,image/jpeg" onChange={(event) => pickImage(event.target.files?.[0])} required /></FormField>
-          <FormField label="Testo alternativo"><input className="form-control" value={imageForm.image_alt} onChange={(event) => setImageForm({ ...imageForm, image_alt: event.target.value })} /></FormField>
-          <button className="btn btn-primary btn-lg" disabled={!imageForm.image}><Upload size={18} /> Salva immagine</button>
+          <FormField label="Nome prodotto" htmlFor="product-edit-name" help="Lascia com'è se vuoi cambiare solo l'immagine.">
+            <input id="product-edit-name" className="form-control form-control-lg" maxLength={255} value={imageForm.name} onChange={(event) => setImageForm({ ...imageForm, name: event.target.value })} required />
+          </FormField>
+          <div className="restock-photo-row">
+            <div className="product-image restock-thumb">{imageForm.preview ? <img src={imageForm.preview} alt={imageForm.image_alt || imageEdit.name} /> : <span>{imageEdit.name.slice(0, 1)}</span>}</div>
+            <div className="stack-sm min-0">
+              <label className="btn btn-outline-primary" htmlFor="product-edit-image"><ImagePlus size={17} /> {imageEdit.image_path || imageForm.image ? 'Cambia immagine' : 'Aggiungi immagine'}</label>
+              <input id="product-edit-image" className="visually-hidden" type="file" accept="image/*" onChange={(event) => { pickImage(event.target.files?.[0]); event.target.value = '' }} />
+              <div className="field-help">{imageForm.preparing ? 'Riduco la foto…' : 'Facoltativa. Le foto del telefono vengono ridotte automaticamente.'}</div>
+            </div>
+          </div>
+          {imageForm.image && <FormField label="Testo alternativo" htmlFor="product-edit-alt"><input id="product-edit-alt" className="form-control" value={imageForm.image_alt} onChange={(event) => setImageForm({ ...imageForm, image_alt: event.target.value })} /></FormField>}
+          <button className="btn btn-primary btn-lg" disabled={!canSaveEdit}><Upload size={18} /> {imageForm.saving ? 'Salvataggio…' : nameChanged && imageForm.image ? 'Salva nome e immagine' : nameChanged ? 'Salva nome' : 'Salva immagine'}</button>
         </form>
       </AppModal>}
     </section>

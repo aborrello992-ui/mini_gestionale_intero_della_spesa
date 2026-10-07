@@ -154,10 +154,21 @@ class ProductController extends Controller
     public function quickUpdate(Request $request, Product $product)
     {
         $data = $request->validate([
+            'name' => ['sometimes', 'string', 'min:2', 'max:255'],
             'selling_price' => ['nullable', 'numeric', 'min:0'],
             'current_quantity' => ['nullable', 'numeric', 'min:0'],
             'minimum_threshold' => ['nullable', 'numeric', 'min:0'],
-        ]);
+        ], ['name.min' => 'Il nome deve avere almeno 2 caratteri.']);
+
+        if (isset($data['name'])) {
+            $data['name'] = trim($data['name']);
+            $this->ensureUniqueNormalizedName($data['name'], $product->id);
+            // Se il testo alternativo era il vecchio nome, segue il nuovo nome.
+            if (blank($product->image_alt) || $product->image_alt === $product->name) {
+                $data['image_alt'] = $data['name'];
+            }
+        }
+
         $this->normalizePrices($data);
         $product->update($data);
 

@@ -92,4 +92,21 @@ class ProductDeleteTest extends TestCase
         $this->assertSame(['Birra'], array_column($this->getJson('/api/products?availability=low')->json('data'), 'name'));
         $this->assertSame(['Birra', 'Zucchero'], array_column($this->getJson('/api/products?availability=available')->json('data'), 'name'));
     }
+
+    public function test_admin_can_rename_product_without_touching_the_image(): void
+    {
+        $product = $this->product('Acqua');
+        $this->product('Birra');
+
+        $this->patchJson("/api/products/{$product->id}/quick", ['name' => 'Acqua naturale'])
+            ->assertOk()
+            ->assertJsonPath('name', 'Acqua naturale')
+            ->assertJsonPath('image_alt', 'Acqua naturale');
+
+        $this->patchJson("/api/products/{$product->id}/quick", ['name' => 'birra'])
+            ->assertUnprocessable()->assertJsonValidationErrors('name');
+
+        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_MEMBER]));
+        $this->patchJson("/api/products/{$product->id}/quick", ['name' => 'Altro'])->assertForbidden();
+    }
 }
