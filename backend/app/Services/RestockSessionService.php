@@ -90,6 +90,18 @@ class RestockSessionService
         ], $admin);
 
         foreach ($data['items'] as $item) {
+            if (RestockLine::isExpense($item)) {
+                // Voce non magazzino: conta nel totale righe ma non tocca stock, costi o prezzi.
+                $session->items()->create([
+                    'item_type' => 'expense',
+                    'expense_category' => $item['expense_category'],
+                    'description' => $item['description'] ?? null,
+                    'cost_cents' => RestockLine::lineCostCents($item),
+                ]);
+
+                continue;
+            }
+
             $this->persistProductLine($session, $cashMovement->id, $item, $admin, $storedFiles);
         }
 

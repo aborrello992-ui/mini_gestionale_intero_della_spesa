@@ -13,6 +13,8 @@ class RegisterRestockRequest extends FormRequest
 {
     public const DIFFERENCE_REASONS = ['arrotondamento', 'sacchetto', 'sconto', 'altro_costo', 'errore'];
 
+    public const EXPENSE_CATEGORIES = ['pulizia', 'stoviglie_posate', 'sacchetti', 'altro'];
+
     public function authorize(): bool
     {
         return true;
@@ -29,21 +31,24 @@ class RegisterRestockRequest extends FormRequest
             'note' => ['nullable', 'string', 'max:1000'],
             'difference_reason' => ['nullable', 'in:'.implode(',', self::DIFFERENCE_REASONS)],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.shopping_list_item_id' => ['nullable', 'exists:shopping_list_items,id'],
-            'items.*.product_id' => ['nullable', 'exists:products,id'],
-            'items.*.name' => ['required_without:items.*.product_id', 'nullable', 'string', 'max:255'],
+            'items.*.item_type' => ['nullable', 'in:product,expense'],
+            'items.*.expense_category' => ['required_if:items.*.item_type,expense', 'nullable', 'in:'.implode(',', self::EXPENSE_CATEGORIES)],
+            'items.*.description' => ['nullable', 'string', 'max:255'],
+            'items.*.shopping_list_item_id' => ['exclude_if:items.*.item_type,expense', 'nullable', 'exists:shopping_list_items,id'],
+            'items.*.product_id' => ['exclude_if:items.*.item_type,expense', 'nullable', 'exists:products,id'],
+            'items.*.name' => ['exclude_if:items.*.item_type,expense', 'required_without:items.*.product_id', 'nullable', 'string', 'max:255'],
             'items.*.category' => ['nullable', 'string', 'max:255'],
-            'items.*.unit' => ['required_without:items.*.product_id', 'nullable', 'string', 'max:40'],
-            'items.*.package_count' => ['nullable', 'numeric', 'min:0'],
-            'items.*.pieces_per_package' => ['nullable', 'numeric', 'min:0'],
-            'items.*.quantity' => ['nullable', 'numeric', 'min:0'],
+            'items.*.unit' => ['exclude_if:items.*.item_type,expense', 'required_without:items.*.product_id', 'nullable', 'string', 'max:40'],
+            'items.*.package_count' => ['exclude_if:items.*.item_type,expense', 'nullable', 'numeric', 'min:0'],
+            'items.*.pieces_per_package' => ['exclude_if:items.*.item_type,expense', 'nullable', 'numeric', 'min:0'],
+            'items.*.quantity' => ['exclude_if:items.*.item_type,expense', 'nullable', 'numeric', 'min:0'],
             'items.*.minimum_threshold' => ['nullable', 'numeric', 'min:0'],
-            'items.*.selling_price' => ['required_without:items.*.product_id', 'nullable', 'numeric', 'min:0'],
-            'items.*.unit_cost' => ['nullable', 'numeric', 'min:0'],
-            'items.*.line_cost' => ['nullable', 'numeric', 'min:0'],
+            'items.*.selling_price' => ['exclude_if:items.*.item_type,expense', 'required_without:items.*.product_id', 'nullable', 'numeric', 'min:0'],
+            'items.*.unit_cost' => ['exclude_if:items.*.item_type,expense', 'nullable', 'numeric', 'min:0'],
+            'items.*.line_cost' => ['required_if:items.*.item_type,expense', 'nullable', 'numeric', 'min:0'],
             'items.*.cost_amount' => ['nullable', 'numeric', 'min:0'],
             'items.*.location' => ['nullable', 'string', 'max:255'],
-            'items.*.image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'items.*.image' => ['exclude_if:items.*.item_type,expense', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
     }
 
@@ -62,6 +67,8 @@ class RegisterRestockRequest extends FormRequest
             'items.*.image.max' => "L'immagine del prodotto supera 2 MB.",
             'exists' => 'Il valore di :attribute non esiste più. Ricarica la pagina.',
             'in' => 'Il valore di :attribute non è valido.',
+            'items.*.line_cost.required_if' => 'Indica l\'importo della voce non magazzino.',
+            'items.*.expense_category.required_if' => 'Scegli la categoria della voce non magazzino.',
             'items.min' => 'Aggiungi almeno una riga allo scontrino.',
             'items.required' => 'Aggiungi almeno una riga allo scontrino.',
         ];
@@ -84,6 +91,8 @@ class RegisterRestockRequest extends FormRequest
             'items.*.image' => 'immagine prodotto',
             'items.*.product_id' => 'prodotto',
             'items.*.shopping_list_item_id' => 'voce della lista',
+            'items.*.expense_category' => 'categoria spesa',
+            'items.*.description' => 'descrizione',
         ];
     }
 
@@ -110,6 +119,12 @@ class RegisterRestockRequest extends FormRequest
         $linesTotal = 0;
 
         foreach ($items as $index => $item) {
+            if (($item['item_type'] ?? 'product') === 'expense') {
+                $linesTotal += RestockLine::lineCostCents($item) ?? 0;
+
+                continue;
+            }
+
             $productId = ! empty($item['product_id']) ? (int) $item['product_id'] : null;
             $label = $productId ? ($products[$productId] ?? 'prodotto') : ($item['name'] ?? 'nuovo prodotto');
 

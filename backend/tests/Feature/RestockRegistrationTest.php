@@ -213,4 +213,25 @@ class RestockRegistrationTest extends TestCase
         $this->assertSame(2, InventoryMovement::where('cash_movement_id', $cash->id)->count());
         $this->assertSame(1, RestockSession::count());
     }
+
+    public function test_expense_line_counts_in_lines_total_but_not_in_stock(): void
+    {
+        $this->postJson('/api/shopping-list/restock-sessions', $this->payload([
+            ['product_id' => $this->product->id, 'quantity' => 12, 'line_cost' => '4.80'],
+            ['item_type' => 'expense', 'expense_category' => 'sacchetti', 'description' => 'Sacchetto', 'line_cost' => '0.20'],
+        ]))->assertCreated();
+
+        $this->assertDatabaseHas('restock_sessions', ['total_cents' => 500, 'difference_cents' => 0]);
+        $this->assertDatabaseHas('restock_session_items', ['item_type' => 'expense', 'expense_category' => 'sacchetti', 'cost_cents' => 20, 'product_id' => null, 'quantity' => null]);
+        $this->assertSame('12.000', $this->product->fresh()->current_quantity);
+        $this->assertSame(1, InventoryMovement::count());
+        $this->assertSame(-500, app(CashService::class)->balanceCents());
+    }
+
+    public function test_expense_line_requires_category_and_amount(): void
+    {
+        $this->postJson('/api/shopping-list/restock-sessions', $this->payload([
+            ['item_type' => 'expense', 'description' => 'Detersivo'],
+        ]))->assertUnprocessable()->assertJsonValidationErrors(['items.0.expense_category', 'items.0.line_cost']);
+    }
 }

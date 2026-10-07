@@ -12,6 +12,11 @@ class RestockLine
         return (int) round(((float) str_replace(',', '.', (string) $amount)) * 100);
     }
 
+    public static function isExpense(array $item): bool
+    {
+        return ($item['item_type'] ?? 'product') === 'expense';
+    }
+
     public static function quantity(array $item): float
     {
         if (isset($item['quantity']) && (float) $item['quantity'] > 0) {
