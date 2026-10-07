@@ -4,6 +4,7 @@ import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import { dateTime, errorMessage, money, quantity } from '../utils/format'
 import { storageUrl } from '../utils/storage'
+import { expenseCategoryLabel } from '../utils/restock'
 import PageHeader from '../components/layout/PageHeader'
 import MetricCard from '../components/ui/MetricCard'
 import DataTable from '../components/tables/DataTable'
@@ -153,10 +154,17 @@ export default function ManagementPage() {
           <div className="summary-box">
             <div className="split"><span>Totale scontrino</span><strong>{money(receiptDetail.total_cents)}</strong></div>
             <div className="split"><span>Differenza righe</span><strong>{money(receiptDetail.difference_cents || 0)}</strong></div>
+            {receiptDetail.difference_reason && <div className="small text-muted-app">Motivo: {receiptDetail.difference_reason.replaceAll('_', ' ')}</div>}
             <div className="small text-muted-app">Registrato da {receiptDetail.user?.name || '-'} · stato {receiptDetail.status}</div>
           </div>
           {receiptDetail.receipt_image_path && <a className="btn btn-outline-primary" href={storageUrl(receiptDetail.receipt_image_path)} target="_blank">Visualizza foto scontrino</a>}
           {receiptDetail.items.map((item) => {
+            if (item.item_type === 'expense') {
+              return <div className="list-row" key={item.id}>
+                <div className="split"><strong>{expenseCategoryLabel(item.expense_category)}</strong><StatusBadge tone="neutral">Non magazzino</StatusBadge></div>
+                <div className="small text-muted-app">{item.description || 'Senza descrizione'} · importo {money(item.cost_cents || 0)}</div>
+              </div>
+            }
             const margin = Number(item.product?.selling_price_cents || item.selling_price_cents || 0) - Number(item.unit_cost_cents || 0)
             const previousQty = Number(item.product?.current_quantity || 0) - Number(item.quantity || 0)
             return <div className="list-row" key={item.id}>
