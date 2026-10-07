@@ -8,6 +8,7 @@ use App\Models\DebtPayment;
 use App\Models\InventoryMovement;
 use App\Models\MemberDebt;
 use App\Models\RestockSession;
+use App\Models\Sale;
 use App\Models\User;
 use App\Models\Withdrawal;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,6 +31,7 @@ class AccountResetService
         'withdrawals' => Withdrawal::class,
         'restock_sessions' => RestockSession::class,
         'inventory_movements' => InventoryMovement::class,
+        'sales' => Sale::class,
     ];
 
     public function __construct(private CashService $cashService, private DebtService $debtService) {}

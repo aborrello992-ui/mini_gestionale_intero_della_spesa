@@ -21,6 +21,7 @@ class WithdrawalService
      * - withdrawn_at: data/ora reale del prelievo (default adesso)
      * - affects_stock: false se il magazzino era gia stato scalato
      * - is_manual: segna il prelievo come inserito a mano
+     * - total_cents, sale_id, combo_id: quota di una vendita combo o divisa (SaleService)
      */
     public function take(Product $product, User $member, User $actor, float $quantity, string $paymentStatus, ?string $notes = null, array $options = []): Withdrawal
     {
@@ -41,11 +42,16 @@ class WithdrawalService
             $resulting = $affectsStock ? $previous - $quantity : $previous;
 
             if ($resulting < 0) {
-                throw new RuntimeException('Quantita disponibile insufficiente.');
+                throw new RuntimeException("Non basta «{$locked->name}»: ne restano ".rtrim(rtrim(number_format($previous, 3, ',', ''), '0'), ',').'.');
             }
 
             $unitPrice = $locked->selling_price_cents ?: $locked->average_price_cents;
             $total = (int) round($quantity * $unitPrice);
+            if (isset($options['total_cents'])) {
+                // Quota di una combo o di una spesa divisa: l'importo e gia stato ripartito.
+                $total = (int) $options['total_cents'];
+                $unitPrice = (int) round($total / $quantity);
+            }
 
             $withdrawal = Withdrawal::create([
                 'user_id' => $member->id,
@@ -58,6 +64,8 @@ class WithdrawalService
                 'withdrawn_at' => $withdrawnAt,
                 'notes' => $notes,
                 'is_manual' => (bool) ($options['is_manual'] ?? false),
+                'sale_id' => $options['sale_id'] ?? null,
+                'combo_id' => $options['combo_id'] ?? null,
                 'affects_stock' => $affectsStock,
             ]);
 
@@ -78,7 +86,9 @@ class WithdrawalService
                 'note' => $notes,
             ]);
 
-            if ($paymentStatus === 'paid') {
+            if ($total <= 0) {
+                // Quota a costo zero (es. parte gratuita di una combo): nessun movimento di denaro.
+            } elseif ($paymentStatus === 'paid') {
                 $cashMovement = $this->cashService->createFromCents([
                     'amount_cents' => $total,
                     'direction' => 'entrata',
