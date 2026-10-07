@@ -29,7 +29,7 @@ export default function ArchivePanel() {
       <div className="summary-box stack-sm">
         <strong>Archivio conti precedenti (sola lettura)</strong>
         {data?.resets?.length
-          ? data.resets.map((reset) => <div className="small" key={reset.id}>Azzeramento al {day(reset.cutoff_date)} · apertura cassa {money(reset.opening_cash_cents)} · eseguito il {dateTime(reset.created_at)}</div>)
+          ? data.resets.map((reset) => <div className="small" key={reset.id}>Azzeramento al {reset.cutoff_at ? dateTime(reset.cutoff_at) : day(reset.cutoff_date)} · apertura cassa {money(reset.opening_cash_cents)} · eseguito il {dateTime(reset.created_at)}</div>)
           : <div className="small text-muted-app">Nessun azzeramento eseguito.</div>}
         <div className="small text-muted-app">Questi record non contano in saldo, debiti, crediti e contatori.</div>
       </div>

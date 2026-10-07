@@ -7,10 +7,8 @@ use App\Models\User;
 use App\Services\AccountResetService;
 use App\Support\RestockLine;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
-use Throwable;
 
 /**
  * Azzeramento conti reversibile. Per default e un'anteprima: scrive solo con --confirm.
@@ -18,9 +16,9 @@ use Throwable;
 class ResetAccounts extends Command
 {
     protected $signature = 'locale:reset-accounts
-        {--cutoff= : Data di ripartenza (YYYY-MM-DD): si archivia tutto cio che e precedente}
+        {--cutoff= : Momento di ripartenza in ora italiana: "YYYY-MM-DD HH:MM" oppure YYYY-MM-DD (mezzanotte). Si archivia tutto cio che e stato inserito prima}
         {--opening-cash= : Saldo cassa di apertura in euro (es. 0 oppure 27,40)}
-        {--also-archive-cash= : ID di movimenti cassa dal giorno di taglio in poi da archiviare comunque (separati da virgola)}
+        {--also-archive-cash= : ID di movimenti cassa inseriti dopo il taglio da archiviare comunque (separati da virgola)}
         {--dry-run : Mostra cosa cambierebbe senza scrivere (comportamento predefinito)}
         {--confirm : Esegue davvero l\'azzeramento}
         {--backup-done : Dichiara di aver gia fatto il backup (necessario se il database non e un file SQLite)}
@@ -30,13 +28,9 @@ class ResetAccounts extends Command
 
     public function handle(AccountResetService $service): int
     {
-        try {
-            $cutoff = Carbon::createFromFormat('!Y-m-d', (string) $this->option('cutoff'));
-        } catch (Throwable) {
-            $cutoff = false;
-        }
-        if (! $cutoff) {
-            $this->error('Indica la data con --cutoff=YYYY-MM-DD.');
+        $cutoff = trim((string) $this->option('cutoff'));
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?$/', $cutoff) || ! strtotime($cutoff)) {
+            $this->error('Indica il taglio con --cutoff="YYYY-MM-DD HH:MM" (ora italiana), ad esempio --cutoff="2026-10-05 19:34".');
 
             return self::FAILURE;
         }
@@ -52,9 +46,9 @@ class ResetAccounts extends Command
         }
         $openingCents = RestockLine::toCents((string) $this->option('opening-cash'));
 
-        $existing = AccountReset::query()->whereDate('cutoff_date', $cutoff->toDateString())->first();
+        $existing = AccountReset::query()->whereDate('cutoff_date', $service->moment($cutoff)->setTimezone(AccountReset::LOCAL_TIMEZONE)->toDateString())->first();
         if ($existing) {
-            $this->info("Azzeramento al {$cutoff->format('d/m/Y')} già eseguito il {$existing->created_at->format('d/m/Y H:i')}: nessuna modifica.");
+            $this->info("Azzeramento del {$existing->cutoff_date->format('d/m/Y')} già eseguito il {$existing->created_at->format('d/m/Y H:i')}: nessuna modifica.");
 
             return self::SUCCESS;
         }
@@ -102,10 +96,10 @@ class ResetAccounts extends Command
         return self::SUCCESS;
     }
 
-    private function undo(AccountResetService $service, Carbon $cutoff): int
+    private function undo(AccountResetService $service, string $cutoff): int
     {
         if (! $this->option('confirm')) {
-            $this->info("Anteprima: verrebbe annullato l'azzeramento del {$cutoff->format('d/m/Y')}. Aggiungi --confirm per eseguire.");
+            $this->info("Anteprima: verrebbe annullato l'azzeramento del {$service->label($cutoff)}. Aggiungi --confirm per eseguire.");
 
             return self::SUCCESS;
         }
@@ -158,19 +152,23 @@ class ResetAccounts extends Command
         return null;
     }
 
-    private function printPreview(Carbon $cutoff, array $preview): void
+    private function printPreview(string $cutoff, array $preview): void
     {
-        $this->info("Azzeramento conti precedenti al {$cutoff->format('d/m/Y')}");
+        $this->info("Azzeramento: si archivia tutto ciò che è stato inserito prima del {$preview['cutoff']} (ora italiana)");
         $this->table(['Tabella', 'Record da archiviare'], collect($preview['counts'])->map(fn ($count, $table) => [$table, $count])->values()->all());
         $this->line('Debiti aperti archiviati: '.$this->euro($preview['open_debts_archived_cents']));
         $this->line('Saldo cassa prima: '.$this->euro($preview['balance_before_cents']).' → dopo: '.$this->euro($preview['balance_after_cents']));
         $this->table(['Socio', 'Debito prima', 'Debito dopo', 'Credito prima'], collect($preview['members'])->map(fn ($member) => [
             $member['name'], $this->euro($member['open_debt_before']), $this->euro($member['open_debt_after']), $this->euro($member['wallet_before']),
         ])->all());
-        $this->line('Movimenti cassa che RESTANO (dal giorno di taglio in poi):');
-        $this->table(['ID', 'Data', 'Tipo', 'Importo', 'Descrizione'], collect($preview['kept_cash_movements'])->map(fn ($movement) => [
+        $this->line('Scontrini che RESTANO:');
+        $this->table(['ID', 'Data spesa', 'Totale'], collect($preview['kept_receipts'])->map(fn ($receipt) => [
+            $receipt['id'], $receipt['purchased'], $this->euro($receipt['total_cents']),
+        ])->all());
+        $this->line('Movimenti cassa che RESTANO (inseriti dal taglio in poi):');
+        $this->table(['ID', 'Inserito', 'Tipo', 'Importo', 'Descrizione'], collect($preview['kept_cash_movements'])->map(fn ($movement) => [
             $movement['id'],
-            substr((string) $movement['movement_date'], 0, 10).' '.substr((string) $movement['movement_time'], 0, 5),
+            $movement['inserted_at'],
             $movement['type'].($movement['status'] !== 'active' ? " ({$movement['status']})" : ''),
             ($movement['direction'] === 'entrata' ? '+' : '-').$this->euro((int) $movement['amount_cents']),
             $movement['description'],

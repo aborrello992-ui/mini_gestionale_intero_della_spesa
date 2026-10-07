@@ -28,7 +28,7 @@ class ArchiveController extends Controller
         };
 
         return [
-            'resets' => AccountReset::query()->orderByDesc('cutoff_date')->get(['id', 'cutoff_date', 'opening_cash_cents', 'created_at']),
+            'resets' => AccountReset::query()->orderByDesc('cutoff_date')->get(['id', 'cutoff_date', 'cutoff_at', 'opening_cash_cents', 'created_at']),
             'records' => $query->paginate($perPage),
         ];
     }

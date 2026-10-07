@@ -162,4 +162,43 @@ class AccountResetTest extends TestCase
         $this->postJson('/api/withdrawals/manual', [...$payload, 'withdrawn_date' => '2026-10-04'])->assertUnprocessable();
         $this->postJson('/api/withdrawals/manual', [...$payload, 'withdrawn_date' => '2026-10-05', 'withdrawn_time' => '00:30'])->assertCreated();
     }
+
+    public function test_cutoff_with_time_keeps_only_records_inserted_from_that_minute(): void
+    {
+        // 19:20 ora italiana (17:20 UTC): prima della spesa, va archiviato.
+        Carbon::setTestNow('2026-10-05 17:20:00');
+        $zeroing = app(CashService::class)->createFromCents(['amount_cents' => 18500, 'direction' => 'uscita', 'type' => 'correzione', 'description' => 'Tolti 185', 'movement_date' => '2026-10-05'], $this->admin);
+        // 19:34 ora italiana: la spesa, resta.
+        Carbon::setTestNow('2026-10-05 17:34:20');
+        $receipt = app(CashService::class)->createFromCents(['amount_cents' => 100, 'direction' => 'uscita', 'type' => 'acquisto_prodotti', 'description' => 'Spesa 19:34', 'movement_date' => '2026-10-05'], $this->admin);
+        Carbon::setTestNow('2026-10-07 10:00:00');
+
+        $this->artisan('locale:reset-accounts', ['--cutoff' => '2026-10-05 19:34', '--opening-cash' => '0', '--confirm' => true, '--backup-done' => true])
+            ->expectsOutputToContain('05/10/2026 19:34')
+            ->expectsQuestion('Scrivi AZZERA per confermare', 'AZZERA')
+            ->assertSuccessful();
+
+        $this->assertNotNull(CashMovement::withArchived()->find($zeroing->id)->archived_at);
+        $this->assertNull(CashMovement::find($receipt->id)->archived_at);
+        $this->assertSame(-100 + 150 - 4552, app(CashService::class)->balanceCents());
+        $reset = AccountReset::sole();
+        $this->assertSame('2026-10-05 17:34:00', $reset->cutoff_at->format('Y-m-d H:i:s'));
+        $this->assertDatabaseHas('cash_movements', ['type' => 'saldo_iniziale', 'movement_date' => '2026-10-05 00:00:00', 'movement_time' => '19:34:00', 'amount_cents' => 0]);
+
+        // Prelievi manuali prima delle 19:34 rifiutati, dopo accettati.
+        Sanctum::actingAs($this->admin);
+        $payload = ['member_id' => $this->luca->id, 'product_id' => $this->birra->id, 'quantity' => 1, 'payment_status' => 'coppone', 'withdrawn_date' => '2026-10-05'];
+        $this->postJson('/api/withdrawals/manual', [...$payload, 'withdrawn_time' => '19:00'])->assertUnprocessable();
+        $this->postJson('/api/withdrawals/manual', [...$payload, 'withdrawn_time' => '20:00'])->assertCreated();
+
+        $this->artisan('locale:reset-accounts', ['--cutoff' => '2026-10-05 19:34', '--undo' => true, '--confirm' => true, '--backup-done' => true])
+            ->expectsQuestion('Scrivi ANNULLA per confermare', 'ANNULLA')
+            ->assertSuccessful();
+        $this->assertNull(CashMovement::find($zeroing->id)?->archived_at);
+    }
+
+    public function test_invalid_cutoff_is_rejected(): void
+    {
+        $this->artisan('locale:reset-accounts', ['--cutoff' => '5/10/2026', '--opening-cash' => '0'])->assertFailed();
+    }
 }
