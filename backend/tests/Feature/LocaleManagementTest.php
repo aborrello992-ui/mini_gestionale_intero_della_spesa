@@ -77,23 +77,6 @@ class LocaleManagementTest extends TestCase
         $this->getJson('/api/products/low-stock')->assertOk()->assertJsonFragment(['name' => 'Bibita']);
     }
 
-    public function test_purchase_increments_stock_updates_price_and_creates_cash_outcome(): void
-    {
-        Sanctum::actingAs($this->admin);
-
-        $this->postJson('/api/purchases', [
-            'purchased_at' => now()->toDateString(),
-            'items' => [
-                ['product_id' => $this->product->id, 'quantity' => 3, 'unit_cost' => '1.50'],
-            ],
-        ])->assertCreated();
-
-        $this->assertSame('8.000', $this->product->fresh()->current_quantity);
-        $this->assertSame(150, $this->product->fresh()->last_purchase_price_cents);
-        $this->assertDatabaseHas('cash_movements', ['direction' => 'uscita', 'amount_cents' => 450]);
-        $this->assertDatabaseHas('inventory_movements', ['type' => 'acquisto', 'quantity' => 3]);
-    }
-
     public function test_valid_withdrawal_and_insufficient_withdrawal_block(): void
     {
         Sanctum::actingAs($this->member);
@@ -147,22 +130,6 @@ class LocaleManagementTest extends TestCase
         $movement = InventoryMovement::where('type', 'prelievo')->first();
 
         $this->postJson("/api/inventory/movements/{$movement->id}/reverse")->assertCreated();
-        $this->assertSame('5.000', $this->product->fresh()->current_quantity);
-    }
-
-    public function test_failed_purchase_transaction_leaves_no_partial_data(): void
-    {
-        Sanctum::actingAs($this->admin);
-
-        $this->postJson('/api/purchases', [
-            'purchased_at' => now()->toDateString(),
-            'items' => [
-                ['product_id' => $this->product->id, 'quantity' => 2, 'unit_cost' => '1.00'],
-                ['product_id' => 9999, 'quantity' => 2, 'unit_cost' => '1.00'],
-            ],
-        ])->assertUnprocessable();
-
-        $this->assertDatabaseCount('purchases', 0);
         $this->assertSame('5.000', $this->product->fresh()->current_quantity);
     }
 

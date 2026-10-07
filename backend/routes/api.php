@@ -13,7 +13,6 @@ use App\Http\Controllers\Api\LocationController;
 use App\Http\Controllers\Api\ManagementController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\PurchaseController;
 use App\Http\Controllers\Api\ReceiptController;
 use App\Http\Controllers\Api\ShoppingListController;
 use App\Http\Controllers\Api\UserController;
@@ -63,9 +62,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);
         Route::post('/debts/{member}/adjustments', [DebtController::class, 'adjust']);
         Route::post('/debts/{member}/payments', [DebtController::class, 'pay']);
-        Route::get('/purchases', [PurchaseController::class, 'index']);
-        Route::post('/purchases', [PurchaseController::class, 'store']);
-        Route::get('/purchases/{purchase}', [PurchaseController::class, 'show']);
         Route::post('/inventory/adjust', [InventoryController::class, 'adjust']);
         Route::post('/inventory/movements/{movement}/reverse', [InventoryController::class, 'reverse']);
         Route::post('/cash/movements', [CashController::class, 'store']);
