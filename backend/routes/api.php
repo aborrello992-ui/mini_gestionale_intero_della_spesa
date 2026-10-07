@@ -39,9 +39,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/debts', [DebtController::class, 'index']);
     Route::get('/debts/{member}', [DebtController::class, 'show']);
     Route::get('/shopping-list', [ShoppingListController::class, 'index']);
+    Route::get('/shopping-list/reminders', [ShoppingListController::class, 'reminders']);
     Route::post('/shopping-list', [ShoppingListController::class, 'store']);
-    Route::put('/shopping-list/{item}', [ShoppingListController::class, 'update']);
-    Route::delete('/shopping-list/{item}', [ShoppingListController::class, 'destroy']);
     Route::get('/history', HistoryController::class);
 
     Route::middleware('admin')->group(function () {
@@ -64,6 +63,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/storage-check', [ManagementController::class, 'storageCheck']);
         Route::get('/management/summary', [ManagementController::class, 'summary']);
         Route::post('/management/movements', [ManagementController::class, 'store']);
+        Route::put('/shopping-list/{item}', [ShoppingListController::class, 'update']);
+        Route::delete('/shopping-list/{item}', [ShoppingListController::class, 'destroy']);
         Route::post('/shopping-list/restock-sessions', [ShoppingListController::class, 'registerRestock']);
         Route::get('/receipts', [ReceiptController::class, 'index']);
         Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);

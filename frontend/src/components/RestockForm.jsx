@@ -77,7 +77,7 @@ function rowErrors(row) {
   return errors
 }
 
-export default function RestockForm({ products, listItems, onSaved }) {
+export default function RestockForm({ products, listItems, reminders = [], onSaved }) {
   const formId = useId()
   const [step, setStep] = useState(0)
   const [receipt, setReceipt] = useState(emptyReceipt)
@@ -108,6 +108,7 @@ export default function RestockForm({ products, listItems, onSaved }) {
     return products.filter((product) => normalize(product.name).includes(term)).slice(0, 8)
   }, [products, search])
   const openListItems = listItems.filter((item) => !rows.some((row) => row.shopping_list_item_id === item.id))
+  const openReminders = reminders.filter((product) => !usedProductIds.has(product.id) && !listItems.some((item) => item.product_id === product.id))
 
   function updateReceipt(field, value) { setReceipt((current) => ({ ...current, [field]: value })) }
 
@@ -145,9 +146,15 @@ export default function RestockForm({ products, listItems, onSaved }) {
     setMessage({ type: 'danger', text: '' })
   }
 
-  function addNew() {
-    setRows((current) => [...current, { ...baseProductRow, id: rowId(), kind: 'new', name: search.trim(), category: 'Altro', unit: 'pezzi', minimum_threshold: '2', image: null, imagePreview: '' }])
+  function addNew(prefill = {}) {
+    setRows((current) => [...current, { ...baseProductRow, id: rowId(), kind: 'new', name: search.trim(), category: 'Altro', unit: 'pezzi', minimum_threshold: '2', image: null, imagePreview: '', shopping_list_item_id: null, ...prefill }])
     setSearch('')
+  }
+
+  function addFromList(item) {
+    const product = products.find((candidate) => candidate.id === item.product_id) || item.product
+    if (product) addExisting(product, item)
+    else addNew({ name: item.suggested_name || '', category: item.suggested_category || 'Altro', quantity: String(Number(item.suggested_quantity || 1)), shopping_list_item_id: item.id })
   }
 
   function addExpense() {
@@ -237,6 +244,7 @@ export default function RestockForm({ products, listItems, onSaved }) {
         put('category', row.category.trim())
         put('unit', row.unit)
         put('minimum_threshold', row.minimum_threshold)
+        put('shopping_list_item_id', row.shopping_list_item_id)
         if (row.image) data.append(`items[${index}][image]`, row.image)
       }
     })
@@ -356,7 +364,7 @@ export default function RestockForm({ products, listItems, onSaved }) {
         <div className="min-0">
           {row.kind === 'existing'
             ? <><h3 className="h6 mb-1 text-break">{row.productName}</h3><div className="small text-muted-app">{row.shopping_list_item_id ? 'Dalla lista della spesa · ' : ''}Costo medio {money(row.averageCostCents)} · vendita {money(row.currentSellingCents)}</div></>
-            : <StatusBadge tone="primary">Prodotto nuovo</StatusBadge>}
+            : <StatusBadge tone="primary">{row.shopping_list_item_id ? 'Prodotto nuovo · suggerito' : 'Prodotto nuovo'}</StatusBadge>}
         </div>
         {removeButton}
       </div>
@@ -434,10 +442,11 @@ export default function RestockForm({ products, listItems, onSaved }) {
 
       {step === 1 && <section className="stack-md" aria-labelledby={`${formId}-s2`}>
         <h3 className="visually-hidden" id={`${formId}-s2`}>Prodotti</h3>
-        {openListItems.length > 0 && <div className="app-card stack-sm">
-          <div className="form-label mb-0"><ListChecks size={17} aria-hidden="true" /> Dalla lista della spesa</div>
+        {(openListItems.length > 0 || openReminders.length > 0) && <div className="app-card stack-sm">
+          <div className="form-label mb-0"><ListChecks size={17} aria-hidden="true" /> Da comprare</div>
           <div className="restock-chips">
-            {openListItems.map((item) => <button type="button" className="btn btn-outline-primary" key={item.id} onClick={() => { const product = products.find((candidate) => candidate.id === item.product_id) || item.product; if (product) addExisting(product, item) }}><Plus size={15} /> {item.product?.name} · {formatQuantity(item.suggested_quantity)}</button>)}
+            {openListItems.map((item) => <button type="button" className="btn btn-outline-primary" key={`l-${item.id}`} onClick={() => addFromList(item)}><Plus size={15} /> {item.product?.name || item.suggested_name} · {formatQuantity(item.suggested_quantity)}{item.product ? '' : ' (nuovo)'}</button>)}
+            {openReminders.map((product) => <button type="button" className="btn btn-outline-secondary" key={`r-${product.id}`} onClick={() => addExisting(product)}><Plus size={15} /> {product.name} · {Number(product.current_quantity) <= 0 ? 'esaurito' : `ne restano ${formatQuantity(product.current_quantity)}`}</button>)}
           </div>
         </div>}
 
@@ -455,7 +464,7 @@ export default function RestockForm({ products, listItems, onSaved }) {
             {!searchResults.length && <li className="small text-muted-app p-2">Nessun prodotto con questo nome.</li>}
           </ul>}
           <div className="restock-two">
-            <button type="button" className="btn btn-outline-secondary" onClick={addNew}><PackagePlus size={17} /> Prodotto nuovo</button>
+            <button type="button" className="btn btn-outline-secondary" onClick={() => addNew()}><PackagePlus size={17} /> Prodotto nuovo</button>
             <button type="button" className="btn btn-outline-secondary" onClick={addExpense}><Plus size={17} /> Voce non magazzino</button>
           </div>
         </div>

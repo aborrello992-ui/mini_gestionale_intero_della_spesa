@@ -167,6 +167,7 @@ class RestockSessionService
                 ->whereKey($item['shopping_list_item_id'])
                 ->whereNotIn('status', ['acquistato', 'annullato'])
                 ->update([
+                    'product_id' => $product->id,
                     'status' => 'acquistato',
                     'purchased_quantity' => $quantity,
                     'completed_at' => now(),

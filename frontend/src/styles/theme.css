@@ -936,3 +936,47 @@ legend.form-label {
 .data-table td .cluster {
   flex-wrap: nowrap;
 }
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Elenco compatto a righe (promemoria, suggerimenti, combo). */
+.row-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row-list > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 12px;
+  background: var(--color-surface-muted);
+  border-left: 4px solid var(--ink);
+  border-radius: var(--radius-sm);
+}
+
+.row-list > li > span:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.row-list small {
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
+
+/* Scelta a segmenti (priorità, pagamento). */
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+}
