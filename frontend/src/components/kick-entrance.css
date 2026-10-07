@@ -1,0 +1,111 @@
+.kf-overlay {
+  --w: min(80vw, 380px);
+  --h: calc(var(--w) * 280 / 260);
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow: hidden;
+  pointer-events: all;
+  animation: kf-fade-in 0.2s ease-out both;
+}
+
+/* Frammenti dello "schermo" che vengono frantumati: si incontrano nel punto d'impatto (60% 50%) */
+.kf-shard {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #0b1220, #14213d 60%, #0b1220);
+  transform-origin: 60% 50%;
+  transition: transform 0.8s cubic-bezier(0.5, 0, 0.9, 0.4), opacity 0.8s ease-in;
+}
+.kf-s1 { clip-path: polygon(0 0, 45% 0, 60% 50%, 0 40%); }
+.kf-s2 { clip-path: polygon(45% 0, 100% 0, 100% 30%, 60% 50%); }
+.kf-s3 { clip-path: polygon(100% 30%, 100% 100%, 70% 100%, 60% 50%); }
+.kf-s4 { clip-path: polygon(0 40%, 60% 50%, 70% 100%, 0 100%); }
+
+.kf-impact .kf-s1 { transform: translate(-70vw, -60vh) rotate(-28deg); opacity: 0; }
+.kf-impact .kf-s2 { transform: translate(70vw, -55vh) rotate(24deg); opacity: 0; }
+.kf-impact .kf-s3 { transform: translate(75vw, 65vh) rotate(32deg); opacity: 0; }
+.kf-impact .kf-s4 { transform: translate(-60vw, 70vh) rotate(-22deg); opacity: 0; }
+
+/* Il piede arriva esattamente nel punto d'impatto */
+.kf-fighter {
+  position: absolute;
+  width: var(--w);
+  height: var(--h);
+  left: calc(60vw - 0.92 * var(--w));
+  top: calc(50vh - 0.493 * var(--h));
+  animation: kf-run-in 0.65s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  transition: opacity 0.5s ease-in 0.2s;
+}
+.kf-impact .kf-fighter { opacity: 0; }
+
+.kf-svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.kf-run .kf-svg { animation: kf-bob 0.16s ease-in-out infinite alternate; }
+.kf-shadow { fill: rgba(0, 0, 0, 0.35); }
+
+.kf-torso, .kf-kick-leg, .kf-rear-leg, .kf-arm-front, .kf-arm-back, .kf-fist-back {
+  transform-box: view-box;
+  transform-origin: 108px 138px;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.kf-arm-front { transform-origin: 92px 82px; }
+.kf-arm-back, .kf-fist-back { transform-origin: 122px 82px; }
+
+.kf-kick .kf-kick-leg, .kf-impact .kf-kick-leg { transform: rotate(-92deg); }
+.kf-kick .kf-torso, .kf-impact .kf-torso { transform: rotate(-12deg); }
+.kf-kick .kf-rear-leg, .kf-impact .kf-rear-leg { transform: rotate(4deg); }
+.kf-kick .kf-arm-front, .kf-impact .kf-arm-front { transform: rotate(-35deg); }
+.kf-kick .kf-arm-back, .kf-kick .kf-fist-back,
+.kf-impact .kf-arm-back, .kf-impact .kf-fist-back { transform: rotate(30deg); }
+
+/* Onda d'urto sul punto d'impatto */
+.kf-ring {
+  position: absolute;
+  left: 92%;
+  top: 49.3%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  opacity: 0;
+}
+.kf-impact .kf-ring { animation: kf-ring 0.6s ease-out both; }
+
+.kf-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+.kf-impact .kf-flash { animation: kf-flash 0.45s ease-out both; }
+.kf-impact { animation: kf-shake 0.35s linear both; }
+
+@keyframes kf-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes kf-run-in { from { transform: translateX(-110vw); } to { transform: translateX(0); } }
+@keyframes kf-bob { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+@keyframes kf-ring { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(22); } }
+@keyframes kf-flash { 0% { opacity: 0.95; } 100% { opacity: 0; } }
+@keyframes kf-shake {
+  0%, 100% { translate: 0 0; }
+  20% { translate: -10px 6px; }
+  40% { translate: 9px -7px; }
+  60% { translate: -7px -4px; }
+  80% { translate: 5px 5px; }
+}
+
+/* Posa di guardia: respira e saltella come nella schermata di combattimento */
+.kf-idle {
+  width: clamp(130px, 22vw, 280px);
+  aspect-ratio: 260 / 280;
+  transition: opacity 0.15s ease-out;
+}
+.kf-idle.is-hidden { opacity: 0; }
+.kf-idle .kf-svg { animation: kf-breathe 0.55s ease-in-out infinite alternate; transform-origin: 50% 100%; }
+.kf-idle .kf-arm-front { animation: kf-guard 0.55s ease-in-out infinite alternate; }
+.kf-idle .kf-arm-back, .kf-idle .kf-fist-back { animation: kf-guard-back 0.55s ease-in-out infinite alternate; }
+.kf-idle .kf-shadow { animation: kf-shadow 0.55s ease-in-out infinite alternate; transform-origin: 110px 266px; transform-box: view-box; }
+
+@keyframes kf-breathe { from { transform: translateY(0) scaleY(1); } to { transform: translateY(-6px) scaleY(1.015); } }
+@keyframes kf-guard { from { transform: rotate(0deg); } to { transform: rotate(-6deg); } }
+@keyframes kf-guard-back { from { transform: rotate(0deg); } to { transform: rotate(5deg); } }
+@keyframes kf-shadow { from { transform: scaleX(1); } to { transform: scaleX(0.9); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .kf-overlay, .kf-overlay *, .kf-idle, .kf-idle * { animation: none !important; transition: none !important; }
+}
