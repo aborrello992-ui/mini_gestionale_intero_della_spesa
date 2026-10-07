@@ -201,4 +201,16 @@ class AccountResetTest extends TestCase
     {
         $this->artisan('locale:reset-accounts', ['--cutoff' => '5/10/2026', '--opening-cash' => '0'])->assertFailed();
     }
+
+    public function test_expected_open_debts_must_match(): void
+    {
+        // Dopo il taglio del 5/10 resta solo il prelievo pagato: debiti aperti 0.
+        $this->artisan('locale:reset-accounts', ['--cutoff' => '2026-10-05', '--opening-cash' => '0', '--expect-open-debts' => '14,40'])
+            ->expectsOutputToContain('attesi 14,40')
+            ->assertFailed();
+
+        $this->artisan('locale:reset-accounts', ['--cutoff' => '2026-10-05', '--opening-cash' => '0', '--expect-open-debts' => '0'])
+            ->expectsOutputToContain('come atteso')
+            ->assertSuccessful();
+    }
 }

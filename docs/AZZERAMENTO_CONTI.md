@@ -28,13 +28,25 @@ non vengono toccati.
 3. **Saldo di apertura** (`--opening-cash`): sono i soldi in cassa subito prima della spesa delle
    19:34. Se avevi tolto tutti i 185 € prima della spesa, il valore è **0**.
 
+## Valori attesi dopo l'azzeramento
+
+| Socio | Debito aperto |
+|---|---|
+| Roberto Squeo | 8,90 € |
+| Luca Manca | 0,30 € |
+| Saverio Squeo | 1,00 € |
+| Borrello | 4,20 € |
+| **Totale da incassare** | **14,40 €** |
+
+L'opzione `--expect-open-debts=14,40` fa fermare il comando se il totale non torna.
+
 ## Passo 1 — Anteprima (non scrive nulla)
 
 Dal computer, nella cartella `backend`, puntando al database reale con le variabili d'ambiente di
 Render (da non salvare in file del progetto):
 
 ```bash
-php artisan locale:reset-accounts --cutoff="2026-10-05 19:34" --opening-cash=0
+php artisan locale:reset-accounts --cutoff="2026-10-05 19:34" --opening-cash=0 --expect-open-debts=14,40
 ```
 
 Nell'output controlla queste cose:
@@ -60,7 +72,7 @@ Con PostgreSQL aggiungi `--backup-done`, dopo aver creato la branch di backup. I
 scrivere `AZZERA`:
 
 ```bash
-php artisan locale:reset-accounts --cutoff="2026-10-05 19:34" --opening-cash=0 --confirm --backup-done
+php artisan locale:reset-accounts --cutoff="2026-10-05 19:34" --opening-cash=0 --expect-open-debts=14,40 --confirm --backup-done
 ```
 
 Se lo rilanci una seconda volta, non fa nulla ("già eseguito").

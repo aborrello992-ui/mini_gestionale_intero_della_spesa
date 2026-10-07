@@ -18,6 +18,7 @@ class ResetAccounts extends Command
     protected $signature = 'locale:reset-accounts
         {--cutoff= : Momento di ripartenza in ora italiana: "YYYY-MM-DD HH:MM" oppure YYYY-MM-DD (mezzanotte). Si archivia tutto cio che e stato inserito prima}
         {--opening-cash= : Saldo cassa di apertura in euro (es. 0 oppure 27,40)}
+        {--expect-open-debts= : Totale debiti aperti atteso dopo l\'azzeramento in euro (es. 14,40): se non coincide il comando si ferma}
         {--also-archive-cash= : ID di movimenti cassa inseriti dopo il taglio da archiviare comunque (separati da virgola)}
         {--dry-run : Mostra cosa cambierebbe senza scrivere (comportamento predefinito)}
         {--confirm : Esegue davvero l\'azzeramento}
@@ -56,6 +57,17 @@ class ResetAccounts extends Command
         $extraIds = collect(explode(',', (string) $this->option('also-archive-cash')))->map(fn ($id) => (int) trim($id))->filter()->values()->all();
         $preview = $service->preview($cutoff, $openingCents, $extraIds);
         $this->printPreview($cutoff, $preview);
+
+        $debtsAfter = (int) collect($preview['members'])->sum('open_debt_after');
+        if (! blank($this->option('expect-open-debts'))) {
+            $expected = RestockLine::toCents((string) $this->option('expect-open-debts'));
+            if ($expected !== $debtsAfter) {
+                $this->error('Debiti aperti dopo l\'azzeramento: '.$this->euro($debtsAfter).', attesi '.$this->euro($expected).'. Nessuna modifica: controlla i prelievi dopo il taglio prima di procedere.');
+
+                return self::FAILURE;
+            }
+            $this->info('Debiti aperti dopo l\'azzeramento: '.$this->euro($debtsAfter).' come atteso.');
+        }
 
         if (! $this->option('confirm') || $this->option('dry-run')) {
             $this->newLine();

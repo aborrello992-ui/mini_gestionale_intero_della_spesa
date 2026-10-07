@@ -97,6 +97,14 @@ class AccountResetService
         if ($lateUsage > 0) {
             $warnings[] = "{$lateUsage} utilizzi di credito dopo il taglio: controlla i crediti dei soci dopo l'azzeramento.";
         }
+        $localCutoff = $moment->copy()->setTimezone(AccountReset::LOCAL_TIMEZONE);
+        RestockSession::query()
+            ->where('created_at', '<', $moment)
+            ->whereDate('purchased_at', $localCutoff->toDateString())
+            ->get(['id', 'total_cents', 'purchased_time'])
+            ->each(function (RestockSession $receipt) use (&$warnings) {
+                $warnings[] = 'ATTENZIONE: lo scontrino #'.$receipt->id.' da '.number_format($receipt->total_cents / 100, 2, ',', '.').' € delle '.substr((string) $receipt->purchased_time, 0, 5).' verrebbe archiviato: se deve restare, anticipa --cutoff di qualche minuto.';
+            });
         $backdated = (clone $kept)->whereDate('movement_date', '<', $moment->copy()->setTimezone(AccountReset::LOCAL_TIMEZONE)->toDateString())->count();
         if ($backdated > 0) {
             $warnings[] = "{$backdated} movimenti cassa inseriti dopo il taglio hanno una data precedente: restano validi, controlla che sia giusto.";
