@@ -51,6 +51,7 @@ export default function LoginPage() {
         <div className="login-brand">
           <span className="brand-mark"><Store size={22} /></span>
           <h1>Gestionale Locale</h1>
+          <p className="login-tagline mb-0" aria-hidden="true">Press start</p>
           <p className="text-muted-app mb-0">Usa l’accesso ospite sul dispositivo condiviso oppure entra in area amministratore con il PIN personale.</p>
         </div>
         <AlertMessage>{error}</AlertMessage>

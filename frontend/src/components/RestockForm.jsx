@@ -394,7 +394,7 @@ export default function RestockForm({ products, listItems, onSaved }) {
     <form className="restock-form" onSubmit={submit} noValidate>
       <datalist id={`${formId}-categories`}>{categories.map((name) => <option key={name} value={name} />)}</datalist>
       <div className="split mb-3">
-        <h2 className="h4 mb-0">Registra spesa</h2>
+        <h2 className="section-title mb-0">Registra spesa</h2>
         <StatusBadge tone="primary">{rows.length} righe</StatusBadge>
       </div>
 
@@ -411,7 +411,7 @@ export default function RestockForm({ products, listItems, onSaved }) {
       <div aria-live="polite"><AlertMessage type={message.type}>{message.text}</AlertMessage></div>
 
       {step === 0 && <section className="app-card stack-md" aria-labelledby={`${formId}-s1`}>
-        <h3 className="h5 mb-0" id={`${formId}-s1`}><ReceiptText size={18} aria-hidden="true" /> Scontrino</h3>
+        <h3 className="section-title mb-0" id={`${formId}-s1`}><ReceiptText size={18} aria-hidden="true" /> Scontrino</h3>
         <div className="restock-photo-row">
           <div className="product-image restock-thumb restock-receipt-thumb">{receipt.receipt_preview ? <img src={receipt.receipt_preview} alt="Anteprima scontrino" /> : <ReceiptText size={28} aria-hidden="true" />}</div>
           <div className="stack-sm min-0">
@@ -465,7 +465,7 @@ export default function RestockForm({ products, listItems, onSaved }) {
       </section>}
 
       {step === 2 && <section className="app-card stack-md" aria-labelledby={`${formId}-s3`}>
-        <h3 className="h5 mb-0" id={`${formId}-s3`}>Controllo</h3>
+        <h3 className="section-title mb-0" id={`${formId}-s3`}>Controllo</h3>
         <dl className="restock-summary">
           <div><dt>Prodotti ({productRows.length})</dt><dd className="num">{money(productsTotal)}</dd></div>
           <div><dt>Altre spese ({expenseRows.length})</dt><dd className="num">{money(expensesTotal)}</dd></div>

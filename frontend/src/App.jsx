@@ -7,7 +7,6 @@ import HistoryPage from './pages/HistoryPage'
 import GuestPage from './pages/GuestPage'
 import LoginPage from './pages/LoginPage'
 import NotFoundPage from './pages/NotFoundPage'
-import ProductFormPage from './pages/ProductFormPage'
 import ProductsPage from './pages/ProductsPage'
 import ManagementPage from './pages/ManagementPage'
 import ShoppingListPage from './pages/ShoppingListPage'
@@ -27,7 +26,6 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route index element={<ProductsPage />} />
               <Route path="products" element={<ProductsPage />} />
-              <Route path="products/new" element={<ProductFormPage />} />
               <Route path="debts" element={<DebtsPage />} />
               <Route path="shopping-list" element={<ShoppingListPage />} />
               <Route path="cash" element={<CashPage />} />

@@ -1,0 +1,938 @@
+/*
+ * Tema "arcade" ispirato ai picchiaduro giapponesi: inchiostro notte, rosso, oro,
+ * forme inclinate, titoli pesanti e barre scorta come barre dell'energia.
+ * Caricato per ultimo: sovrascrive components.css senza cambiarne la struttura.
+ */
+
+body {
+  background-color: var(--paper);
+  background-image:
+    repeating-linear-gradient(135deg, rgba(14, 16, 32, 0.022) 0 2px, transparent 2px 16px),
+    radial-gradient(circle at 100% 0, rgba(214, 40, 57, 0.06), transparent 34rem);
+  background-attachment: fixed;
+}
+
+h1, h2, h3, .h1, .h2, .h3, .h4, .h5, .h6 {
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-3);
+  top: -60px;
+  z-index: 2000;
+  padding: var(--space-2) var(--space-3);
+  background: var(--gold);
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: var(--space-3);
+}
+
+/* ---------- Barra laterale ---------- */
+.sidebar {
+  background:
+    linear-gradient(180deg, rgba(214, 40, 57, 0.18), transparent 38%),
+    var(--ink);
+  border-right: 4px solid var(--color-primary);
+  box-shadow: 4px 0 0 var(--gold);
+  overflow: hidden;
+}
+
+.brand {
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  box-shadow: 3px 3px 0 var(--gold);
+  transform: skewX(-8deg);
+}
+
+.brand-text {
+  display: grid;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+
+.brand-text small {
+  color: var(--gold);
+  font-family: var(--font-condensed);
+  font-size: 0.85rem;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+
+.nav-list {
+  gap: var(--space-1);
+}
+
+.nav-item {
+  position: relative;
+  isolation: isolate;
+  color: rgba(255, 255, 255, 0.78);
+  border-radius: 0;
+  padding: 10px 14px;
+  font-family: var(--font-condensed);
+  font-size: 1.12rem;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nav-item::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: var(--radius-xs);
+  transform: skewX(-12deg);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: transparent;
+  color: #ffffff;
+}
+
+.nav-item:hover::before {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.nav-item.active::before {
+  background: var(--color-primary);
+  box-shadow: 4px 0 0 var(--gold);
+}
+
+.sidebar-kanji {
+  margin-top: auto;
+  font-family: var(--font-display);
+  font-size: 7rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.05);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ---------- Scheda giocatore (unica, con Esci) ---------- */
+.topbar {
+  min-height: 0;
+  justify-content: flex-end;
+  margin-bottom: var(--space-4);
+}
+
+.player-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 8px 8px 14px;
+  color: #ffffff;
+}
+
+.player-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(100deg, var(--ink) 0 70%, var(--ink-3));
+  border-left: 5px solid var(--color-primary);
+  box-shadow: var(--shadow-md);
+  transform: skewX(-10deg);
+}
+
+.player-tag {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  transform: skewX(-10deg);
+}
+
+.player-card .avatar {
+  background: var(--color-primary);
+  color: #ffffff;
+  border-radius: var(--radius-sm);
+}
+
+.player-info {
+  display: grid;
+  line-height: 1.15;
+}
+
+.player-name {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-role {
+  color: var(--gold);
+  font-family: var(--font-condensed);
+  font-size: 0.82rem;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.player-exit {
+  flex: 0 0 auto;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: var(--space-2);
+  padding: 0 12px;
+  border: 2px solid var(--gold);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--gold);
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.player-exit:hover,
+.player-exit:focus-visible {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+/* ---------- Intestazione pagina ---------- */
+.page-header {
+  margin-bottom: var(--space-5);
+}
+
+.page-kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+  color: var(--color-primary);
+  font-family: var(--font-condensed);
+  font-style: italic;
+  letter-spacing: 0.18em;
+}
+
+.page-kanji {
+  font-family: var(--font-display);
+  font-style: normal;
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  color: var(--color-primary);
+}
+
+.page-header h1 {
+  position: relative;
+  padding-bottom: 12px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.7rem, 3.4vw, 2.6rem);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+}
+
+.page-header h1::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: min(220px, 70%);
+  height: 6px;
+  background: linear-gradient(90deg, var(--color-primary) 0 72%, var(--gold) 72%);
+  transform: skewX(-24deg);
+  transform-origin: left;
+}
+
+.page-subtitle {
+  color: var(--color-muted);
+}
+
+/* ---------- Card, pannelli, tabelle ---------- */
+.app-card,
+.data-table-shell,
+.empty-state,
+.error-state {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.summary-box,
+.available,
+.balance {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+.data-table th {
+  background: var(--ink);
+  color: var(--gold);
+  font-family: var(--font-condensed);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  border-bottom: 3px solid var(--color-primary);
+}
+
+.data-table tbody tr:hover {
+  background: var(--color-primary-soft);
+}
+
+.mobile-data-card {
+  border-left: 4px solid transparent;
+}
+
+.mobile-data-card:nth-child(odd) {
+  background: var(--color-surface-muted);
+}
+
+/* ---------- Contatori: tabellone ---------- */
+.metric {
+  position: relative;
+  overflow: hidden;
+  min-height: 118px;
+  background: var(--ink);
+  color: #ffffff;
+  border: 0;
+  border-bottom: 4px solid var(--gold);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.metric::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: 0;
+  bottom: 0;
+  width: 90px;
+  background: rgba(255, 255, 255, 0.04);
+  transform: skewX(-18deg);
+}
+
+.metric-main {
+  background: linear-gradient(120deg, var(--color-primary) 0 65%, var(--color-primary-strong));
+  border-bottom-color: var(--gold);
+}
+
+.metric-label {
+  color: var(--gold);
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.metric-value {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.5rem, 2.6vw, 2.1rem);
+  color: #ffffff;
+}
+
+.metric-help {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.85rem;
+}
+
+.metric-icon {
+  position: relative;
+  z-index: 1;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--gold) !important;
+  border: 0 !important;
+}
+
+/* Tabellone compatto in una riga (Gestione). */
+.scoreboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 2px;
+  margin-bottom: var(--space-4);
+  padding: 2px;
+  background: var(--gold);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+
+.scoreboard > div {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.scoreboard > div:first-child {
+  background: var(--color-primary);
+}
+
+.scoreboard span {
+  color: var(--gold);
+  font-family: var(--font-condensed);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.scoreboard > div:first-child span {
+  color: #ffffff;
+}
+
+.scoreboard strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(1.35rem, 2.4vw, 1.8rem);
+  line-height: 1.1;
+}
+
+.scoreboard small {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.section-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-condensed);
+  font-size: 1.2rem;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+/* ---------- Pulsanti ---------- */
+.btn {
+  --bs-btn-border-radius: var(--radius-sm);
+  font-family: var(--font-condensed);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.btn-sm {
+  font-size: 0.92rem;
+}
+
+.btn-lg {
+  font-size: 1.2rem;
+}
+
+.btn-link {
+  text-transform: none;
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+
+.btn-primary,
+.btn-success,
+.btn-danger,
+.btn-warning {
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.btn-primary:active,
+.btn-success:active,
+.btn-danger:active,
+.btn-warning:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+
+.btn-primary:disabled,
+.btn-success:disabled,
+.btn-danger:disabled,
+.btn-warning:disabled {
+  box-shadow: none;
+}
+
+.btn-warning {
+  --bs-btn-bg: var(--gold);
+  --bs-btn-border-color: var(--gold);
+  --bs-btn-color: var(--ink);
+  --bs-btn-hover-bg: var(--gold-strong);
+  --bs-btn-hover-border-color: var(--gold-strong);
+  --bs-btn-hover-color: var(--ink);
+  --bs-btn-active-bg: var(--gold-strong);
+  --bs-btn-disabled-bg: var(--gold);
+  --bs-btn-disabled-color: var(--ink);
+}
+
+.btn-outline-warning {
+  --bs-btn-color: var(--color-warning);
+  --bs-btn-border-color: var(--gold-strong);
+  --bs-btn-hover-bg: var(--gold);
+  --bs-btn-hover-border-color: var(--gold);
+  --bs-btn-hover-color: var(--ink);
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--ink);
+  --bs-btn-border-color: var(--color-border-strong);
+  --bs-btn-hover-bg: var(--ink);
+  --bs-btn-hover-border-color: var(--ink);
+  --bs-btn-hover-color: #ffffff;
+}
+
+/* ---------- Campi ---------- */
+.form-control,
+.form-select {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: #ffffff;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--ink);
+  box-shadow: 3px 3px 0 var(--color-primary);
+}
+
+.form-label,
+legend.form-label {
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.form-check-input:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+/* ---------- Badge ---------- */
+.status-badge {
+  border-radius: var(--radius-xs);
+  padding: 5px 8px;
+  font-family: var(--font-condensed);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- Avvisi ---------- */
+.alert {
+  border-radius: var(--radius-sm);
+  border: 0;
+  border-left: 5px solid currentColor;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Prodotti: schermata di selezione ---------- */
+.product-card {
+  border-top: 4px solid var(--ink);
+}
+
+.product-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--color-primary);
+}
+
+.product-card.is-empty {
+  opacity: 0.6;
+  filter: grayscale(0.85);
+  border-top-color: var(--color-border-strong);
+}
+
+.product-card.is-empty:hover {
+  transform: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.product-image {
+  border-radius: var(--radius-sm);
+  background:
+    radial-gradient(circle at 50% 60%, #ffffff 0 45%, transparent 70%),
+    linear-gradient(160deg, #f3ede2, #e6dccb);
+  color: var(--color-primary);
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.product-card-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.02rem;
+  letter-spacing: 0.01em;
+}
+
+.price {
+  font-family: var(--font-display);
+  font-weight: 400;
+  color: var(--color-primary);
+}
+
+/* Barra scorte = barra dell'energia */
+.stock-indicator-head {
+  font-family: var(--font-condensed);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.stock-meter {
+  height: 14px;
+  padding: 2px;
+  background: var(--ink);
+  border-radius: 0;
+  transform: skewX(-18deg);
+  box-shadow: 2px 2px 0 rgba(14, 16, 32, 0.25);
+}
+
+.stock-meter > div {
+  border-radius: 0;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 9px, rgba(14, 16, 32, 0.35) 9px 11px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 55%),
+    var(--stock-color, var(--gold));
+}
+
+/* ---------- Selettore socio / scelte ---------- */
+.member-option {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+}
+
+.member-option.is-selected {
+  border-color: var(--ink);
+  background: var(--gold);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.member-option.is-selected .avatar {
+  background: var(--ink);
+  color: var(--gold);
+}
+
+.avatar {
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.choice-button {
+  font-size: 1.25rem;
+}
+
+.choice-button small {
+  font-family: var(--font-sans);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ---------- Modali ---------- */
+.take-panel,
+.app-modal-panel {
+  border: 0;
+  border-top: 6px solid var(--color-primary);
+  border-radius: var(--radius-md);
+}
+
+.app-modal-head h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+}
+
+.modal-backdrop-lite {
+  background: rgba(14, 16, 32, 0.72);
+}
+
+/* ---------- Registra spesa ---------- */
+.restock-step {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-condensed);
+  font-size: 1.02rem;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.restock-step.is-current {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--gold);
+}
+
+.restock-step.is-current .restock-step-number {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.restock-bar {
+  border: 0;
+  background: var(--ink);
+  color: #ffffff;
+  border-top: 4px solid var(--color-primary);
+}
+
+.restock-bar .text-muted-app {
+  color: var(--gold) !important;
+}
+
+.restock-bar strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.25rem;
+}
+
+.restock-bar .btn-outline-secondary {
+  --bs-btn-color: #ffffff;
+  --bs-btn-border-color: rgba(255, 255, 255, 0.5);
+  --bs-btn-hover-bg: #ffffff;
+  --bs-btn-hover-color: var(--ink);
+}
+
+.restock-bar .btn-primary,
+.restock-bar .btn-success {
+  box-shadow: 3px 3px 0 var(--gold);
+}
+
+/* ---------- Accesso ---------- */
+.login-brand h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-shadow: 3px 3px 0 var(--color-primary);
+}
+
+.login-brand .brand-mark {
+  background: var(--color-primary);
+  color: #ffffff;
+  box-shadow: 3px 3px 0 var(--gold);
+}
+
+.login-box {
+  border-top: 4px solid var(--color-primary);
+}
+
+.login-tagline {
+  color: var(--gold);
+  font-family: var(--font-condensed);
+  font-size: 1.05rem;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  animation: blink 1.4s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to { visibility: hidden; }
+}
+
+/* ---------- Telefono ---------- */
+@media (max-width: 1024px) {
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) var(--space-4);
+    padding: var(--space-2) var(--space-4);
+    padding-top: max(var(--space-2), env(safe-area-inset-top));
+    background: var(--ink);
+    border-bottom: 3px solid var(--color-primary);
+    box-shadow: 0 3px 0 var(--gold);
+  }
+
+  .player-card {
+    width: 100%;
+    padding: 0;
+  }
+
+  .player-card::before {
+    display: none;
+  }
+
+  .player-info {
+    flex: 1 1 auto;
+  }
+
+  .mobile-nav {
+    background: var(--ink);
+    border-top: 3px solid var(--color-primary);
+    box-shadow: 0 -3px 0 var(--gold);
+    padding-bottom: max(var(--space-2), env(safe-area-inset-bottom));
+  }
+
+  .mobile-nav .nav-item {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+  }
+
+  .mobile-nav .nav-item::before {
+    transform: skewX(-10deg);
+  }
+
+  .mobile-nav .nav-item.active {
+    color: #ffffff;
+    background: transparent;
+  }
+
+  .content {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 760px) {
+  .page-header h1::after {
+    height: 5px;
+  }
+
+  .metric {
+    min-height: 0;
+  }
+
+  .scoreboard {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .scoreboard > div:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .player-exit span {
+    display: none;
+  }
+
+  .player-exit {
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+}
+
+@media (max-width: 380px) {
+  .player-tag {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-tagline {
+    animation: none;
+  }
+}
+
+/* Schede di sezione: una riga scorrevole su telefono invece di tre righe di pulsanti. */
+.tab-strip {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding: 2px 4px 6px 2px;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab-strip .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Il carattere giapponese ha un solo peso: niente grassetto finto (riempirebbe gli ideogrammi). */
+.page-kanji,
+.sidebar-kanji,
+.brand-mark,
+.brand-text,
+.player-tag,
+.player-name,
+.page-header h1,
+.metric-value,
+.scoreboard strong,
+.product-card-title,
+.price,
+.avatar,
+.product-image,
+.app-modal-head h2,
+.login-brand h1,
+.restock-bar strong {
+  font-weight: 400;
+  font-synthesis: none;
+}
+
+.page-kanji {
+  font-size: 1.35rem;
+  letter-spacing: 0.12em;
+}
+
+/* La colonna del contenuto non deve mai allargarsi oltre lo schermo (righe scorrevoli, tabelle). */
+.content {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 380px) {
+  .topbar {
+    margin-inline: calc(-1 * var(--space-3));
+    padding-inline: var(--space-3);
+  }
+}
+
+/* Tabelle larghe: scorrono invece di nascondere le ultime colonne (es. Azioni). */
+.data-table-shell {
+  overflow-x: auto;
+}
+
+.data-table td .cluster {
+  flex-wrap: nowrap;
+}

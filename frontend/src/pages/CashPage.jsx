@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Banknote, PackageSearch, ReceiptText } from 'lucide-react'
 import api from '../api/client'
-import { dateTime, money } from '../utils/format'
+import { money, movementDateTime } from '../utils/format'
 import PageHeader from '../components/layout/PageHeader'
 import MetricCard from '../components/ui/MetricCard'
 import DataTable from '../components/tables/DataTable'
@@ -23,7 +23,7 @@ export default function CashPage() {
   useEffect(() => { load() }, [load])
 
   const columns = [
-    { key: 'date', header: 'Data', render: (row) => dateTime(`${row.movement_date}T${row.movement_time || '00:00'}`) },
+    { key: 'date', header: 'Data', render: (row) => movementDateTime(row) },
     { key: 'movement', header: 'Movimento', render: (row) => <div><strong>{row.description || row.type}</strong><div className="small text-muted-app">{row.member?.name || row.product?.name || 'Movimento cassa'}</div></div> },
     { key: 'type', header: 'Tipo', render: (row) => <StatusBadge status={row.direction}>{row.direction}</StatusBadge> },
     { key: 'in', header: 'Entrata', align: 'right', render: (row) => row.direction === 'entrata' ? `+${money(row.amount_cents)}` : '—' },
@@ -59,7 +59,7 @@ export default function CashPage() {
         renderMobile={(row) => (
           <>
             <div className="split"><strong>{row.description || row.type}</strong><StatusBadge status={row.direction}>{row.direction}</StatusBadge></div>
-            <div className="split"><span className="text-muted-app">{dateTime(`${row.movement_date}T${row.movement_time || '00:00'}`)}</span><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div>
+            <div className="split"><span className="text-muted-app">{movementDateTime(row)}</span><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div>
             <div className="small text-muted-app">{row.user?.name || '-'} · {row.is_opening_historical_record ? 'Storico già contabilizzato' : row.status}</div>
           </>
         )}

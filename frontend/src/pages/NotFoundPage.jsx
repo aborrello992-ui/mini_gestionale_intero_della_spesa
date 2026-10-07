@@ -1,5 +1,11 @@
 import { Link } from 'react-router-dom'
+import PageHeader from '../components/layout/PageHeader'
 
 export default function NotFoundPage() {
-  return <section className="app-card"><h1>Pagina non trovata</h1><Link to="/">Torna alla dashboard</Link></section>
+  return (
+    <main className="content">
+      <PageHeader title="Pagina non trovata" subtitle="Questa schermata non esiste. Continue?" />
+      <Link className="btn btn-primary" to="/">Torna ai prodotti</Link>
+    </main>
+  )
 }

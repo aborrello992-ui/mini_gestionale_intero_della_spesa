@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CreditCard, ReceiptText, Users, WalletCards } from 'lucide-react'
+import { ReceiptText, WalletCards } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import Loading from '../components/Loading'
@@ -23,12 +23,20 @@ export default function DebtsPage() {
   const [message, setMessage] = useState('')
 
   async function load() {
-    setDebtors((await api.get('/debts')).data)
+    try {
+      setDebtors((await api.get('/debts')).data)
+    } catch (err) {
+      setMessage(errorMessage(err))
+      setDebtors((current) => current || [])
+    }
   }
   useEffect(() => { load() }, [])
 
   async function open(member) {
-    setDetail((await api.get(`/debts/${member.id}`)).data)
+    try {
+      setDetail((await api.get(`/debts/${member.id}`)).data)
+      requestAnimationFrame(() => document.getElementById('debt-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    } catch (err) { setMessage(errorMessage(err)) }
   }
 
   async function pay(event) {
@@ -79,17 +87,14 @@ export default function DebtsPage() {
   const totalDebt = debtors.reduce((sum, member) => sum + Number(member.open_debt_cents || 0), 0)
   const totalWallet = debtors.reduce((sum, member) => sum + Number(member.wallet_credit_cents || 0), 0)
   const debtorCount = debtors.filter((member) => Number(member.open_debt_cents || 0) > 0).length
-  const lastMovement = debtors.map((member) => member.last_debt_at).filter(Boolean).sort().at(-1)
 
   return (
     <section>
       <PageHeader title="Debiti" subtitle="Debiti aperti e accrediti personali lasciati in cassa." />
       <AlertMessage type={['Movimento registrato.', 'Rettifica debito registrata.'].includes(message) ? 'success' : 'danger'}>{message}</AlertMessage>
       <div className="metric-grid mb-3">
-        <MetricCard emphasis icon={ReceiptText} tone="warning" label="Totale da incassare" value={money(totalDebt)} help="Non è incluso nel saldo reale della cassa." />
-        <MetricCard icon={WalletCards} tone="success" label="Portafogli" value={money(totalWallet)} help="Accrediti personali già lasciati in cassa." />
-        <MetricCard icon={Users} tone="info" label="Persone debitrici" value={debtorCount} help="Utenti con debito ancora aperto." />
-        <MetricCard icon={CreditCard} tone="success" label="Ultimo coppone" value={lastMovement ? dateTime(lastMovement) : '—'} help="Movimento più recente registrato." />
+        <MetricCard emphasis icon={ReceiptText} tone="warning" label="Da incassare" value={money(totalDebt)} help={`${debtorCount} ${debtorCount === 1 ? 'persona' : 'persone'} con copponi aperti.`} />
+        <MetricCard icon={WalletCards} tone="success" label="Crediti dei soci" value={money(totalWallet)} help="Soldi lasciati in cassa da scalare dai prossimi copponi." />
       </div>
       <div className="card-grid">
         {debtors.map((member) => {
@@ -100,7 +105,7 @@ export default function DebtsPage() {
             <div className="split">
               <div className="cluster">
                 <UserAvatar name={member.name} />
-                <div><h2 className="h5 mb-0">{member.name}</h2><div className="small text-muted-app">{openDebt > 0 ? `${member.open_debts_count} voci non saldate` : 'Nessun debito aperto'}</div></div>
+                <div><h2 className="h5 mb-0">{member.name}</h2><div className="small text-muted-app">{openDebt > 0 ? `${member.open_debts_count} ${Number(member.open_debts_count) === 1 ? 'voce non saldata' : 'voci non saldate'}` : 'Nessun debito aperto'}</div></div>
               </div>
               {openDebt > 0 ? <StatusBadge status="coppone">Coppone</StatusBadge> : <StatusBadge tone="success">Pulito</StatusBadge>}
             </div>
@@ -122,7 +127,7 @@ export default function DebtsPage() {
         )})}
       </div>
       {!debtors.length && <EmptyState title="Nessuna persona disponibile" message="Aggiungi utenti attivi per gestire debiti e accrediti." />}
-      {detail && <div className="app-card mt-3">
+      {detail && <div className="app-card mt-3" id="debt-detail">
         <div className="split mb-3">
           <div className="cluster"><UserAvatar name={detail.member.name} /><div><h2 className="h4 mb-0">{detail.member.name}</h2><div className="text-muted-app">Dettaglio copponi e portafoglio</div></div></div>
           <div className="text-end"><strong className="h3 mb-0 num">{money(detail.remaining_cents)}</strong><div className="small text-muted-app">Credito: {money(detail.member.wallet_credit_cents || 0)}</div></div>

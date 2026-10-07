@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { KeyRound, UserPlus } from 'lucide-react'
+import { KeyRound, Pencil, UserPlus } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import { errorMessage } from '../utils/format'
@@ -15,9 +15,24 @@ export default function UsersPage() {
   const [message, setMessage] = useState('')
   const [pinEdit, setPinEdit] = useState(null)
   const [pin, setPin] = useState({ pin: '', pin_confirmation: '' })
+  const [userEdit, setUserEdit] = useState(null)
   const [form, setForm] = useState({ name: '', last_name: '', aliases: '', role: 'member', pin: '', pin_confirmation: '', is_active: true })
 
-  async function load() { setUsers((await api.get('/users')).data) }
+  async function load() {
+    try { setUsers((await api.get('/users')).data) } catch (err) { setMessage(errorMessage(err)) }
+  }
+
+  async function saveUser(event) {
+    event.preventDefault()
+    try {
+      await api.put(`/users/${userEdit.id}`, userEdit)
+      setMessage('Utente aggiornato.')
+      setUserEdit(null)
+      load()
+    } catch (err) { setMessage(errorMessage(err)) }
+  }
+
+  const startEdit = (user) => setUserEdit({ id: user.id, name: user.name, last_name: user.last_name || '', role: user.role, is_active: Boolean(user.is_active) })
   useEffect(() => { load() }, [])
 
   async function submit(event) {
@@ -46,13 +61,13 @@ export default function UsersPage() {
     { key: 'role', header: 'Ruolo', render: (user) => <StatusBadge tone={user.role === 'admin' ? 'primary' : 'info'}>{user.role === 'admin' ? 'Admin' : 'Membro'}</StatusBadge> },
     { key: 'status', header: 'Stato', render: (user) => <StatusBadge status={user.is_active ? 'active' : 'inactive'} /> },
     { key: 'created', header: 'Creato', render: (user) => new Date(user.created_at).toLocaleDateString('it-IT') },
-    { key: 'actions', header: 'Azioni', render: (user) => <button className="btn btn-sm btn-outline-primary" onClick={() => setPinEdit(user)}><KeyRound size={15} /> PIN</button> },
+    { key: 'actions', header: 'Azioni', render: (user) => <div className="cluster"><button type="button" className="btn btn-sm btn-outline-primary" onClick={() => startEdit(user)}><Pencil size={15} /> Modifica</button><button type="button" className="btn btn-sm btn-outline-primary" onClick={() => setPinEdit(user)}><KeyRound size={15} /> PIN</button></div> },
   ]
 
   return (
     <section>
       <PageHeader title="Utenti" subtitle="Gestisci membri, ruoli, alias e PIN personali." primaryAction={<a href="#new-user" className="btn btn-primary"><UserPlus size={17} /> Nuovo membro</a>} />
-      <AlertMessage type={['Utente creato.', 'PIN aggiornato correttamente.'].includes(message) ? 'success' : 'danger'}>{message}</AlertMessage>
+      <AlertMessage type={['Utente creato.', 'Utente aggiornato.', 'PIN aggiornato correttamente.'].includes(message) ? 'success' : 'danger'}>{message}</AlertMessage>
       <form className="app-card form-grid mb-3" id="new-user" onSubmit={submit}>
         <FormField label="Nome"><input className="form-control" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></FormField>
         <FormField label="Cognome facoltativo"><input className="form-control" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} /></FormField>
@@ -75,10 +90,24 @@ export default function UsersPage() {
               <StatusBadge status={user.is_active ? 'active' : 'inactive'} />
             </div>
             <div className="small text-muted-app">Alias: {(user.aliases || []).join(', ') || '-'}</div>
-            <button className="btn btn-outline-primary w-100" onClick={() => setPinEdit(user)}><KeyRound size={16} /> Modifica PIN</button>
+            <div className="product-admin-actions">
+              <button type="button" className="btn btn-outline-primary" onClick={() => startEdit(user)}><Pencil size={16} /> Modifica</button>
+              <button type="button" className="btn btn-outline-primary" onClick={() => setPinEdit(user)}><KeyRound size={16} /> PIN</button>
+            </div>
           </>
         )}
       />
+      {userEdit && (
+        <AppModal title="Modifica utente" subtitle={userEdit.name} onClose={() => setUserEdit(null)} labelledBy="user-edit-title">
+          <form className="stack-md" onSubmit={saveUser}>
+            <FormField label="Nome" htmlFor="edit-name"><input id="edit-name" className="form-control" value={userEdit.name} onChange={(e) => setUserEdit({ ...userEdit, name: e.target.value })} required /></FormField>
+            <FormField label="Cognome" htmlFor="edit-last"><input id="edit-last" className="form-control" value={userEdit.last_name} onChange={(e) => setUserEdit({ ...userEdit, last_name: e.target.value })} /></FormField>
+            <FormField label="Ruolo" htmlFor="edit-role"><select id="edit-role" className="form-select" value={userEdit.role} onChange={(e) => setUserEdit({ ...userEdit, role: e.target.value })}><option value="member">Membro</option><option value="admin">Amministratore</option></select></FormField>
+            <FormField label="Stato" htmlFor="edit-active"><select id="edit-active" className="form-select" value={userEdit.is_active ? '1' : '0'} onChange={(e) => setUserEdit({ ...userEdit, is_active: e.target.value === '1' })}><option value="1">Attivo</option><option value="0">Disattivato</option></select></FormField>
+            <button className="btn btn-primary btn-lg w-100">Salva</button>
+          </form>
+        </AppModal>
+      )}
       {pinEdit && (
         <AppModal title={`Modifica PIN`} subtitle={pinEdit.name} onClose={() => setPinEdit(null)}>
           <form className="stack-md" onSubmit={updatePin}>

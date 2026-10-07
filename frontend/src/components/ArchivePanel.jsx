@@ -2,16 +2,15 @@ import { useEffect, useState } from 'react'
 import api from '../api/client'
 import AlertMessage from './AlertMessage'
 import StatusBadge from './ui/StatusBadge'
-import { dateTime, errorMessage, money, quantity } from '../utils/format'
+import { dateTime, errorMessage, money, quantity, shortDate } from '../utils/format'
 
 const TYPES = [['cash', 'Cassa'], ['debts', 'Debiti'], ['withdrawals', 'Prelievi'], ['receipts', 'Scontrini']]
-const day = (value) => (value ? new Date(value).toLocaleDateString('it-IT') : '-')
 
 function ArchiveRow({ type, row }) {
-  if (type === 'debts') return <><div className="split"><strong>{row.member?.name}</strong><strong className="num">{money(row.original_amount_cents)}</strong></div><div className="small text-muted-app">{day(row.created_at)} · pagato {money(row.paid_amount_cents)} · residuo {money(row.remaining_amount_cents)} · {row.status}</div></>
+  if (type === 'debts') return <><div className="split"><strong>{row.member?.name}</strong><strong className="num">{money(row.original_amount_cents)}</strong></div><div className="small text-muted-app">{shortDate(row.created_at)} · pagato {money(row.paid_amount_cents)} · residuo {money(row.remaining_amount_cents)} · {row.status}</div></>
   if (type === 'withdrawals') return <><div className="split"><strong className="text-break">{row.product?.name} · {quantity(row.quantity, row.product?.unit)}</strong><strong className="num">{money(row.total_amount_cents)}</strong></div><div className="small text-muted-app">{row.member?.name} · {dateTime(row.withdrawn_at)} · <StatusBadge status={row.payment_status} /></div></>
-  if (type === 'receipts') return <><div className="split"><strong>Scontrino #{row.id}</strong><strong className="num">{money(row.total_cents)}</strong></div><div className="small text-muted-app">{day(row.purchased_at)} · {row.user?.name}</div></>
-  return <><div className="split"><strong className="text-break">{row.description}</strong><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{day(row.movement_date)} · {row.type?.replaceAll('_', ' ')}{row.member ? ` · ${row.member.name}` : ''}{row.status !== 'active' ? ` · ${row.status}` : ''}</div></>
+  if (type === 'receipts') return <><div className="split"><strong>Scontrino #{row.id}</strong><strong className="num">{money(row.total_cents)}</strong></div><div className="small text-muted-app">{shortDate(row.purchased_at)} · {row.user?.name}</div></>
+  return <><div className="split"><strong className="text-break">{row.description}</strong><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{shortDate(row.movement_date)} · {row.type?.replaceAll('_', ' ')}{row.member ? ` · ${row.member.name}` : ''}{row.status !== 'active' ? ` · ${row.status}` : ''}</div></>
 }
 
 export default function ArchivePanel() {
@@ -29,7 +28,7 @@ export default function ArchivePanel() {
       <div className="summary-box stack-sm">
         <strong>Archivio conti precedenti (sola lettura)</strong>
         {data?.resets?.length
-          ? data.resets.map((reset) => <div className="small" key={reset.id}>Azzeramento al {reset.cutoff_at ? dateTime(reset.cutoff_at) : day(reset.cutoff_date)} · apertura cassa {money(reset.opening_cash_cents)} · eseguito il {dateTime(reset.created_at)}</div>)
+          ? data.resets.map((reset) => <div className="small" key={reset.id}>Azzeramento al {reset.cutoff_at ? dateTime(reset.cutoff_at) : shortDate(reset.cutoff_date)} · apertura cassa {money(reset.opening_cash_cents)} · eseguito il {dateTime(reset.created_at)}</div>)
           : <div className="small text-muted-app">Nessun azzeramento eseguito.</div>}
         <div className="small text-muted-app">Questi record non contano in saldo, debiti, crediti e contatori.</div>
       </div>

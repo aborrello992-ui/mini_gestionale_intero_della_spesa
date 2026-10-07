@@ -114,7 +114,7 @@ export default function ProductsPage() {
         <>
           {availableProducts.length > 0 && <div className="product-grid">{availableProducts.map((product) => <ProductCard key={product.id} product={product} onTake={openTake} onAddToShoppingList={addToShoppingList} />)}</div>}
           {emptyProducts.length > 0 && <>
-            <h2 className="h5 mt-4 mb-3 text-muted-app">Esauriti</h2>
+            <h2 className="section-title mt-4 mb-3">Esauriti</h2>
             <div className="product-grid">{emptyProducts.map((product) => <ProductCard key={product.id} product={product} onTake={openTake} onAddToShoppingList={addToShoppingList} />)}</div>
           </>}
         </>

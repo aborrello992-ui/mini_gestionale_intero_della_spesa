@@ -50,7 +50,7 @@ export default function ShoppingListPage() {
 
       {isAdmin && <RestockForm products={products} listItems={items} onSaved={load} />}
 
-      <h2 className="h5 mt-4 mb-3">Da comprare</h2>
+      <h2 className="section-title mt-4 mb-3">Da comprare</h2>
       <form className="app-card form-grid mb-3" onSubmit={submit}>
         <FormField label="Prodotto" htmlFor={`${fieldId}-product`}><select id={`${fieldId}-product`} className="form-select" value={form.product_id} onChange={(e) => setForm({ ...form, product_id: e.target.value })} required><option value="">Scegli prodotto</option>{products.map((p) => <option value={p.id} key={p.id}>{p.name}</option>)}</select></FormField>
         <FormField label="Quantità prevista" htmlFor={`${fieldId}-qty`}><input id={`${fieldId}-qty`} className="form-control" type="number" min="0.001" step="0.001" value={form.suggested_quantity} onChange={(e) => setForm({ ...form, suggested_quantity: e.target.value })} /></FormField>

@@ -1,5 +1,6 @@
 import { ShoppingCart } from 'lucide-react'
 import StatusBadge from './ui/StatusBadge'
+import ProductThumb from './ui/ProductThumb'
 import StockIndicator from './ui/StockIndicator'
 import { money, quantity } from '../utils/format'
 import { stockLevel } from '../utils/stock'
@@ -11,9 +12,7 @@ export default function ProductCard({ product, onTake, onAddToShoppingList }) {
   return (
     <article className={`app-card product-card ${current <= 0 ? 'is-empty' : ''}`}>
       <div className="product-card-media">
-        <div className="product-image" aria-label={product.image_alt || product.name}>
-          {product.image_url ? <img src={product.image_url} alt={product.image_alt || product.name} loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none' }} /> : <span>{product.name.slice(0, 1)}</span>}
-        </div>
+        <ProductThumb product={product} />
         <div className="product-card-badges">
           <StatusBadge tone="primary">{product.category?.name || 'Categoria'}</StatusBadge>
           <StatusBadge status={level.status}>{level.label}</StatusBadge>

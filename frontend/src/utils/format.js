@@ -67,3 +67,11 @@ export const newUuid = () => {
   const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }
+
+/** Data e ora di un movimento di cassa (movement_date arriva come ISO completo, movement_time come HH:MM:SS). */
+export const movementDateTime = (row) => {
+  if (!row?.movement_date) return '-'
+  return dateTime(`${String(row.movement_date).slice(0, 10)}T${String(row.movement_time || '00:00').slice(0, 5)}`)
+}
+
+export const shortDate = (value) => (value ? new Date(`${String(value).slice(0, 10)}T12:00`).toLocaleDateString('it-IT') : '-')

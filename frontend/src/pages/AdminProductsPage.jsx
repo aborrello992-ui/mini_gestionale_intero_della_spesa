@@ -7,6 +7,7 @@ import DataTable from '../components/tables/DataTable'
 import FormField from '../components/forms/FormField'
 import StatusBadge from '../components/ui/StatusBadge'
 import AppModal from '../components/ui/AppModal'
+import ProductThumb from '../components/ui/ProductThumb'
 import { errorMessage, money, quantity } from '../utils/format'
 
 export default function AdminProductsPage() {
@@ -113,7 +114,7 @@ export default function AdminProductsPage() {
   }
 
   const columns = [
-    { key: 'product', header: 'Prodotto', render: (product) => <div className="cluster"><div className="product-image" style={{ width: 64, padding: 6 }}>{product.image_url ? <img src={product.image_url} alt={product.image_alt || product.name} /> : <span>{product.name.slice(0, 1)}</span>}</div><div><strong>{product.name}</strong><div className="small text-muted-app">{product.location?.name || 'Locale'}</div></div></div> },
+    { key: 'product', header: 'Prodotto', render: (product) => <div className="cluster"><ProductThumb product={product} style={{ width: 64, padding: 6 }} /><div><strong>{product.name}</strong><div className="small text-muted-app">{product.location?.name || 'Locale'}</div></div></div> },
     { key: 'category', header: 'Categoria', render: (product) => product.category?.name || '-' },
     { key: 'quantity', header: 'Disponibilità', align: 'right', render: (product) => quantity(product.current_quantity, product.unit) },
     { key: 'cost', header: 'Costo medio', align: 'right', render: (product) => money(product.average_price_cents || 0) },
@@ -125,7 +126,7 @@ export default function AdminProductsPage() {
 
   return (
     <section>
-      <PageHeader title="Prodotti admin" subtitle="Gestisci immagini, prezzi, disponibilità e archiviazione senza cancellare lo storico." badge={<StatusBadge tone={withoutImages.length ? 'warning' : 'success'}>{withoutImages.length} senza immagine</StatusBadge>} />
+      <PageHeader title="Magazzino" subtitle="Immagini, prezzi, archiviazione ed eliminazione dei prodotti." badge={<StatusBadge tone={withoutImages.length ? 'warning' : 'success'}>{withoutImages.length} senza immagine</StatusBadge>} />
       <AlertMessage type={isSuccess ? 'success' : 'danger'}>{message}</AlertMessage>
       <div className="app-card filter-bar">
         <FormField label="Stato">

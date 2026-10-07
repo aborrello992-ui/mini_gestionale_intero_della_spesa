@@ -1,18 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ArrowRightLeft, BarChart3, Boxes, FileText, Plus, Receipt, TrendingDown, TrendingUp, UserRound, WalletCards } from 'lucide-react'
+import { Archive, ArrowRightLeft, BarChart3, FileText, Plus, UserRound, WalletCards } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
-import { dateTime, errorMessage, localDate, money, quantity } from '../utils/format'
+import { errorMessage, localDate, localTime, money, movementDateTime, quantity, shortDate } from '../utils/format'
 import { storageUrl } from '../utils/storage'
 import { expenseCategoryLabel } from '../utils/restock'
 import PageHeader from '../components/layout/PageHeader'
-import MetricCard from '../components/ui/MetricCard'
 import DataTable from '../components/tables/DataTable'
 import FormField from '../components/forms/FormField'
 import StatusBadge from '../components/ui/StatusBadge'
 import AppModal from '../components/ui/AppModal'
 import WithdrawalReassignPanel from '../components/WithdrawalReassignPanel'
 import ArchivePanel from '../components/ArchivePanel'
+
+const TABS = [
+  ['riepilogo', 'Riepilogo', BarChart3],
+  ['personali', 'Movimenti soci', UserRound],
+  ['generiche', 'Spese generiche', WalletCards],
+  ['scontrini', 'Scontrini', FileText],
+  ['prelievi', 'Riassegna prelievi', ArrowRightLeft],
+  ['archivio', 'Archivio', Archive],
+]
 
 const personalTypes = [['accredito', 'Accredito'], ['quota', 'Quota mensile'], ['rimborso', 'Rimborso'], ['correzione', 'Correzione']]
 
@@ -27,8 +35,8 @@ export default function ManagementPage() {
   const [receiptDetail, setReceiptDetail] = useState(null)
   const [message, setMessage] = useState('')
   const now = new Date()
-  const [personalForm, setPersonalForm] = useState({ type: 'accredito', member_id: '', direction: 'entrata', amount: '', reason: '', movement_date: localDate(now), movement_time: now.toTimeString().slice(0, 5) })
-  const [genericForm, setGenericForm] = useState({ type: 'spesa_generica', direction: 'uscita', amount: '', reason: '', movement_date: localDate(now), movement_time: now.toTimeString().slice(0, 5) })
+  const [personalForm, setPersonalForm] = useState({ type: 'accredito', member_id: '', direction: 'entrata', amount: '', reason: '', movement_date: localDate(now), movement_time: localTime(now) })
+  const [genericForm, setGenericForm] = useState({ type: 'spesa_generica', direction: 'uscita', amount: '', reason: '', movement_date: localDate(now), movement_time: localTime(now) })
 
   const loadSummary = useCallback(async () => {
     try {
@@ -84,7 +92,7 @@ export default function ManagementPage() {
   }
 
   const personalColumns = [
-    { key: 'date', header: 'Data', render: (row) => new Date(row.movement_date).toLocaleDateString('it-IT') },
+    { key: 'date', header: 'Data', render: (row) => shortDate(row.movement_date) },
     { key: 'time', header: 'Ora', render: (row) => String(row.movement_time || '').slice(0, 5) },
     { key: 'movement', header: 'Movimento', render: (row) => <strong>{row.type?.replaceAll('_', ' ')}</strong> },
     { key: 'person', header: 'Persona', render: (row) => row.member?.name || '-' },
@@ -93,7 +101,7 @@ export default function ManagementPage() {
     { key: 'status', header: 'Stato', render: (row) => <StatusBadge status={row.status}>{row.status === 'active' ? 'Confermato' : row.status}</StatusBadge> },
   ]
   const genericColumns = [
-    { key: 'date', header: 'Data', render: (row) => new Date(row.movement_date).toLocaleDateString('it-IT') },
+    { key: 'date', header: 'Data', render: (row) => shortDate(row.movement_date) },
     { key: 'time', header: 'Ora', render: (row) => String(row.movement_time || '').slice(0, 5) },
     { key: 'direction', header: 'Entrata/Uscita', render: (row) => <StatusBadge status={row.direction}>{row.direction}</StatusBadge> },
     { key: 'amount', header: 'Importo', align: 'right', render: (row) => `${row.direction === 'entrata' ? '+' : '−'}${money(row.amount_cents)}` },
@@ -101,7 +109,7 @@ export default function ManagementPage() {
     { key: 'status', header: 'Stato', render: (row) => <StatusBadge status={row.status}>{row.status}</StatusBadge> },
   ]
   const receiptColumns = [
-    { key: 'date', header: 'Data', render: (row) => `${new Date(row.purchased_at).toLocaleDateString('it-IT')} ${String(row.purchased_time || '').slice(0, 5)}` },
+    { key: 'date', header: 'Data', render: (row) => `${shortDate(row.purchased_at)} ${String(row.purchased_time || '').slice(0, 5)}` },
     { key: 'total', header: 'Totale', align: 'right', render: (row) => money(row.total_cents) },
     { key: 'photo', header: 'Foto', render: (row) => row.receipt_image_path ? <a className="btn btn-sm btn-outline-primary" href={storageUrl(row.receipt_image_path)} target="_blank">Visualizza</a> : <StatusBadge tone="neutral">Assente</StatusBadge> },
     { key: 'items', header: 'Prodotti acquistati', render: (row) => <div><strong>{row.items_count} righe</strong><div className="small text-muted-app">{quantity(row.total_quantity || 0, 'pezzi')}</div></div> },
@@ -114,46 +122,45 @@ export default function ManagementPage() {
 
   return (
     <section>
-      <PageHeader title="Gestione" subtitle="Movimenti personali, spese generiche e registro scontrini sono separati per non confondere la cassa." />
+      <PageHeader title="Gestione" subtitle="Situazione della cassa, movimenti dei soci, scontrini e correzioni." />
       <AlertMessage type={message.includes('registrat') ? 'success' : 'danger'}>{message}</AlertMessage>
-      <div className="app-card filter-bar mb-3">
-        <FormField label="Dal" htmlFor="summary-from"><input id="summary-from" className="form-control" type="date" value={period.from} onChange={(e) => setPeriod({ ...period, from: e.target.value })} /></FormField>
-        <FormField label="Al" htmlFor="summary-to"><input id="summary-to" className="form-control" type="date" value={period.to} onChange={(e) => setPeriod({ ...period, to: e.target.value })} /></FormField>
+      <div className="scoreboard" aria-label="Situazione attuale">
+        <div><span>Saldo cassa</span><strong className="num">{money(summary?.balance_cents || 0)}</strong></div>
+        <div><span>Copponi aperti</span><strong className="num">{money(summary?.open_coppone_cents || 0)}</strong></div>
+        <div><span>Magazzino</span><strong className="num">{money(summary?.inventory.value_at_price_cents || 0)}</strong><small>costo {money(summary?.inventory.value_at_cost_cents || 0)}</small></div>
       </div>
-      <div className="metric-grid mb-3">
-        <MetricCard emphasis icon={WalletCards} label="Saldo attuale" value={money(summary?.balance_cents || 0)} help="Calcolato sul server da tutti i movimenti validi." />
-        <MetricCard icon={TrendingUp} tone="success" label="Entrate periodo" value={money(summary?.cash.income_cents || 0)} help="Movimenti attivi, esclusi gli annullati." />
-        <MetricCard icon={TrendingDown} tone="danger" label="Uscite periodo" value={money(summary?.cash.outcome_cents || 0)} help="Comprese le spese da scontrino." />
-        <MetricCard icon={UserRound} tone="warning" label="Copponi aperti" value={money(summary?.open_coppone_cents || 0)} help="Debiti ancora da saldare." />
-        <MetricCard icon={Boxes} tone="info" label="Magazzino a costo" value={money(summary?.inventory.value_at_cost_cents || 0)} help={`A prezzo di vendita: ${money(summary?.inventory.value_at_price_cents || 0)}`} />
-        <MetricCard icon={Receipt} tone="info" label="Scontrini periodo" value={summary?.receipts.count || 0} help={`${summary?.receipts.lines || 0} righe · ${money(summary?.receipts.total_cents || 0)}`} />
-      </div>
-      <div className="cluster mb-3">
-        <button className={`btn ${tab === 'riepilogo' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('riepilogo')}><BarChart3 size={17} /> Riepilogo</button>
-        <button className={`btn ${tab === 'personali' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('personali')}><UserRound size={17} /> Movimenti personali</button>
-        <button className={`btn ${tab === 'generiche' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('generiche')}><WalletCards size={17} /> Spese generiche</button>
-        <button className={`btn ${tab === 'scontrini' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('scontrini')}><FileText size={17} /> Registro scontrini</button>
-        <button className={`btn ${tab === 'prelievi' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('prelievi')}><ArrowRightLeft size={17} /> Riassegna prelievi</button>
-        <button className={`btn ${tab === 'archivio' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('archivio')}><Archive size={17} /> Archivio</button>
+      <div className="tab-strip mb-3" role="group" aria-label="Sezioni gestione">
+        {TABS.map(([value, label, Icon]) => <button type="button" key={value} className={`btn ${tab === value ? 'btn-primary' : 'btn-outline-primary'}`} aria-pressed={tab === value} onClick={() => setTab(value)}><Icon size={17} aria-hidden="true" /> {label}</button>)}
       </div>
 
-      {tab === 'riepilogo' && summary && <div className="card-grid mb-3">
-        <div className="app-card stack-sm">
-          <h2 className="h6 mb-1">Cassa del periodo per tipo</h2>
-          {summary.cash.by_type.length ? summary.cash.by_type.map((row) => <div className="split" key={row.type}><span>{row.label}</span><span className="num">{row.income_cents ? `+${money(row.income_cents)}` : ''} {row.outcome_cents ? `−${money(row.outcome_cents)}` : ''}</span></div>) : <p className="text-muted-app mb-0">Nessun movimento nel periodo.</p>}
+      {tab === 'riepilogo' && <>
+        <div className="app-card filter-bar mb-3">
+          <FormField label="Dal" htmlFor="summary-from"><input id="summary-from" className="form-control" type="date" value={period.from} onChange={(e) => setPeriod({ ...period, from: e.target.value })} /></FormField>
+          <FormField label="Al" htmlFor="summary-to"><input id="summary-to" className="form-control" type="date" value={period.to} onChange={(e) => setPeriod({ ...period, to: e.target.value })} /></FormField>
         </div>
-        <div className="app-card stack-sm">
-          <h2 className="h6 mb-1">Spese da scontrino</h2>
-          <div className="split"><span>Prodotti</span><strong className="num">{money(summary.receipts.products_cents)}</strong></div>
-          <div className="split"><span>Altre spese</span><strong className="num">{money(summary.receipts.expenses_cents)}</strong></div>
-          {Object.entries(summary.receipts.expenses_by_category || {}).map(([category, cents]) => <div className="split small text-muted-app ps-2" key={category}><span>{expenseCategoryLabel(category)}</span><span className="num">{money(cents)}</span></div>)}
-          <div className="split"><span>Differenze scontrino</span><strong className="num">{money(summary.receipts.difference_cents)}</strong></div>
-        </div>
-        <div className="app-card stack-sm">
-          <h2 className="h6 mb-1">Soci</h2>
-          {summary.members.map((member) => <div className="split" key={member.id}><span className="min-0 text-truncate">{member.name}</span><span className="num small">{member.open_coppone_cents ? <span className="text-danger">debito {money(member.open_coppone_cents)}</span> : null}{member.wallet_credit_cents ? <span className="text-success ms-2">credito {money(member.wallet_credit_cents)}</span> : null}{!member.open_coppone_cents && !member.wallet_credit_cents ? 'in pari' : null}</span></div>)}
-        </div>
-      </div>}
+        {summary && <div className="card-grid mb-3">
+          <div className="app-card stack-sm">
+            <h2 className="section-title">Cassa nel periodo</h2>
+            <div className="split"><span>Entrate</span><strong className="num text-success">+{money(summary.cash.income_cents)}</strong></div>
+            <div className="split"><span>Uscite</span><strong className="num text-danger">−{money(summary.cash.outcome_cents)}</strong></div>
+            <div className="split border-top pt-2"><span>Netto</span><strong className="num">{money(summary.cash.income_cents - summary.cash.outcome_cents)}</strong></div>
+            {summary.cash.by_type.map((row) => <div className="split small text-muted-app" key={row.type}><span>{row.label}</span><span className="num">{row.income_cents ? `+${money(row.income_cents)}` : ''} {row.outcome_cents ? `−${money(row.outcome_cents)}` : ''}</span></div>)}
+            {!summary.cash.by_type.length && <p className="text-muted-app mb-0">Nessun movimento nel periodo.</p>}
+          </div>
+          <div className="app-card stack-sm">
+            <h2 className="section-title">Scontrini nel periodo</h2>
+            <div className="small text-muted-app">{summary.receipts.count} scontrini · {summary.receipts.lines} righe · totale {money(summary.receipts.total_cents)}</div>
+            <div className="split"><span>Prodotti</span><strong className="num">{money(summary.receipts.products_cents)}</strong></div>
+            <div className="split"><span>Altre spese</span><strong className="num">{money(summary.receipts.expenses_cents)}</strong></div>
+            {Object.entries(summary.receipts.expenses_by_category || {}).map(([category, cents]) => <div className="split small text-muted-app ps-2" key={category}><span>{expenseCategoryLabel(category)}</span><span className="num">{money(cents)}</span></div>)}
+            <div className="split"><span>Differenze</span><strong className="num">{money(summary.receipts.difference_cents)}</strong></div>
+          </div>
+          <div className="app-card stack-sm">
+            <h2 className="section-title">Soci</h2>
+            {summary.members.map((member) => <div className="split" key={member.id}><span className="min-0 text-truncate">{member.name}</span><span className="num small">{member.open_coppone_cents ? <span className="text-danger fw-bold">debito {money(member.open_coppone_cents)}</span> : null}{member.wallet_credit_cents ? <span className="text-success fw-bold ms-2">credito {money(member.wallet_credit_cents)}</span> : null}{!member.open_coppone_cents && !member.wallet_credit_cents ? 'in pari' : null}</span></div>)}
+          </div>
+        </div>}
+      </>}
 
       {tab === 'personali' && <>
         <form className="app-card form-grid mb-3" onSubmit={submitPersonal}>
@@ -166,7 +173,7 @@ export default function ManagementPage() {
           {personalForm.type === 'correzione' && <FormField label="Motivo breve"><input className="form-control" value={personalForm.reason} onChange={(e) => setPersonalForm({ ...personalForm, reason: e.target.value })} /></FormField>}
           <button className="btn btn-primary"><Plus size={17} /> Salva</button>
         </form>
-        <DataTable columns={personalColumns} rows={personalRows} getKey={(row) => row.id} emptyTitle="Nessun movimento personale" renderMobile={(row) => <><div className="split"><strong>{row.type}</strong><strong>{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{row.member?.name} · {dateTime(`${row.movement_date}T${row.movement_time || '00:00'}`)}</div></>} />
+        <DataTable columns={personalColumns} rows={personalRows} getKey={(row) => row.id} emptyTitle="Nessun movimento personale" renderMobile={(row) => <><div className="split"><strong>{row.type}</strong><strong>{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{row.member?.name} · {movementDateTime(row)}</div></>} />
       </>}
 
       {tab === 'generiche' && <>
@@ -178,15 +185,15 @@ export default function ManagementPage() {
           <FormField label="Motivo facoltativo"><input className="form-control" value={genericForm.reason} onChange={(e) => setGenericForm({ ...genericForm, reason: e.target.value })} /></FormField>
           <button className="btn btn-primary"><Plus size={17} /> Salva</button>
         </form>
-        <DataTable columns={genericColumns} rows={genericRows} getKey={(row) => row.id} emptyTitle="Nessuna spesa generica" renderMobile={(row) => <><div className="split"><StatusBadge status={row.direction}>{row.direction}</StatusBadge><strong>{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{dateTime(`${row.movement_date}T${row.movement_time || '00:00'}`)} · {row.user?.name}</div></>} />
+        <DataTable columns={genericColumns} rows={genericRows} getKey={(row) => row.id} emptyTitle="Nessuna spesa generica" renderMobile={(row) => <><div className="split"><StatusBadge status={row.direction}>{row.direction}</StatusBadge><strong>{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{movementDateTime(row)} · {row.user?.name}</div></>} />
       </>}
 
-      {tab === 'scontrini' && <DataTable columns={receiptColumns} rows={activeRows} getKey={(row) => row.id} emptyTitle="Nessuno scontrino registrato" emptyMessage="Gli scontrini si registrano dalla Lista spesa." renderMobile={(row) => <><div className="split"><strong>{money(row.total_cents)}</strong><StatusBadge tone="success">{row.status}</StatusBadge></div><div className="small text-muted-app">{new Date(row.purchased_at).toLocaleDateString('it-IT')} · {row.items_count} prodotti</div><button className="btn btn-outline-primary" onClick={() => openReceipt(row)}>Vedi dettaglio</button></>} />}
+      {tab === 'scontrini' && <DataTable columns={receiptColumns} rows={activeRows} getKey={(row) => row.id} emptyTitle="Nessuno scontrino registrato" emptyMessage="Gli scontrini si registrano dalla Lista spesa." renderMobile={(row) => <><div className="split"><strong>{money(row.total_cents)}</strong><StatusBadge tone="success">{row.status}</StatusBadge></div><div className="small text-muted-app">{shortDate(row.purchased_at)} · {row.items_count} prodotti</div><button className="btn btn-outline-primary" onClick={() => openReceipt(row)}>Vedi dettaglio</button></>} />}
 
       {tab === 'prelievi' && <WithdrawalReassignPanel members={members} onChanged={loadSummary} />}
       {tab === 'archivio' && <ArchivePanel />}
 
-      {receiptDetail && <AppModal title="Dettaglio scontrino" subtitle={`${new Date(receiptDetail.purchased_at).toLocaleDateString('it-IT')} · ${money(receiptDetail.total_cents)}`} onClose={() => setReceiptDetail(null)}>
+      {receiptDetail && <AppModal title="Dettaglio scontrino" subtitle={`${shortDate(receiptDetail.purchased_at)} · ${money(receiptDetail.total_cents)}`} onClose={() => setReceiptDetail(null)}>
         <div className="stack-md">
           <div className="summary-box">
             <div className="split"><span>Totale scontrino</span><strong>{money(receiptDetail.total_cents)}</strong></div>
