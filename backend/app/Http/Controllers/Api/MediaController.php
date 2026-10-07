@@ -14,7 +14,20 @@ class MediaController extends Controller
     /** Immagine di prodotto o scontrino letta dal disco public (locale o Supabase). Richiede link firmato. */
     public function show(Request $request)
     {
-        $path = (string) $request->query('path');
+        return $this->serve((string) $request->query('path'));
+    }
+
+    /**
+     * Vecchi link /storage/... (versioni precedenti del frontend): la foto viene presa dal disco
+     * public anche se sta su Supabase. I nomi dei file sono casuali (40 caratteri), quindi non indovinabili.
+     */
+    public function legacy(string $path)
+    {
+        return $this->serve($path);
+    }
+
+    private function serve(string $path)
+    {
         if ($path === '' || str_contains($path, '..') || ! Str::startsWith($path, MediaUrl::ALLOWED_DIRECTORIES)) {
             abort(404);
         }

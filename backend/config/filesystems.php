@@ -33,7 +33,8 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Disattivato: la rotta automatica /storage/{path} intercettava i link alle foto (403).
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

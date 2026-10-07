@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Product;
+use App\Models\RestockSession;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -78,6 +80,10 @@ class StorageHealthService
             }
         }
 
+        if ($written) {
+            $steps['foto_esistenti'] = $this->missingFilesStep($disk);
+        }
+
         $healthy = collect($steps)->every(fn (array $step) => $step['ok']);
 
         return [
@@ -92,6 +98,34 @@ class StorageHealthService
                 'post_max_size' => ini_get('post_max_size'),
             ],
         ];
+    }
+
+    /** Foto registrate nel database ma assenti nell'archivio immagini (es. caricamenti falliti in passato). */
+    private function missingFilesStep($disk): array
+    {
+        $missing = [];
+        $checked = 0;
+        $sources = [
+            'scontrino' => RestockSession::withArchived()->whereNotNull('receipt_image_path')->where('receipt_image_path', '!=', '')->latest('id')->limit(100)->get(['id', 'receipt_image_path as path']),
+            'prodotto' => Product::query()->whereNotNull('image_path')->where('image_path', '!=', '')->limit(200)->get(['id', 'name', 'image_path as path']),
+        ];
+        foreach ($sources as $kind => $rows) {
+            foreach ($rows as $row) {
+                $checked++;
+                try {
+                    $exists = $disk->exists($row->path);
+                } catch (Throwable) {
+                    $exists = false;
+                }
+                if (! $exists) {
+                    $missing[] = $kind === 'prodotto' ? "prodotto «{$row->name}»" : "scontrino #{$row->id}";
+                }
+            }
+        }
+
+        return $missing === []
+            ? $this->ok("Tutte le {$checked} foto registrate sono presenti.")
+            : $this->fail(count($missing).' foto registrate ma non presenti nell\'archivio (caricamento fallito in passato, vanno ricaricate): '.Str::limit(implode(', ', $missing), 300));
     }
 
     private function configStep(string $driver): array

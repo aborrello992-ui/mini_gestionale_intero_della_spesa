@@ -94,4 +94,31 @@ class StorageCheckTest extends TestCase
 
         $this->assertSame('products/vecchia.jpg', $product->fresh()->image_path);
     }
+
+    public function test_old_storage_links_are_served_from_the_disk(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('receipts/AbCdEf123.jpg', 'jpeg-bytes');
+
+        $this->get('/storage/receipts/AbCdEf123.jpg')->assertOk();
+        $this->get('/storage/receipts/manca.jpg')->assertNotFound();
+        $this->get('/storage/diagnostica/x.txt')->assertNotFound();
+    }
+
+    public function test_storage_check_lists_missing_photos(): void
+    {
+        Storage::fake('public');
+        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_ADMIN]));
+        Product::create([
+            'category_id' => Category::create(['name' => 'Bibite'])->id,
+            'location_id' => Location::create(['name' => 'Locale'])->id,
+            'name' => 'Acqua', 'unit' => 'pezzi', 'current_quantity' => 1, 'minimum_threshold' => 1,
+            'image_path' => 'products/persa.jpg',
+        ]);
+
+        $this->getJson('/api/storage-check')
+            ->assertJsonPath('steps.foto_esistenti.ok', false)
+            ->assertJsonPath('ok', false);
+        $this->assertStringContainsString('Acqua', $this->getJson('/api/storage-check')->json('steps.foto_esistenti.message'));
+    }
 }
