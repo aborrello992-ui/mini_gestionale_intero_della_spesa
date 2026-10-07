@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RegisterRestockRequest;
 use App\Models\ShoppingListItem;
 use App\Services\CashService;
 use App\Services\RestockSessionService;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 class ShoppingListController extends Controller
 {
@@ -64,36 +66,14 @@ class ShoppingListController extends Controller
         return response()->noContent();
     }
 
-    public function registerRestock(Request $request, RestockSessionService $service)
+    public function registerRestock(RegisterRestockRequest $request, RestockSessionService $service)
     {
-        $data = $request->validate([
-            'total_amount' => ['required', 'numeric', 'min:0.01'],
-            'purchased_at' => ['required', 'date'],
-            'purchased_time' => ['required', 'date_format:H:i'],
-            'receipt_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
-            'note' => ['nullable', 'string'],
-            'difference_reason' => ['nullable', 'in:arrotondamento,sacchetto,sconto,altro_costo,errore'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.shopping_list_item_id' => ['nullable', 'exists:shopping_list_items,id'],
-            'items.*.product_id' => ['nullable', 'exists:products,id'],
-            'items.*.name' => ['required_without:items.*.product_id', 'string', 'max:255'],
-            'items.*.category' => ['nullable', 'string', 'max:255'],
-            'items.*.unit' => ['required_without:items.*.product_id', 'string', 'max:40'],
-            'items.*.package_count' => ['nullable', 'numeric', 'min:0'],
-            'items.*.pieces_per_package' => ['nullable', 'numeric', 'min:0'],
-            'items.*.quantity' => ['nullable', 'numeric', 'min:0.001'],
-            'items.*.minimum_threshold' => ['nullable', 'numeric', 'min:0'],
-            'items.*.selling_price' => ['nullable', 'numeric', 'min:0'],
-            'items.*.unit_cost' => ['nullable', 'numeric', 'min:0'],
-            'items.*.cost_amount' => ['nullable', 'numeric', 'min:0'],
-            'items.*.location' => ['nullable', 'string', 'max:255'],
-            'items.*.image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-        ]);
-
-        if ($request->hasFile('receipt_image')) {
-            $data['receipt_image_path'] = $request->file('receipt_image')->store('receipts', 'public');
+        try {
+            [$session, $created] = $service->register($request->validated(), $request->user());
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
         }
 
-        return response()->json($service->register($data, $request->user()), 201);
+        return response()->json($session, $created ? 201 : 200);
     }
 }

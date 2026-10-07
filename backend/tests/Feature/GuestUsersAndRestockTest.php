@@ -71,6 +71,7 @@ class GuestUsersAndRestockTest extends TestCase
         Sanctum::actingAs($admin);
         $this->postJson('/api/shopping-list/restock-sessions', [
             'total_amount' => '12.50',
+            'difference_reason' => 'altro_costo',
             'purchased_at' => now()->toDateString(),
             'purchased_time' => now()->format('H:i'),
             'items' => [

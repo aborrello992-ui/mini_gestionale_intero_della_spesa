@@ -30,7 +30,7 @@ class ProductController extends Controller
             ->when($request->state === 'active', fn ($q) => $q->where('is_active', true)->whereNull('archived_at'))
             ->when($request->boolean('low_stock'), fn ($q) => $q->whereColumn('current_quantity', '<=', 'minimum_threshold'));
 
-        return $query->orderBy('name')->paginate($request->integer('per_page', 20));
+        return $query->orderBy('name')->paginate(min(max($request->integer('per_page', 20), 1), 500));
     }
 
     public function store(Request $request)
