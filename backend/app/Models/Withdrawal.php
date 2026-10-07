@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'user_id', 'product_id', 'created_by', 'quantity', 'unit_price_cents',
     'total_amount_cents', 'payment_status', 'withdrawn_at', 'status', 'notes',
+    'original_user_id', 'reassigned_at', 'reassigned_by', 'reassign_reason', 'is_manual', 'affects_stock',
 ])]
 class Withdrawal extends Model
 {
@@ -20,6 +22,9 @@ class Withdrawal extends Model
         return [
             'quantity' => 'decimal:3',
             'withdrawn_at' => 'datetime',
+            'reassigned_at' => 'datetime',
+            'is_manual' => 'boolean',
+            'affects_stock' => 'boolean',
         ];
     }
 
@@ -31,6 +36,16 @@ class Withdrawal extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function debts(): HasMany
+    {
+        return $this->hasMany(MemberDebt::class);
+    }
+
+    public function originalMember(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'original_user_id');
     }
 
     public function actor(): BelongsTo

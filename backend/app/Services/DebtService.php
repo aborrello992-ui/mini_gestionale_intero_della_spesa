@@ -11,6 +11,9 @@ use RuntimeException;
 
 class DebtService
 {
+    /** Credito restituito a un socio quando un coppone gia pagato viene riassegnato (non tocca la cassa). */
+    public const REASSIGNMENT_CREDIT_TYPE = 'credito_riassegnazione';
+
     public function __construct(private CashService $cashService) {}
 
     public function pay(User $member, User $admin, int $amountCents, ?string $note = null): DebtPayment
@@ -129,9 +132,10 @@ class DebtService
         $credited = CashMovement::query()
             ->where('member_id', $member->id)
             ->where('status', 'active')
-            ->where('type', 'accredito')
             ->where('direction', 'entrata')
-            ->where('affects_current_balance', true)
+            ->where(fn ($q) => $q
+                ->where(fn ($sub) => $sub->where('type', 'accredito')->where('affects_current_balance', true))
+                ->orWhere(fn ($sub) => $sub->where('type', self::REASSIGNMENT_CREDIT_TYPE)->where('affects_current_balance', false)))
             ->sum('amount_cents');
 
         $used = CashMovement::query()

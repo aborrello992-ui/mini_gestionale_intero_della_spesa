@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AccountReset;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\Withdrawal;
 use App\Services\PinService;
 use App\Services\WithdrawalService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class WithdrawalController extends Controller
@@ -45,5 +49,84 @@ class WithdrawalController extends Controller
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }
+    }
+
+    public function index(Request $request)
+    {
+        return Withdrawal::query()
+            ->with('member:id,name', 'originalMember:id,name', 'product:id,name,unit', 'actor:id,name', 'debts:id,withdrawal_id,user_id,original_amount_cents,paid_amount_cents,remaining_amount_cents,status')
+            ->when($request->member_id, fn ($q, $id) => $q->where('user_id', $id))
+            ->when($request->product_id, fn ($q, $id) => $q->where('product_id', $id))
+            ->when($request->date_from, fn ($q, $date) => $q->whereDate('withdrawn_at', '>=', $date))
+            ->when($request->date_to, fn ($q, $date) => $q->whereDate('withdrawn_at', '<=', $date))
+            ->latest('withdrawn_at')
+            ->latest('id')
+            ->paginate(min(max($request->integer('per_page', 30), 1), 100));
+    }
+
+    public function reassign(Withdrawal $withdrawal, Request $request, WithdrawalService $withdrawalService)
+    {
+        $data = $request->validate([
+            'member_id' => ['required', 'exists:users,id'],
+            'reason' => ['required', 'string', 'min:3', 'max:255'],
+        ], [
+            'reason.required' => 'Indica il motivo della riassegnazione.',
+            'reason.min' => 'Il motivo deve avere almeno 3 caratteri.',
+        ]);
+
+        $member = $this->consumer($data['member_id']);
+
+        try {
+            return $withdrawalService->reassign($withdrawal, $member, $request->user(), $data['reason']);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    public function manual(Request $request, WithdrawalService $withdrawalService)
+    {
+        $data = $request->validate([
+            'member_id' => ['required', 'exists:users,id'],
+            'product_id' => ['required', 'exists:products,id'],
+            'quantity' => ['required', 'numeric', 'min:0.001'],
+            'payment_status' => ['required', 'in:paid,coppone'],
+            'withdrawn_date' => ['required', 'date', 'before_or_equal:today'],
+            'withdrawn_time' => ['required', 'date_format:H:i'],
+            'affects_stock' => ['sometimes', 'boolean'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ], [
+            'withdrawn_date.before_or_equal' => 'La data del prelievo non può essere nel futuro.',
+        ]);
+
+        $withdrawnAt = Carbon::parse($data['withdrawn_date'].' '.$data['withdrawn_time']);
+        $cutoff = AccountReset::currentCutoff();
+        if ($cutoff && $withdrawnAt->lt($cutoff)) {
+            return response()->json(['message' => 'Non puoi inserire prelievi prima dell\'azzeramento dei conti del '.$cutoff->format('d/m/Y').'.'], 422);
+        }
+
+        try {
+            $withdrawal = $withdrawalService->take(
+                Product::findOrFail($data['product_id']),
+                $this->consumer($data['member_id']),
+                $request->user(),
+                (float) $data['quantity'],
+                $data['payment_status'],
+                trim('Inserito a mano. '.($data['notes'] ?? '')),
+                ['withdrawn_at' => $withdrawnAt, 'affects_stock' => $request->boolean('affects_stock', true), 'is_manual' => true],
+            );
+
+            return response()->json($withdrawal, 201);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    private function consumer(int|string $id): User
+    {
+        return User::query()
+            ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_MEMBER])
+            ->where('is_active', true)
+            ->whereKey($id)
+            ->firstOr(fn () => throw ValidationException::withMessages(['member_id' => 'Socio non valido o disattivato.']));
     }
 }

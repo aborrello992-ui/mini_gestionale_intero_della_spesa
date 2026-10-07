@@ -57,6 +57,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/categories/{category}', [CategoryController::class, 'update']);
         Route::post('/locations', [LocationController::class, 'store']);
         Route::put('/locations/{location}', [LocationController::class, 'update']);
+        Route::get('/withdrawals', [WithdrawalController::class, 'index']);
+        Route::post('/withdrawals/manual', [WithdrawalController::class, 'manual']);
+        Route::post('/withdrawals/{withdrawal}/reassign', [WithdrawalController::class, 'reassign']);
         Route::get('/management/summary', [ManagementController::class, 'summary']);
         Route::post('/management/movements', [ManagementController::class, 'store']);
         Route::post('/shopping-list/restock-sessions', [ShoppingListController::class, 'registerRestock']);
