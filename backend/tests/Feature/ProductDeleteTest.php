@@ -76,4 +76,23 @@ class ProductDeleteTest extends TestCase
 
         $this->deleteJson("/api/products/{$product->id}/permanent")->assertForbidden();
     }
+
+    public function test_products_are_ordered_available_first_across_pages_and_filtered_on_server(): void
+    {
+        $this->product('Zucchero', 5);
+        $this->product('Acqua', 0);
+        $this->product('Birra', 1);
+        $this->product('Caffe', 0);
+        Product::where('name', 'Birra')->update(['minimum_threshold' => 2]);
+
+        $first = $this->getJson('/api/products?per_page=2&page=1')->assertOk();
+        $second = $this->getJson('/api/products?per_page=2&page=2')->assertOk();
+        $this->assertSame(['Birra', 'Zucchero'], array_column($first->json('data'), 'name'));
+        $this->assertSame(['Acqua', 'Caffe'], array_column($second->json('data'), 'name'));
+        $first->assertJsonPath('availability_counts.available', 2)->assertJsonPath('availability_counts.empty', 2);
+
+        $this->assertSame(['Acqua', 'Caffe'], array_column($this->getJson('/api/products?availability=empty')->json('data'), 'name'));
+        $this->assertSame(['Birra'], array_column($this->getJson('/api/products?availability=low')->json('data'), 'name'));
+        $this->assertSame(['Birra', 'Zucchero'], array_column($this->getJson('/api/products?availability=available')->json('data'), 'name'));
+    }
 }

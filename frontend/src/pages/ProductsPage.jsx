@@ -24,26 +24,14 @@ export default function ProductsPage() {
   const [message, setMessage] = useState('')
   const maxQuantity = selected ? Number(selected.current_quantity || 0) : 1
   const estimatedTotal = useMemo(() => selected ? Number(takeForm.quantity || 0) * Number(selected.selling_price_cents || 0) : 0, [selected, takeForm.quantity])
-  const visibleProducts = useMemo(() => {
-    if (!products) return []
-    return products.filter((product) => {
-      const current = Number(product.current_quantity || 0)
-      if (filters.availability === 'available') return current > 0
-      if (filters.availability === 'low') return current > 0 && current <= Number(product.minimum_threshold || 0)
-      if (filters.availability === 'empty') return current <= 0
-      return true
-    })
-  }, [filters.availability, products])
-  const productStats = useMemo(() => ({
-    available: products?.filter((product) => Number(product.current_quantity || 0) > 0).length || 0,
-    empty: products?.filter((product) => Number(product.current_quantity || 0) <= 0).length || 0,
-  }), [products])
+  const availableProducts = useMemo(() => (products || []).filter((product) => Number(product.current_quantity || 0) > 0), [products])
+  const emptyProducts = useMemo(() => (products || []).filter((product) => Number(product.current_quantity || 0) <= 0), [products])
 
   const load = useCallback(async (page = 1) => {
-    const params = new URLSearchParams({ page, search: filters.search, category_id: filters.category_id })
+    const params = new URLSearchParams({ page, search: filters.search, category_id: filters.category_id, availability: filters.availability })
     const [{ data }, categoriesResponse, membersResponse] = await Promise.all([api.get(`/products?${params}`), api.get('/categories'), api.get('/members')])
     setProducts(data.data); setMeta(data); setCategories(categoriesResponse.data); setMembers(membersResponse.data)
-  }, [filters.category_id, filters.search])
+  }, [filters.availability, filters.category_id, filters.search])
   useEffect(() => { load() }, [load])
 
   async function take(paymentStatus) {
@@ -71,6 +59,11 @@ export default function ProductsPage() {
     } catch (err) { setMessage(errorMessage(err)) }
   }
 
+  function openTake(product) {
+    setSelected(product)
+    setTakeForm({ member_id: '', pin: '', quantity: 1, notes: '' })
+  }
+
   function updateQuantity(nextValue) {
     const parsed = Math.max(1, Math.min(maxQuantity, Number(nextValue || 1)))
     setTakeForm({ ...takeForm, quantity: Number.isFinite(parsed) ? parsed : 1 })
@@ -93,7 +86,7 @@ export default function ProductsPage() {
         title="Prodotti"
         subtitle="Visualizza le disponibilità, controlla le scorte e registra prelievi pagati o copponi."
         primaryAction={<a className="btn btn-outline-primary" href="/shopping-list"><ShoppingCart size={17} /> Lista spesa</a>}
-        badge={<StatusBadge tone="info">{productStats.available} disponibili · {productStats.empty} esauriti</StatusBadge>}
+        badge={<StatusBadge tone="info">{meta?.availability_counts?.available ?? 0} disponibili · {meta?.availability_counts?.empty ?? 0} esauriti</StatusBadge>}
       />
       <AlertMessage type={message.includes('registrato') || message.includes('aggiunto') ? 'success' : 'warning'}>{message}</AlertMessage>
       <div className="app-card filter-bar">
@@ -117,8 +110,14 @@ export default function ProductsPage() {
           </select>
         </FormField>
       </div>
-      {visibleProducts.length ? (
-        <div className="product-grid">{visibleProducts.map((product) => <ProductCard key={product.id} product={product} onTake={(item) => { setSelected(item); setTakeForm({ member_id: '', pin: '', quantity: 1, notes: '' }) }} onAddToShoppingList={addToShoppingList} />)}</div>
+      {products.length ? (
+        <>
+          {availableProducts.length > 0 && <div className="product-grid">{availableProducts.map((product) => <ProductCard key={product.id} product={product} onTake={openTake} onAddToShoppingList={addToShoppingList} />)}</div>}
+          {emptyProducts.length > 0 && <>
+            <h2 className="h5 mt-4 mb-3 text-muted-app">Esauriti</h2>
+            <div className="product-grid">{emptyProducts.map((product) => <ProductCard key={product.id} product={product} onTake={openTake} onAddToShoppingList={addToShoppingList} />)}</div>
+          </>}
+        </>
       ) : (
         <EmptyState title="Nessun prodotto trovato" message="Non ci sono prodotti compatibili con i filtri selezionati." />
       )}

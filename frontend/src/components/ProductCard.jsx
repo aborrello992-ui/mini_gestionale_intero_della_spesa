@@ -39,14 +39,11 @@ export default function ProductCard({ product, onTake, onAddToShoppingList }) {
       </div>
 
       <div className="product-card-actions">
-        <button className="btn btn-primary btn-lg w-100" onClick={() => onTake(product)} disabled={current <= 0}>
-          {current <= 0 ? 'Esaurito' : 'Prendi'}
-        </button>
-        {current <= 0 && (
-          <button className="btn btn-outline-secondary w-100 mt-2" onClick={() => onAddToShoppingList(product)}>
+        {current > 0
+          ? <button type="button" className="btn btn-primary btn-lg w-100" onClick={() => onTake(product)}>Prendi</button>
+          : <button type="button" className="btn btn-outline-secondary w-100" onClick={() => onAddToShoppingList(product)}>
             <ShoppingCart size={17} /> Aggiungi alla lista
-          </button>
-        )}
+          </button>}
       </div>
     </article>
   )

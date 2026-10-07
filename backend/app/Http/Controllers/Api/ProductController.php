@@ -32,7 +32,27 @@ class ProductController extends Controller
             ->when($request->state === 'active', fn ($q) => $q->where('is_active', true)->whereNull('archived_at'))
             ->when($request->boolean('low_stock'), fn ($q) => $q->whereColumn('current_quantity', '<=', 'minimum_threshold'));
 
-        return $query->orderBy('name')->paginate(min(max($request->integer('per_page', 20), 1), 500));
+        $counts = (clone $query)->toBase()
+            ->selectRaw('SUM(CASE WHEN current_quantity > 0 THEN 1 ELSE 0 END) as available, SUM(CASE WHEN current_quantity <= 0 THEN 1 ELSE 0 END) as empty')
+            ->first();
+
+        match ($request->availability) {
+            'available' => $query->where('current_quantity', '>', 0),
+            'low' => $query->where('current_quantity', '>', 0)->whereColumn('current_quantity', '<=', 'minimum_threshold'),
+            'empty' => $query->where('current_quantity', '<=', 0),
+            default => null,
+        };
+
+        // Disponibili prima, esauriti in fondo: sul server, cosi vale attraverso tutte le pagine.
+        $page = $query->orderByRaw('CASE WHEN current_quantity > 0 THEN 0 ELSE 1 END')
+            ->orderBy('name')
+            ->orderBy('id')
+            ->paginate(min(max($request->integer('per_page', 20), 1), 500));
+
+        return response()->json([
+            ...$page->toArray(),
+            'availability_counts' => ['available' => (int) ($counts->available ?? 0), 'empty' => (int) ($counts->empty ?? 0)],
+        ]);
     }
 
     public function store(Request $request)
