@@ -33,7 +33,7 @@ class CashController extends Controller
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01'],
             'direction' => ['required', 'in:entrata,uscita'],
-            'type' => ['required', 'in:versamento,acquisto_prodotti,altra_spesa,rimborso,correzione,annullamento,accredito,quota,spesa_locale,altro'],
+            'type' => ['required', 'in:versamento,acquisto_prodotti,altra_spesa,rimborso,correzione,accredito,quota,spesa_locale,altro'],
             'category' => ['nullable', 'string', 'max:255'],
             'description' => ['required', 'string', 'max:255'],
             'movement_date' => ['required', 'date'],

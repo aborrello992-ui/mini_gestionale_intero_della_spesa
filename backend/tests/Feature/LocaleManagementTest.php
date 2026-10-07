@@ -80,6 +80,9 @@ class LocaleManagementTest extends TestCase
     public function test_valid_withdrawal_and_insufficient_withdrawal_block(): void
     {
         Sanctum::actingAs($this->member);
+        $this->postJson('/api/inventory/withdraw', ['product_id' => $this->product->id, 'quantity' => 1])->assertForbidden();
+
+        Sanctum::actingAs($this->admin);
 
         $this->postJson('/api/inventory/withdraw', ['product_id' => $this->product->id, 'quantity' => 2])
             ->assertCreated();
@@ -123,10 +126,9 @@ class LocaleManagementTest extends TestCase
 
     public function test_inventory_movement_can_be_reversed(): void
     {
-        Sanctum::actingAs($this->member);
+        Sanctum::actingAs($this->admin);
 
         $this->postJson('/api/inventory/withdraw', ['product_id' => $this->product->id, 'quantity' => 1]);
-        Sanctum::actingAs($this->admin);
         $movement = InventoryMovement::where('type', 'prelievo')->first();
 
         $this->postJson("/api/inventory/movements/{$movement->id}/reverse")->assertCreated();

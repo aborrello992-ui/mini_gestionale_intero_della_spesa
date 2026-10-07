@@ -133,4 +133,26 @@ class ManagementSummaryTest extends TestCase
         $this->postJson("/api/inventory/movements/{$movement->id}/reverse")->assertUnprocessable();
         $this->assertSame('8.000', $birra->fresh()->current_quantity);
     }
+
+    public function test_admin_cannot_lock_themselves_out(): void
+    {
+        $this->putJson("/api/users/{$this->admin->id}", ['name' => 'Admin', 'role' => 'member', 'is_active' => true])
+            ->assertUnprocessable()->assertJsonValidationErrors('role');
+        $this->putJson("/api/users/{$this->admin->id}", ['name' => 'Admin', 'role' => 'admin', 'is_active' => false])
+            ->assertUnprocessable();
+
+        $this->putJson("/api/users/{$this->member->id}", ['name' => 'Socio 2', 'role' => 'member', 'is_active' => true])
+            ->assertOk()->assertJsonPath('name', 'Socio 2');
+    }
+
+    public function test_history_search_is_server_side(): void
+    {
+        $birra = $this->product('Birra', 10);
+        $this->product('Acqua', 10);
+        app(WithdrawalService::class)->take($birra, $this->member, $this->admin, 1, 'paid');
+
+        $this->getJson('/api/history?search=birr')->assertOk()->assertJsonPath('total', 1);
+        $this->getJson('/api/history?search=acqua')->assertOk()->assertJsonPath('total', 0);
+        $this->getJson('/api/history?type=cassa&search=birra')->assertOk()->assertJsonPath('total', 1);
+    }
 }

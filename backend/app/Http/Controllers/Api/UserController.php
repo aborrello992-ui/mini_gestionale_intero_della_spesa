@@ -9,6 +9,7 @@ use App\Services\PinService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
@@ -60,6 +61,14 @@ class UserController extends Controller
 
         if (blank($data['password'] ?? null)) {
             unset($data['password']);
+        }
+
+        $losesAdmin = $user->isAdmin() && ($data['role'] !== User::ROLE_ADMIN || ! $data['is_active']);
+        if ($losesAdmin && $user->is($request->user())) {
+            throw ValidationException::withMessages(['role' => 'Non puoi togliere a te stesso il ruolo di amministratore o disattivarti.']);
+        }
+        if ($losesAdmin && User::query()->where('role', User::ROLE_ADMIN)->where('is_active', true)->whereKeyNot($user->id)->doesntExist()) {
+            throw ValidationException::withMessages(['role' => 'Deve restare almeno un amministratore attivo.']);
         }
         $data['can_consume'] = true;
 

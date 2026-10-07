@@ -55,10 +55,7 @@ class ProductDeleteTest extends TestCase
     public function test_product_with_history_returns_409_and_archive_still_works(): void
     {
         $product = $this->product();
-        $member = User::factory()->create(['role' => User::ROLE_MEMBER]);
-        Sanctum::actingAs($member);
         $this->postJson('/api/inventory/withdraw', ['product_id' => $product->id, 'quantity' => 1])->assertCreated();
-        Sanctum::actingAs($this->admin);
 
         $this->deleteJson("/api/products/{$product->id}/permanent")
             ->assertStatus(409)

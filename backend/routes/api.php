@@ -33,7 +33,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/locations', [LocationController::class, 'index']);
     Route::post('/withdrawals', [WithdrawalController::class, 'store']);
-    Route::post('/inventory/withdraw', [InventoryController::class, 'withdraw']);
     Route::get('/inventory/movements', [InventoryController::class, 'movements']);
     Route::get('/cash/balance', [CashController::class, 'balance']);
     Route::get('/cash/movements', [CashController::class, 'index']);
@@ -69,6 +68,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);
         Route::post('/debts/{member}/adjustments', [DebtController::class, 'adjust']);
         Route::post('/debts/{member}/payments', [DebtController::class, 'pay']);
+        // Prelievo senza pagamento ne coppone: solo admin (i soci usano /withdrawals con PIN).
+        Route::post('/inventory/withdraw', [InventoryController::class, 'withdraw']);
         Route::post('/inventory/adjust', [InventoryController::class, 'adjust']);
         Route::post('/inventory/movements/{movement}/reverse', [InventoryController::class, 'reverse']);
         Route::post('/cash/movements', [CashController::class, 'store']);
