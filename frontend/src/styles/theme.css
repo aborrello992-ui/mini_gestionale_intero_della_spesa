@@ -980,3 +980,134 @@ legend.form-label {
   grid-auto-columns: minmax(0, 1fr);
   gap: var(--space-2);
 }
+
+/* ---------- Combo ---------- */
+.combo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+
+.combo-card {
+  position: relative;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: linear-gradient(135deg, var(--ink) 0 62%, var(--ink-3));
+  color: #ffffff;
+  border-radius: var(--radius-md);
+  border-bottom: 4px solid var(--gold);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.combo-card::after {
+  content: "組";
+  font-weight: 400;
+  font-synthesis: none;
+  position: absolute;
+  right: -6px;
+  bottom: -18px;
+  font-family: var(--font-display);
+  font-size: 6rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+.combo-card.is-empty {
+  filter: grayscale(0.9);
+  opacity: 0.6;
+}
+
+.combo-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.combo-card h3 {
+  margin: 0;
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: 1.15rem;
+}
+
+.combo-badge {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  background: var(--gold);
+  color: var(--ink);
+  font-family: var(--font-condensed);
+  font-weight: 800;
+  transform: skewX(-10deg);
+}
+
+.combo-items {
+  margin: 0;
+  color: var(--gold);
+  font-family: var(--font-condensed);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.combo-price {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.combo-price strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: 1.7rem;
+}
+
+.combo-price s {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.combo-card .btn-outline-primary {
+  --bs-btn-color: #ffffff;
+  --bs-btn-border-color: rgba(255, 255, 255, 0.55);
+  --bs-btn-hover-bg: #ffffff;
+  --bs-btn-hover-color: var(--ink);
+}
+
+.combo-card .btn-primary {
+  box-shadow: 3px 3px 0 var(--gold);
+}
+
+/* Persona nella spesa divisa */
+.checkout-person {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  border: 2px solid var(--color-border);
+  border-left: 5px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+}
+
+.checkout-person .split {
+  justify-content: flex-start;
+}
+
+.checkout-person .split strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: 1.1rem;
+}
+
+.combo-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 44px;
+  gap: var(--space-2);
+}

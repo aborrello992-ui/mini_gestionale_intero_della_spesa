@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ImagePlus, ImageOff, RotateCcw, Stethoscope, Trash2, Upload } from 'lucide-react'
+import { Archive, ImagePlus, ImageOff, Layers, Package, RotateCcw, Stethoscope, Trash2, Upload } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import PageHeader from '../components/layout/PageHeader'
@@ -8,6 +8,7 @@ import FormField from '../components/forms/FormField'
 import StatusBadge from '../components/ui/StatusBadge'
 import AppModal from '../components/ui/AppModal'
 import ProductThumb from '../components/ui/ProductThumb'
+import ComboAdminPanel from '../components/ComboAdminPanel'
 import { errorMessage, money, quantity } from '../utils/format'
 
 export default function AdminProductsPage() {
@@ -20,6 +21,7 @@ export default function AdminProductsPage() {
   const [confirm, setConfirm] = useState(null)
   const [busy, setBusy] = useState(false)
   const [storageCheck, setStorageCheck] = useState(null)
+  const [tab, setTab] = useState('prodotti')
 
   async function runStorageCheck() {
     setStorageCheck({ loading: true })
@@ -136,8 +138,14 @@ export default function AdminProductsPage() {
 
   return (
     <section>
-      <PageHeader title="Magazzino" subtitle="Immagini, prezzi, archiviazione ed eliminazione dei prodotti." primaryAction={<button type="button" className="btn btn-outline-primary" onClick={runStorageCheck}><Stethoscope size={17} /> Controlla immagini</button>} badge={<StatusBadge tone={withoutImages.length ? 'warning' : 'success'}>{withoutImages.length} senza immagine</StatusBadge>} />
+      <PageHeader title="Magazzino" subtitle="Prodotti, immagini, combo e archiviazione." primaryAction={<button type="button" className="btn btn-outline-primary" onClick={runStorageCheck}><Stethoscope size={17} /> Controlla immagini</button>} badge={<StatusBadge tone={withoutImages.length ? 'warning' : 'success'}>{withoutImages.length} senza immagine</StatusBadge>} />
       <AlertMessage type={isSuccess ? 'success' : 'danger'}>{message}</AlertMessage>
+      <div className="tab-strip mb-3" role="group" aria-label="Sezioni magazzino">
+        <button type="button" className={`btn ${tab === 'prodotti' ? 'btn-primary' : 'btn-outline-primary'}`} aria-pressed={tab === 'prodotti'} onClick={() => setTab('prodotti')}><Package size={17} /> Prodotti</button>
+        <button type="button" className={`btn ${tab === 'combo' ? 'btn-primary' : 'btn-outline-primary'}`} aria-pressed={tab === 'combo'} onClick={() => setTab('combo')}><Layers size={17} /> Combo</button>
+      </div>
+      {tab === 'combo' && <ComboAdminPanel />}
+      {tab === 'prodotti' && <>
       <div className="app-card filter-bar">
         <FormField label="Stato">
           <select className="form-select" value={filters.state} onChange={(event) => setFilters({ ...filters, state: event.target.value })}>
@@ -163,6 +171,7 @@ export default function AdminProductsPage() {
           {renderActions(product, true)}
         </>
       )} />
+      </>}
       {storageCheck && <AppModal title="Controllo immagini" subtitle={storageCheck.loading ? 'Prova in corso…' : storageCheck.summary} onClose={() => setStorageCheck(null)} labelledBy="storage-check-title">
         {storageCheck.loading ? <p className="mb-0">Salvo, rileggo e apro un file di prova…</p> : <div className="stack-sm">
           {Object.entries(storageCheck.steps || {}).map(([step, outcome]) => <div className={`summary-box ${outcome.ok ? '' : 'border-danger'}`} key={step}>

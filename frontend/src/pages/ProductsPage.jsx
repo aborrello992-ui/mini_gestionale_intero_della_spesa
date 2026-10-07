@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Minus, Plus, Search, ShoppingCart } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Minus, Plus, Search, ShoppingCart, Users } from 'lucide-react'
 import api from '../api/client'
 import ProductCard from '../components/ProductCard'
 import Pagination from '../components/Pagination'
@@ -12,6 +12,7 @@ import FormField from '../components/forms/FormField'
 import UserAvatar from '../components/ui/UserAvatar'
 import StatusBadge from '../components/ui/StatusBadge'
 import { stockLevel } from '../utils/stock'
+import CheckoutModal from '../components/CheckoutModal'
 
 export default function ProductsPage() {
   const [products, setProducts] = useState(null)
@@ -22,6 +23,28 @@ export default function ProductsPage() {
   const [selected, setSelected] = useState(null)
   const [takeForm, setTakeForm] = useState({ member_id: '', pin: '', quantity: 1, notes: '' })
   const [message, setMessage] = useState('')
+  const [combos, setCombos] = useState([])
+  const [allProducts, setAllProducts] = useState([])
+  const [checkout, setCheckout] = useState(null)
+
+  const loadCombos = useCallback(() => api.get('/combos').then(({ data }) => setCombos(data)).catch(() => setCombos([])), [])
+  useEffect(() => { loadCombos() }, [loadCombos])
+
+  async function openCheckout(lines = [], people = 2) {
+    setSelected(null)
+    setCheckout({ lines, people })
+    try {
+      setAllProducts((await api.get('/products?per_page=500&availability=available')).data.data)
+    } catch (err) { setMessage(errorMessage(err)) }
+  }
+
+  function checkoutDone(result) {
+    setCheckout(null)
+    const parts = result.shares.map((share) => `${share.name} ${money(share.total_cents)} ${share.payment_status === 'paid' ? 'pagato' : 'a coppone'}`)
+    setMessage(`Acquisto registrato: ${parts.join(' · ')}.`)
+    load(meta?.current_page || 1)
+    loadCombos()
+  }
   const maxQuantity = selected ? Number(selected.current_quantity || 0) : 1
   const estimatedTotal = useMemo(() => selected ? Number(takeForm.quantity || 0) * Number(selected.selling_price_cents || 0) : 0, [selected, takeForm.quantity])
   const availableProducts = useMemo(() => (products || []).filter((product) => Number(product.current_quantity || 0) > 0), [products])
@@ -101,10 +124,31 @@ export default function ProductsPage() {
       <PageHeader
         title="Prodotti"
         subtitle="Visualizza le disponibilità, controlla le scorte e registra prelievi pagati o copponi."
-        primaryAction={<a className="btn btn-outline-primary" href="/shopping-list"><ShoppingCart size={17} /> Lista spesa</a>}
+        secondaryAction={<a className="btn btn-outline-primary" href="/shopping-list"><ShoppingCart size={17} /> Lista spesa</a>}
+        primaryAction={<button type="button" className="btn btn-primary" onClick={() => openCheckout([], 2)}><Users size={17} /> Mangia con un amico</button>}
         badge={<StatusBadge tone="info">{meta?.availability_counts?.available ?? 0} disponibili · {meta?.availability_counts?.empty ?? 0} esauriti</StatusBadge>}
       />
       <AlertMessage type={message.includes('registrato') || message.includes('aggiunto') ? 'success' : 'warning'}>{message}</AlertMessage>
+      {combos.length > 0 && <section className="mb-4" aria-labelledby="combo-title">
+        <h2 className="section-title mb-3" id="combo-title">★ Combo</h2>
+        <div className="combo-grid">{[...combos].sort((a, b) => (b.available_count > 0) - (a.available_count > 0)).map((combo) => {
+          const saving = combo.list_price_cents - combo.price_cents
+          const soldOut = combo.available_count <= 0
+          return <article className={`combo-card ${soldOut ? 'is-empty' : ''}`} key={combo.id}>
+            <div className="combo-card-head">
+              <h3>{combo.name}</h3>
+              {saving > 0 && <span className="combo-badge">−{money(saving)}</span>}
+            </div>
+            <p className="combo-items">{combo.items.map((item) => `${Number(item.quantity)}× ${item.product?.name}`).join(' + ')}</p>
+            {combo.description && <p className="small text-muted-app mb-0">{combo.description}</p>}
+            <div className="combo-price"><strong>{money(combo.price_cents)}</strong>{saving > 0 && <s>{money(combo.list_price_cents)}</s>}</div>
+            <div className="product-admin-actions">
+              <button type="button" className="btn btn-primary" disabled={soldOut} onClick={() => openCheckout([{ combo_id: combo.id, quantity: 1 }], 1)}>{soldOut ? 'Esaurita' : 'Prendi'}</button>
+              <button type="button" className="btn btn-outline-primary" disabled={soldOut} onClick={() => openCheckout([{ combo_id: combo.id, quantity: 1 }], 2)}><Users size={16} /> In due</button>
+            </div>
+          </article>
+        })}</div>
+      </section>}
       <div className="app-card filter-bar">
         <FormField label="Cerca prodotto">
           <div className="search-field">
@@ -197,9 +241,11 @@ export default function ProductsPage() {
                 <AlertTriangle size={20} /> Coppone <small>Aggiungi al debito</small>
               </button>
             </div>
+            <button type="button" className="btn btn-outline-primary w-100" onClick={() => openCheckout([{ product_id: selected.id, quantity: Number(takeForm.quantity) || 1 }], 2)}><Users size={17} /> Dividi con un amico</button>
           </div>
         </div>
       </div>}
+      {checkout && <CheckoutModal members={members} products={allProducts} combos={combos} initialLines={checkout.lines} initialPeople={checkout.people} onClose={() => setCheckout(null)} onDone={checkoutDone} />}
     </section>
   )
 }
