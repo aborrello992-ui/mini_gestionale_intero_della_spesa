@@ -27,12 +27,28 @@ export default function ProductsPage() {
   const availableProducts = useMemo(() => (products || []).filter((product) => Number(product.current_quantity || 0) > 0), [products])
   const emptyProducts = useMemo(() => (products || []).filter((product) => Number(product.current_quantity || 0) <= 0), [products])
 
+  useEffect(() => {
+    Promise.all([api.get('/categories'), api.get('/members')])
+      .then(([categoriesResponse, membersResponse]) => { setCategories(categoriesResponse.data); setMembers(membersResponse.data) })
+      .catch((err) => setMessage(errorMessage(err)))
+  }, [])
+
   const load = useCallback(async (page = 1) => {
     const params = new URLSearchParams({ page, search: filters.search, category_id: filters.category_id, availability: filters.availability })
-    const [{ data }, categoriesResponse, membersResponse] = await Promise.all([api.get(`/products?${params}`), api.get('/categories'), api.get('/members')])
-    setProducts(data.data); setMeta(data); setCategories(categoriesResponse.data); setMembers(membersResponse.data)
+    try {
+      const { data } = await api.get(`/products?${params}`)
+      setProducts(data.data); setMeta(data)
+    } catch (err) {
+      setMessage(errorMessage(err))
+      setProducts((current) => current || [])
+    }
   }, [filters.availability, filters.category_id, filters.search])
-  useEffect(() => { load() }, [load])
+
+  // La ricerca aspetta che si smetta di scrivere prima di interrogare il server.
+  useEffect(() => {
+    const timer = setTimeout(() => load(), filters.search ? 300 : 0)
+    return () => clearTimeout(timer)
+  }, [load, filters.search])
 
   async function take(paymentStatus) {
     setMessage('')

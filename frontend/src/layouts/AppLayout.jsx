@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { Boxes, ClipboardList, History, LogOut, Package, ReceiptText, ShoppingCart, Users, WalletCards } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import UserAvatar from '../components/ui/UserAvatar'
+import Loading from '../components/Loading'
 
 const links = [
   ['/', 'Prodotti', Boxes],
@@ -62,7 +64,9 @@ export default function AppLayout() {
             </button>
           </div>
         </header>
-        <Outlet />
+        <Suspense fallback={<Loading />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <nav className="mobile-nav" aria-label="Navigazione principale">

@@ -1,23 +1,27 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import AppLayout from './layouts/AppLayout'
 import { AdminRoute, ProtectedRoute } from './routes/ProtectedRoute'
-import CashPage from './pages/CashPage'
-import DebtsPage from './pages/DebtsPage'
-import HistoryPage from './pages/HistoryPage'
-import GuestPage from './pages/GuestPage'
 import LoginPage from './pages/LoginPage'
-import NotFoundPage from './pages/NotFoundPage'
 import ProductsPage from './pages/ProductsPage'
-import ManagementPage from './pages/ManagementPage'
-import ShoppingListPage from './pages/ShoppingListPage'
-import UsersPage from './pages/UsersPage'
 import ErrorBoundary from './components/feedback/ErrorBoundary'
-import AdminProductsPage from './pages/AdminProductsPage'
+import Loading from './components/Loading'
+
+const CashPage = lazy(() => import('./pages/CashPage'))
+const DebtsPage = lazy(() => import('./pages/DebtsPage'))
+const HistoryPage = lazy(() => import('./pages/HistoryPage'))
+const GuestPage = lazy(() => import('./pages/GuestPage'))
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
+const ManagementPage = lazy(() => import('./pages/ManagementPage'))
+const ShoppingListPage = lazy(() => import('./pages/ShoppingListPage'))
+const UsersPage = lazy(() => import('./pages/UsersPage'))
+const AdminProductsPage = lazy(() => import('./pages/AdminProductsPage'))
 
 export default function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin/login" element={<LoginPage />} />
@@ -39,6 +43,7 @@ export default function App() {
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </ErrorBoundary>
   )
