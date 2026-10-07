@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Banknote, PackageSearch, ReceiptText } from 'lucide-react'
 import api from '../api/client'
-import { money, movementDateTime } from '../utils/format'
+import { money, movementDateTime, movementStatusLabel } from '../utils/format'
 import PageHeader from '../components/layout/PageHeader'
 import MetricCard from '../components/ui/MetricCard'
 import DataTable from '../components/tables/DataTable'
@@ -29,7 +29,7 @@ export default function CashPage() {
     { key: 'in', header: 'Entrata', align: 'right', render: (row) => row.direction === 'entrata' ? `+${money(row.amount_cents)}` : '—' },
     { key: 'out', header: 'Uscita', align: 'right', render: (row) => row.direction === 'uscita' ? `−${money(row.amount_cents)}` : '—' },
     { key: 'user', header: 'Registrato da', render: (row) => row.user?.name || '-' },
-    { key: 'status', header: 'Stato', render: (row) => <StatusBadge status={row.is_opening_historical_record ? 'storico' : row.status}>{row.is_opening_historical_record ? 'Storico' : row.status}</StatusBadge> },
+    { key: 'status', header: 'Stato', render: (row) => <StatusBadge status={row.is_opening_historical_record ? 'storico' : row.status === 'active' ? 'active' : 'annullato'}>{row.is_opening_historical_record ? 'Storico' : movementStatusLabel(row.status)}</StatusBadge> },
   ]
 
   return (
@@ -60,7 +60,7 @@ export default function CashPage() {
           <>
             <div className="split"><strong>{row.description || row.type}</strong><StatusBadge status={row.direction}>{row.direction}</StatusBadge></div>
             <div className="split"><span className="text-muted-app">{movementDateTime(row)}</span><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div>
-            <div className="small text-muted-app">{row.user?.name || '-'} · {row.is_opening_historical_record ? 'Storico già contabilizzato' : row.status}</div>
+            <div className="small text-muted-app">{row.user?.name || '-'} · {row.is_opening_historical_record ? 'Storico già contabilizzato' : movementStatusLabel(row.status)}</div>
           </>
         )}
       />

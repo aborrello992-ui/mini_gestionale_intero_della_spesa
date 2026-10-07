@@ -81,7 +81,7 @@ export default function ShoppingListPage() {
         <div className="app-card stack-sm">
           <h2 className="section-title"><BellRing size={18} aria-hidden="true" /> Promemoria automatici</h2>
           <p className="small text-muted-app mb-0">Prodotti finiti o sotto la soglia minima: si aggiungono e si tolgono da soli.</p>
-          {reminders.length ? <ul className="row-list">{reminders.map((product) => (
+          {reminders.length ? <ul className="row-list row-list-scroll">{reminders.map((product) => (
             <li key={product.id}>
               <span className="min-0"><strong className="text-break">{product.name}</strong><small>{product.category?.name || 'Senza categoria'}</small></span>
               <StatusBadge tone={Number(product.current_quantity) <= 0 ? 'danger' : 'warning'}>{Number(product.current_quantity) <= 0 ? 'Esaurito' : `Restano ${quantity(product.current_quantity)}`}</StatusBadge>
@@ -92,7 +92,7 @@ export default function ShoppingListPage() {
         <div className="app-card stack-sm">
           <h2 className="section-title"><Lightbulb size={18} aria-hidden="true" /> Suggerimenti</h2>
           <p className="small text-muted-app mb-0">Prodotti richiesti dai soci o messi in lista dalla pagina Prodotti.</p>
-          {items.length ? <ul className="row-list">{items.map((item) => (
+          {items.length ? <ul className="row-list row-list-scroll">{items.map((item) => (
             <li key={item.id}>
               <span className="min-0">
                 <strong className="text-break">{item.product?.name || item.suggested_name}</strong>

@@ -75,3 +75,6 @@ export const movementDateTime = (row) => {
 }
 
 export const shortDate = (value) => (value ? new Date(`${String(value).slice(0, 10)}T12:00`).toLocaleDateString('it-IT') : '-')
+
+/** Stato di un movimento in italiano. */
+export const movementStatusLabel = (status) => ({ active: 'Valido', reversed: 'Annullato', completed: 'Registrato' }[status] || status || '-')

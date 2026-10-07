@@ -1111,3 +1111,149 @@ legend.form-label {
   grid-template-columns: minmax(0, 1fr) 72px 44px;
   gap: var(--space-2);
 }
+
+/* ---------- Tabelle: righe-carta invece della griglia standard ---------- */
+.data-table-shell {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.data-table {
+  border-collapse: separate;
+  border-spacing: 0 6px;
+  margin-top: -6px;
+}
+
+.data-table th {
+  padding: 10px 16px;
+  background: var(--ink);
+  color: var(--gold);
+  border: 0;
+  white-space: nowrap;
+}
+
+.data-table th:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  box-shadow: inset 4px 0 0 var(--color-primary);
+}
+
+.data-table th:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.data-table td {
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  transition: background var(--transition-fast);
+}
+
+.data-table td:first-child {
+  border-left: 4px solid var(--ink);
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.data-table td:last-child {
+  border-right: 1px solid var(--color-border);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table tbody tr:hover {
+  background: transparent;
+}
+
+.data-table tbody tr:hover td {
+  background: #fffaf0;
+}
+
+.data-table tbody tr:hover td:first-child {
+  border-left-color: var(--color-primary);
+}
+
+.data-table .td-number {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Telefono: ogni riga e una scheda */
+.mobile-data-list {
+  gap: var(--space-2);
+}
+
+.mobile-data-card,
+.mobile-data-card:nth-child(odd) {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--ink);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.mobile-data-card:last-child {
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ---------- Barra di ricerca e filtri: "barra comandi" ---------- */
+.filter-bar {
+  background: var(--ink);
+  border: 0;
+  border-bottom: 4px solid var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.filter-bar .form-label {
+  color: var(--gold);
+}
+
+.filter-bar .form-control,
+.filter-bar .form-select {
+  border-color: transparent;
+}
+
+.filter-bar .form-control:focus,
+.filter-bar .form-select:focus {
+  border-color: var(--gold);
+  box-shadow: 3px 3px 0 var(--color-primary);
+}
+
+.filter-bar .field-help {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.search-field svg {
+  color: var(--color-primary);
+}
+
+.search-field .form-control {
+  font-weight: 600;
+}
+
+/* Paginazione */
+.pagination-bar {
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.pagination-bar .small {
+  font-family: var(--font-condensed);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.row-list-scroll {
+  max-height: 290px;
+  overflow-y: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
