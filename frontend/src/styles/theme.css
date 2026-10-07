@@ -1262,7 +1262,6 @@ legend.form-label {
 .login-arena {
   background: var(--ink);
   --hud-h: 64px;
-  --stage-h: clamp(150px, 40vh, 440px);
 }
 
 .arena-backdrop {
@@ -1270,7 +1269,7 @@ legend.form-label {
   inset: 0;
   z-index: -1;
   display: grid;
-  grid-template-rows: var(--hud-h) var(--stage-h) 1fr;
+  grid-template-rows: var(--hud-h) 1fr;
   background: #9dc5c5;
 }
 
@@ -1348,35 +1347,23 @@ legend.form-label {
 }
 
 .arena-stage {
-  background: #9dc5c5 url('../assets/login-stage.png') center bottom / cover no-repeat;
-  image-rendering: pixelated;
-}
-
-/* Pavimento in pietra in prospettiva, con i colori dello stage */
-.arena-floor {
   position: relative;
-  overflow: hidden;
-  background:
-    url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'><g stroke='%235c5e50' stroke-opacity='.55' stroke-width='.5' vector-effect='non-scaling-stroke'><line x1='-16.0' y1='0' x2='-214.0' y2='100'/><line x1='-10.5' y1='0' x2='-192.0' y2='100'/><line x1='-5.0' y1='0' x2='-170.0' y2='100'/><line x1='0.5' y1='0' x2='-148.0' y2='100'/><line x1='6.0' y1='0' x2='-126.0' y2='100'/><line x1='11.5' y1='0' x2='-104.0' y2='100'/><line x1='17.0' y1='0' x2='-82.0' y2='100'/><line x1='22.5' y1='0' x2='-60.0' y2='100'/><line x1='28.0' y1='0' x2='-38.0' y2='100'/><line x1='33.5' y1='0' x2='-16.0' y2='100'/><line x1='39.0' y1='0' x2='6.0' y2='100'/><line x1='44.5' y1='0' x2='28.0' y2='100'/><line x1='50.0' y1='0' x2='50.0' y2='100'/><line x1='55.5' y1='0' x2='72.0' y2='100'/><line x1='61.0' y1='0' x2='94.0' y2='100'/><line x1='66.5' y1='0' x2='116.0' y2='100'/><line x1='72.0' y1='0' x2='138.0' y2='100'/><line x1='77.5' y1='0' x2='160.0' y2='100'/><line x1='83.0' y1='0' x2='182.0' y2='100'/><line x1='88.5' y1='0' x2='204.0' y2='100'/><line x1='94.0' y1='0' x2='226.0' y2='100'/><line x1='99.5' y1='0' x2='248.0' y2='100'/><line x1='105.0' y1='0' x2='270.0' y2='100'/><line x1='110.5' y1='0' x2='292.0' y2='100'/><line x1='116.0' y1='0' x2='314.0' y2='100'/><line x1='-200' y1='4' x2='300' y2='4'/><line x1='-200' y1='10' x2='300' y2='10'/><line x1='-200' y1='18' x2='300' y2='18'/><line x1='-200' y1='28' x2='300' y2='28'/><line x1='-200' y1='41' x2='300' y2='41'/><line x1='-200' y1='57' x2='300' y2='57'/><line x1='-200' y1='77' x2='300' y2='77'/></g></svg>") center top / 100% 100% no-repeat,
-    linear-gradient(180deg, #939783, #c5c6b5 22%, #b5b7a5);
+  background: #9dc5c5 url('../assets/login-stage.jpg') center 38% / cover no-repeat;
 }
 
-.arena-floor > div {
-  display: none;
-}
-
-.arena-floor::after {
+/* Leggera ombra in basso per far risaltare personaggio e riquadro di accesso */
+.arena-stage::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(14, 16, 32, 0) 35%, rgba(14, 16, 32, 0.5));
+  background: linear-gradient(180deg, rgba(14, 16, 32, 0) 55%, rgba(14, 16, 32, 0.35));
 }
 
 .arena-fighter {
   position: fixed;
   z-index: 0;
-  left: max(2vw, calc(50% - 470px));
-  bottom: calc((100vh - var(--hud-h) - var(--stage-h)) * 0.28);
+  left: max(2vw, calc(50% - 330px));
+  bottom: 1.5vh;
   pointer-events: none;
   filter: drop-shadow(4px 4px 0 rgba(14, 16, 32, 0.25));
 }
@@ -1398,7 +1385,6 @@ legend.form-label {
 
 @media (min-width: 900px) {
   .login-arena {
-    --stage-h: clamp(200px, 48vh, 560px);
     align-items: end;
     justify-items: end;
     padding-bottom: 5vh;
@@ -1408,21 +1394,19 @@ legend.form-label {
 
 @media (max-width: 899px) {
   .login-arena {
-    --stage-h: clamp(130px, 28vh, 240px);
     align-items: start;
-    padding-top: calc(var(--hud-h) + var(--stage-h) + 14px);
-    padding-bottom: 24px;
+    padding-top: calc(var(--hud-h) + 14px);
+    padding-bottom: 150px;
   }
 
-  /* In guardia sulla linea del pavimento, sopra il riquadro di accesso */
+  /* Su telefono il personaggio resta sul pavimento, sotto il riquadro di accesso */
   .arena-fighter {
-    left: 4vw;
-    bottom: auto;
-    top: calc(var(--hud-h) + var(--stage-h) - 98px);
+    left: 6vw;
+    bottom: 2vh;
   }
 
   .arena-fighter .kf-idle {
-    width: 96px;
+    width: 120px;
   }
 }
 

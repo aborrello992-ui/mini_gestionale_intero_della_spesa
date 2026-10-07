@@ -62,7 +62,6 @@ export default function LoginPage() {
           <div className="arena-names"><span>Soci</span><span>Locale</span></div>
         </div>
         <div className="arena-stage" />
-        <div className="arena-floor"><div /></div>
       </div>
 
       <div className="arena-fighter">
