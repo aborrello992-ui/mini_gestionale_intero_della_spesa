@@ -1295,3 +1295,15 @@
     width: 72px;
   }
 }
+
+.product-admin-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-2);
+}
+
+.product-admin-actions .btn {
+  min-height: 44px;
+  white-space: normal;
+}
+

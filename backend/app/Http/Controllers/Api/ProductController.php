@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminAuditLog;
 use App\Models\Product;
 use App\Support\NameNormalizer;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -75,6 +77,28 @@ class ProductController extends Controller
         return response()->noContent();
     }
 
+    public function forceDestroy(Product $product, Request $request)
+    {
+        if ($this->hasHistory($product)) {
+            return response()->json(['message' => 'Questo prodotto ha uno storico: archivialo invece di eliminarlo.'], 409);
+        }
+
+        DB::transaction(function () use ($product, $request) {
+            AdminAuditLog::create([
+                'admin_id' => $request->user()->id,
+                'action' => 'product_deleted',
+                'changes' => ['product_id' => $product->id, 'name' => $product->name, 'deleted_at' => now()->toIso8601String()],
+            ]);
+            $product->delete();
+        });
+
+        if ($product->image_path) {
+            Storage::disk('public')->delete($product->image_path);
+        }
+
+        return response()->noContent();
+    }
+
     public function restore(Product $product)
     {
         $product->update(['is_active' => true, 'archived_at' => null, 'archived_by' => null, 'archive_reason' => null]);
@@ -116,6 +140,18 @@ class ProductController extends Controller
         $product->update($data);
 
         return $product->fresh()->load('category:id,name', 'location:id,name');
+    }
+
+    private function hasHistory(Product $product): bool
+    {
+        // Query dirette: includono anche i record archiviati dall'azzeramento conti.
+        foreach (['inventory_movements', 'withdrawals', 'restock_session_items', 'shopping_list_items', 'purchase_items', 'cash_movements'] as $table) {
+            if (DB::table($table)->where('product_id', $product->id)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function validated(Request $request, ?Product $product = null): array
@@ -168,7 +204,7 @@ class ProductController extends Controller
         }
 
         $data['image_path'] = $path;
-        $data['image_alt'] = $data['image_alt'] ?? $data['name'];
+        $data['image_alt'] = $data['image_alt'] ?? $data['name'] ?? $product?->name;
     }
 
     private function ensureUniqueNormalizedName(string $name, ?int $ignoreId = null): void

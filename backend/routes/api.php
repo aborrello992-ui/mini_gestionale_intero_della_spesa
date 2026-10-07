@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('/products/{product}/quick', [ProductController::class, 'quickUpdate']);
         Route::post('/products/{product}/image', [ProductController::class, 'image']);
         Route::delete('/products/{product}/image', [ProductController::class, 'removeImage']);
+        Route::delete('/products/{product}/permanent', [ProductController::class, 'forceDestroy']);
         Route::delete('/products/{product}', [ProductController::class, 'destroy']);
         Route::post('/products/{product}/restore', [ProductController::class, 'restore']);
         Route::post('/categories', [CategoryController::class, 'store']);

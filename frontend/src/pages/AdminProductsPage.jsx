@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ImagePlus, RotateCcw, Trash2, Upload } from 'lucide-react'
+import { Archive, ImagePlus, ImageOff, RotateCcw, Trash2, Upload } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import PageHeader from '../components/layout/PageHeader'
@@ -16,6 +16,8 @@ export default function AdminProductsPage() {
   const [imageEdit, setImageEdit] = useState(null)
   const [imageForm, setImageForm] = useState({ image: null, image_alt: '', preview: '' })
   const [message, setMessage] = useState('')
+  const [confirm, setConfirm] = useState(null)
+  const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({ include_archived: '1', per_page: '200' })
@@ -67,14 +69,24 @@ export default function AdminProductsPage() {
     } catch (err) { setMessage(errorMessage(err)) }
   }
 
-  async function archive(product) {
-    const warning = Number(product.current_quantity || 0) > 0 ? ` Questo prodotto ha ancora ${quantity(product.current_quantity, product.unit)} disponibili.` : ''
-    if (!window.confirm(`Archivia ${product.name}?${warning}`)) return
+  async function confirmAction() {
+    if (!confirm || busy) return
+    const { type, product } = confirm
+    setBusy(true)
     try {
-      await api.delete(`/products/${product.id}`, { data: { archive_reason: 'Archiviato da pannello admin' } })
-      setMessage('Prodotto archiviato.')
+      if (type === 'archive') {
+        await api.delete(`/products/${product.id}`, { data: { archive_reason: 'Archiviato da pannello admin' } })
+        setMessage(`${product.name} archiviato.`)
+      } else {
+        await api.delete(`/products/${product.id}/permanent`)
+        setMessage(`${product.name} eliminato definitivamente.`)
+      }
+      setConfirm(null)
       load()
-    } catch (err) { setMessage(errorMessage(err)) }
+    } catch (err) {
+      setConfirm(null)
+      setMessage(errorMessage(err))
+    } finally { setBusy(false) }
   }
 
   async function restore(product) {
@@ -85,6 +97,21 @@ export default function AdminProductsPage() {
     } catch (err) { setMessage(errorMessage(err)) }
   }
 
+  const isSuccess = /aggiornata|rimossa|archiviato|ripristinato|eliminato/.test(message)
+
+  function renderActions(product, large = false) {
+    const size = large ? '' : 'btn-sm'
+    const icon = large ? 17 : 15
+    return <div className={large ? 'product-admin-actions' : 'cluster'}>
+      <button type="button" className={`btn ${size} btn-outline-primary`} onClick={() => startImageEdit(product)}><ImagePlus size={icon} /> {large ? 'Modifica immagine' : 'Immagine'}</button>
+      {product.image_path && <button type="button" className={`btn ${size} btn-outline-secondary`} onClick={() => removeImage(product)}><ImageOff size={icon} /> Rimuovi immagine</button>}
+      {product.archived_at
+        ? <button type="button" className={`btn ${size} btn-outline-primary`} onClick={() => restore(product)}><RotateCcw size={icon} /> Ripristina</button>
+        : <button type="button" className={`btn ${size} btn-outline-warning`} onClick={() => setConfirm({ type: 'archive', product })}><Archive size={icon} /> Archivia</button>}
+      <button type="button" className={`btn ${size} btn-outline-danger`} onClick={() => setConfirm({ type: 'delete', product })}><Trash2 size={icon} /> Elimina</button>
+    </div>
+  }
+
   const columns = [
     { key: 'product', header: 'Prodotto', render: (product) => <div className="cluster"><div className="product-image" style={{ width: 64, padding: 6 }}>{product.image_url ? <img src={product.image_url} alt={product.image_alt || product.name} /> : <span>{product.name.slice(0, 1)}</span>}</div><div><strong>{product.name}</strong><div className="small text-muted-app">{product.location?.name || 'Locale'}</div></div></div> },
     { key: 'category', header: 'Categoria', render: (product) => product.category?.name || '-' },
@@ -93,13 +120,13 @@ export default function AdminProductsPage() {
     { key: 'price', header: 'Prezzo vendita', align: 'right', render: (product) => money(product.selling_price_cents || 0) },
     { key: 'image', header: 'Immagine', render: (product) => <StatusBadge tone={product.image_path ? 'success' : 'warning'}>{product.image_path ? 'Presente' : 'Manca'}</StatusBadge> },
     { key: 'status', header: 'Stato', render: (product) => product.archived_at ? <StatusBadge tone="neutral">Archiviato</StatusBadge> : Number(product.current_quantity || 0) <= 0 ? <StatusBadge status="esaurito" /> : <StatusBadge status="active" /> },
-    { key: 'actions', header: 'Azioni', render: (product) => <div className="cluster"><button className="btn btn-sm btn-outline-primary" onClick={() => startImageEdit(product)}><ImagePlus size={15} /> Immagine</button>{product.image_path && <button className="btn btn-sm btn-outline-secondary" onClick={() => removeImage(product)}><Trash2 size={15} /> Rimuovi</button>}{product.archived_at ? <button className="btn btn-sm btn-outline-primary" onClick={() => restore(product)}><RotateCcw size={15} /> Ripristina</button> : <button className="btn btn-sm btn-outline-danger" onClick={() => archive(product)}><Archive size={15} /> Archivia</button>}</div> },
+    { key: 'actions', header: 'Azioni', render: (product) => renderActions(product) },
   ]
 
   return (
     <section>
       <PageHeader title="Prodotti admin" subtitle="Gestisci immagini, prezzi, disponibilità e archiviazione senza cancellare lo storico." badge={<StatusBadge tone={withoutImages.length ? 'warning' : 'success'}>{withoutImages.length} senza immagine</StatusBadge>} />
-      <AlertMessage type={message.includes('aggiornata') || message.includes('rimossa') || message.includes('archiviato') || message.includes('ripristinato') ? 'success' : 'danger'}>{message}</AlertMessage>
+      <AlertMessage type={isSuccess ? 'success' : 'danger'}>{message}</AlertMessage>
       <div className="app-card filter-bar">
         <FormField label="Stato">
           <select className="form-select" value={filters.state} onChange={(event) => setFilters({ ...filters, state: event.target.value })}>
@@ -122,9 +149,20 @@ export default function AdminProductsPage() {
         <>
           <div className="split"><strong>{product.name}</strong>{product.archived_at ? <StatusBadge tone="neutral">Archiviato</StatusBadge> : <StatusBadge status={Number(product.current_quantity || 0) <= 0 ? 'esaurito' : 'active'} />}</div>
           <div className="split"><span>{quantity(product.current_quantity, product.unit)}</span><strong>{money(product.selling_price_cents || 0)}</strong></div>
-          <div className="cluster"><button className="btn btn-outline-primary w-100" onClick={() => startImageEdit(product)}><ImagePlus size={16} /> Modifica immagine</button></div>
+          {renderActions(product, true)}
         </>
       )} />
+      {confirm && <AppModal title={confirm.type === 'delete' ? 'Eliminare definitivamente?' : 'Archiviare il prodotto?'} subtitle={confirm.product.name} onClose={() => !busy && setConfirm(null)} labelledBy="product-confirm-title">
+        <div className="stack-md">
+          {confirm.type === 'delete'
+            ? <p className="mb-0">Stai per eliminare <strong>{confirm.product.name}</strong>. L'operazione non si può annullare ed è permessa solo se il prodotto non ha prelievi, rifornimenti o altri movimenti. Se ha uno storico, archivialo.</p>
+            : <p className="mb-0">{confirm.product.name} non sarà più visibile ai soci. Lo storico resta e puoi ripristinarlo quando vuoi.{Number(confirm.product.current_quantity || 0) > 0 ? ` Ha ancora ${quantity(confirm.product.current_quantity, confirm.product.unit)} disponibili.` : ''}</p>}
+          <div className="product-admin-actions">
+            <button type="button" className="btn btn-outline-secondary btn-lg" onClick={() => setConfirm(null)} disabled={busy}>Annulla</button>
+            <button type="button" className={`btn btn-lg ${confirm.type === 'delete' ? 'btn-danger' : 'btn-warning'}`} onClick={confirmAction} disabled={busy} autoFocus>{busy ? 'Attendi…' : confirm.type === 'delete' ? `Elimina ${confirm.product.name}` : 'Archivia'}</button>
+          </div>
+        </div>
+      </AppModal>}
       {imageEdit && <AppModal title="Modifica immagine" subtitle={imageEdit.name} onClose={() => setImageEdit(null)}>
         <form className="stack-md" onSubmit={saveImage}>
           <div className="product-image" style={{ maxWidth: 220 }}>{imageForm.preview ? <img src={imageForm.preview} alt={imageForm.image_alt || imageEdit.name} /> : <span>{imageEdit.name.slice(0, 1)}</span>}</div>
