@@ -1401,12 +1401,12 @@ legend.form-label {
 
   /* Su telefono il personaggio resta sul pavimento, sotto il riquadro di accesso */
   .arena-fighter {
-    left: 6vw;
-    bottom: 2vh;
+    left: 4vw;
+    bottom: 1.5vh;
   }
 
   .arena-fighter .kf-idle {
-    width: 120px;
+    width: clamp(160px, 44vw, 240px);
   }
 }
 

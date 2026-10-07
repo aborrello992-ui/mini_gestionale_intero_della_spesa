@@ -91,7 +91,7 @@
 
 /* Posa di guardia: respira e saltella come nella schermata di combattimento */
 .kf-idle {
-  width: clamp(130px, 22vw, 280px);
+  width: clamp(220px, 24vw, 340px);
   aspect-ratio: 260 / 280;
   transition: opacity 0.15s ease-out;
 }
