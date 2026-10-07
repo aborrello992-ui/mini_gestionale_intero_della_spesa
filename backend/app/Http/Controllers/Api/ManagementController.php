@@ -4,11 +4,22 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\ManagementMovementService;
+use App\Services\ManagementSummaryService;
 use Illuminate\Http\Request;
 use RuntimeException;
 
 class ManagementController extends Controller
 {
+    public function summary(Request $request, ManagementSummaryService $service)
+    {
+        $data = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+        ]);
+
+        return $service->summary($data['from'] ?? null, $data['to'] ?? null);
+    }
+
     public function store(Request $request, ManagementMovementService $service)
     {
         $data = $request->validate([

@@ -71,11 +71,15 @@ class InventoryService
             throw new RuntimeException('Movimento gia annullato.');
         }
 
+        if ($movement->withdrawal_id) {
+            throw new RuntimeException('Questo movimento appartiene a un prelievo con pagamento o coppone: usa la riassegnazione prelievi in Gestione.');
+        }
+
         return DB::transaction(function () use ($movement, $user) {
             $product = Product::query()->whereKey($movement->product_id)->lockForUpdate()->firstOrFail();
             $previous = (float) $product->current_quantity;
             $delta = match ($movement->type) {
-                'prelievo', 'correzione_negativa' => (float) $movement->quantity,
+                'prelievo', 'prelievo_pagato', 'prelievo_coppone', 'correzione_negativa' => (float) $movement->quantity,
                 default => -(float) $movement->quantity,
             };
             $resulting = $previous + $delta;

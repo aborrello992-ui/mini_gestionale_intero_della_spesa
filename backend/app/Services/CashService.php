@@ -72,6 +72,8 @@ class CashService
                 'type' => 'annullamento',
                 'category' => 'correzione',
                 'description' => 'Annullamento cassa #'.$movement->id,
+                'member_id' => $movement->member_id,
+                'affects_current_balance' => $movement->affects_current_balance,
                 'movement_date' => now()->toDateString(),
                 'movement_time' => now()->format('H:i:s'),
             ]);

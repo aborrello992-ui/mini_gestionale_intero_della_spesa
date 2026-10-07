@@ -16,6 +16,9 @@ class InventoryMovement extends Model
 {
     use HasFactory;
 
+    /** Tipi che rappresentano un prelievo (vecchio flusso e prelievi con PIN). */
+    public const WITHDRAWAL_TYPES = ['prelievo', 'prelievo_pagato', 'prelievo_coppone'];
+
     protected function casts(): array
     {
         return [

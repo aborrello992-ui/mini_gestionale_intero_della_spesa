@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import { FileText, Plus, Receipt, TrendingDown, TrendingUp, UserRound, WalletCards } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BarChart3, Boxes, FileText, Plus, Receipt, TrendingDown, TrendingUp, UserRound, WalletCards } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
-import { dateTime, errorMessage, money, quantity } from '../utils/format'
+import { dateTime, errorMessage, localDate, money, quantity } from '../utils/format'
 import { storageUrl } from '../utils/storage'
 import { expenseCategoryLabel } from '../utils/restock'
 import PageHeader from '../components/layout/PageHeader'
@@ -15,34 +15,43 @@ import AppModal from '../components/ui/AppModal'
 const personalTypes = [['accredito', 'Accredito'], ['quota', 'Quota mensile'], ['rimborso', 'Rimborso'], ['correzione', 'Correzione']]
 
 export default function ManagementPage() {
-  const [tab, setTab] = useState('personali')
+  const [tab, setTab] = useState('riepilogo')
+  const [period, setPeriod] = useState(() => { const today = new Date(); return { from: localDate(new Date(today.getFullYear(), today.getMonth(), 1)), to: localDate(today) } })
+  const [summary, setSummary] = useState(null)
   const [members, setMembers] = useState([])
   const [personalRows, setPersonalRows] = useState([])
   const [genericRows, setGenericRows] = useState([])
   const [receipts, setReceipts] = useState([])
   const [receiptDetail, setReceiptDetail] = useState(null)
-  const [counters, setCounters] = useState(null)
   const [message, setMessage] = useState('')
   const now = new Date()
-  const [personalForm, setPersonalForm] = useState({ type: 'accredito', member_id: '', direction: 'entrata', amount: '', reason: '', movement_date: now.toISOString().slice(0, 10), movement_time: now.toTimeString().slice(0, 5) })
-  const [genericForm, setGenericForm] = useState({ type: 'spesa_generica', direction: 'uscita', amount: '', reason: '', movement_date: now.toISOString().slice(0, 10), movement_time: now.toTimeString().slice(0, 5) })
+  const [personalForm, setPersonalForm] = useState({ type: 'accredito', member_id: '', direction: 'entrata', amount: '', reason: '', movement_date: localDate(now), movement_time: now.toTimeString().slice(0, 5) })
+  const [genericForm, setGenericForm] = useState({ type: 'spesa_generica', direction: 'uscita', amount: '', reason: '', movement_date: localDate(now), movement_time: now.toTimeString().slice(0, 5) })
 
-  async function load() {
-    const [membersResponse, personal, generic, receiptRows, balance] = await Promise.all([
+  const loadSummary = useCallback(async () => {
+    try {
+      const params = new URLSearchParams()
+      if (period.from) params.set('from', period.from)
+      if (period.to) params.set('to', period.to)
+      setSummary((await api.get(`/management/summary?${params}`)).data)
+    } catch (err) { setMessage(errorMessage(err)) }
+  }, [period.from, period.to])
+
+  const load = useCallback(async () => {
+    const [membersResponse, personal, generic, receiptRows] = await Promise.all([
       api.get('/members'),
       api.get('/cash/movements?category=movimento_personale&per_page=100'),
       api.get('/cash/movements?category=spesa_generica&per_page=100'),
       api.get('/receipts?per_page=100'),
-      api.get('/cash/balance'),
     ])
     setMembers(membersResponse.data)
     setPersonalRows(personal.data.data)
     setGenericRows(generic.data.data)
     setReceipts(receiptRows.data.data)
-    setCounters(balance.data)
-  }
+    loadSummary()
+  }, [loadSummary])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
   async function submitPersonal(event) {
     event.preventDefault()
@@ -71,10 +80,6 @@ export default function ManagementPage() {
   async function openReceipt(row) {
     setReceiptDetail((await api.get(`/receipts/${row.id}`)).data)
   }
-
-  const entries = [...personalRows, ...genericRows].filter((row) => row.direction === 'entrata').reduce((sum, row) => sum + Number(row.amount_cents || 0), 0)
-  const exits = [...personalRows, ...genericRows].filter((row) => row.direction === 'uscita').reduce((sum, row) => sum + Number(row.amount_cents || 0), 0)
-  const receiptRowsCount = receipts.reduce((sum, row) => sum + Number(row.items_count || 0), 0)
 
   const personalColumns = [
     { key: 'date', header: 'Data', render: (row) => new Date(row.movement_date).toLocaleDateString('it-IT') },
@@ -109,17 +114,42 @@ export default function ManagementPage() {
     <section>
       <PageHeader title="Gestione" subtitle="Movimenti personali, spese generiche e registro scontrini sono separati per non confondere la cassa." />
       <AlertMessage type={message.includes('registrat') ? 'success' : 'danger'}>{message}</AlertMessage>
+      <div className="app-card filter-bar mb-3">
+        <FormField label="Dal" htmlFor="summary-from"><input id="summary-from" className="form-control" type="date" value={period.from} onChange={(e) => setPeriod({ ...period, from: e.target.value })} /></FormField>
+        <FormField label="Al" htmlFor="summary-to"><input id="summary-to" className="form-control" type="date" value={period.to} onChange={(e) => setPeriod({ ...period, to: e.target.value })} /></FormField>
+      </div>
       <div className="metric-grid mb-3">
-        <MetricCard emphasis icon={WalletCards} label="Saldo attuale" value={money(counters?.balance_cents || 0)} help="Saldo reale calcolato dai movimenti." />
-        <MetricCard icon={TrendingUp} tone="success" label="Entrate gestione" value={money(entries)} help="Movimenti personali/generici filtrati." />
-        <MetricCard icon={TrendingDown} tone="danger" label="Uscite gestione" value={money(exits)} help="Non include spese storiche non incidenti." />
-        <MetricCard icon={Receipt} tone="info" label="Righe scontrini" value={receiptRowsCount} help="Prodotti acquistati registrati." />
+        <MetricCard emphasis icon={WalletCards} label="Saldo attuale" value={money(summary?.balance_cents || 0)} help="Calcolato sul server da tutti i movimenti validi." />
+        <MetricCard icon={TrendingUp} tone="success" label="Entrate periodo" value={money(summary?.cash.income_cents || 0)} help="Movimenti attivi, esclusi gli annullati." />
+        <MetricCard icon={TrendingDown} tone="danger" label="Uscite periodo" value={money(summary?.cash.outcome_cents || 0)} help="Comprese le spese da scontrino." />
+        <MetricCard icon={UserRound} tone="warning" label="Copponi aperti" value={money(summary?.open_coppone_cents || 0)} help="Debiti ancora da saldare." />
+        <MetricCard icon={Boxes} tone="info" label="Magazzino a costo" value={money(summary?.inventory.value_at_cost_cents || 0)} help={`A prezzo di vendita: ${money(summary?.inventory.value_at_price_cents || 0)}`} />
+        <MetricCard icon={Receipt} tone="info" label="Scontrini periodo" value={summary?.receipts.count || 0} help={`${summary?.receipts.lines || 0} righe · ${money(summary?.receipts.total_cents || 0)}`} />
       </div>
       <div className="cluster mb-3">
+        <button className={`btn ${tab === 'riepilogo' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('riepilogo')}><BarChart3 size={17} /> Riepilogo</button>
         <button className={`btn ${tab === 'personali' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('personali')}><UserRound size={17} /> Movimenti personali</button>
         <button className={`btn ${tab === 'generiche' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('generiche')}><WalletCards size={17} /> Spese generiche</button>
         <button className={`btn ${tab === 'scontrini' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('scontrini')}><FileText size={17} /> Registro scontrini</button>
       </div>
+
+      {tab === 'riepilogo' && summary && <div className="card-grid mb-3">
+        <div className="app-card stack-sm">
+          <h2 className="h6 mb-1">Cassa del periodo per tipo</h2>
+          {summary.cash.by_type.length ? summary.cash.by_type.map((row) => <div className="split" key={row.type}><span>{row.label}</span><span className="num">{row.income_cents ? `+${money(row.income_cents)}` : ''} {row.outcome_cents ? `−${money(row.outcome_cents)}` : ''}</span></div>) : <p className="text-muted-app mb-0">Nessun movimento nel periodo.</p>}
+        </div>
+        <div className="app-card stack-sm">
+          <h2 className="h6 mb-1">Spese da scontrino</h2>
+          <div className="split"><span>Prodotti</span><strong className="num">{money(summary.receipts.products_cents)}</strong></div>
+          <div className="split"><span>Altre spese</span><strong className="num">{money(summary.receipts.expenses_cents)}</strong></div>
+          {Object.entries(summary.receipts.expenses_by_category || {}).map(([category, cents]) => <div className="split small text-muted-app ps-2" key={category}><span>{expenseCategoryLabel(category)}</span><span className="num">{money(cents)}</span></div>)}
+          <div className="split"><span>Differenze scontrino</span><strong className="num">{money(summary.receipts.difference_cents)}</strong></div>
+        </div>
+        <div className="app-card stack-sm">
+          <h2 className="h6 mb-1">Soci</h2>
+          {summary.members.map((member) => <div className="split" key={member.id}><span className="min-0 text-truncate">{member.name}</span><span className="num small">{member.open_coppone_cents ? <span className="text-danger">debito {money(member.open_coppone_cents)}</span> : null}{member.wallet_credit_cents ? <span className="text-success ms-2">credito {money(member.wallet_credit_cents)}</span> : null}{!member.open_coppone_cents && !member.wallet_credit_cents ? 'in pari' : null}</span></div>)}
+        </div>
+      </div>}
 
       {tab === 'personali' && <>
         <form className="app-card form-grid mb-3" onSubmit={submitPersonal}>
