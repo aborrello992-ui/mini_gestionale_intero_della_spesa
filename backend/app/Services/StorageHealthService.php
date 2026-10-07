@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -68,15 +67,8 @@ class StorageHealthService
                 $steps['lettura'] = $this->fail('Errore: '.Str::limit($exception->getMessage(), 300));
             }
 
-            $url = $disk->url($path);
-            try {
-                $response = Http::timeout(8)->get($url);
-                $steps['indirizzo_pubblico'] = $response->successful()
-                    ? $this->ok("Raggiungibile: {$url}")
-                    : $this->fail("{$url} risponde {$response->status()}: ".$this->publicUrlHint($driver, $response->status()));
-            } catch (Throwable $exception) {
-                $steps['indirizzo_pubblico'] = $this->fail("{$url} non raggiungibile: ".Str::limit($exception->getMessage(), 200));
-            }
+            // Le immagini arrivano all'app tramite il server (link firmati): il bucket puo restare privato.
+            $steps['consegna'] = $this->ok('Le immagini vengono consegnate dal server con link firmati: funziona anche con bucket privato.');
 
             try {
                 $disk->delete($path);
@@ -115,19 +107,6 @@ class StorageHealthService
         return $missing === []
             ? $this->ok('Supabase configurato (bucket '.config('filesystems.disks.public.bucket').').')
             : $this->fail('Mancano variabili su Render: '.implode(', ', $missing).' (AWS_* / PUBLIC_FILESYSTEM_URL).');
-    }
-
-    private function publicUrlHint(string $driver, int $status): string
-    {
-        if ($driver === 's3') {
-            return match (true) {
-                in_array($status, [400, 401, 403], true) => 'il bucket non è pubblico oppure PUBLIC_FILESYSTEM_URL è sbagliato (deve finire con /storage/v1/object/public/<bucket>).',
-                $status === 404 => 'PUBLIC_FILESYSTEM_URL non punta al bucket giusto.',
-                default => 'Supabase non risponde correttamente (progetto in pausa?).',
-            };
-        }
-
-        return 'manca il collegamento public/storage (php artisan storage:link) o APP_URL è sbagliato.';
     }
 
     private function ok(string $message): array

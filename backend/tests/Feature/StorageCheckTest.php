@@ -8,7 +8,6 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Mockery;
@@ -21,32 +20,53 @@ class StorageCheckTest extends TestCase
     public function test_storage_check_reports_working_storage(): void
     {
         Storage::fake('public');
-        Http::fake(['*' => Http::response('ok', 200)]);
         Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_ADMIN]));
 
         $this->getJson('/api/storage-check')
             ->assertOk()
             ->assertJsonPath('ok', true)
             ->assertJsonPath('steps.scrittura.ok', true)
-            ->assertJsonPath('steps.indirizzo_pubblico.ok', true);
+            ->assertJsonPath('steps.consegna.ok', true);
 
         $this->assertSame([], Storage::disk('public')->allFiles());
         $this->artisan('locale:storage-check')->assertSuccessful();
     }
 
-    public function test_storage_check_explains_unreachable_public_url(): void
+    public function test_storage_check_is_admin_only(): void
     {
-        Storage::fake('public');
-        Http::fake(['*' => Http::response('denied', 403)]);
-        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_ADMIN]));
-
-        $this->getJson('/api/storage-check')
-            ->assertOk()
-            ->assertJsonPath('ok', false)
-            ->assertJsonPath('steps.indirizzo_pubblico.ok', false);
-
         Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_MEMBER]));
         $this->getJson('/api/storage-check')->assertForbidden();
+    }
+
+    public function test_images_are_served_through_signed_links_even_with_private_bucket(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('receipts/scontrino.jpg', 'jpeg-bytes');
+        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_ADMIN]));
+        $product = Product::create([
+            'category_id' => Category::create(['name' => 'Bibite'])->id,
+            'location_id' => Location::create(['name' => 'Locale'])->id,
+            'name' => 'Acqua', 'unit' => 'pezzi', 'current_quantity' => 1, 'minimum_threshold' => 1,
+            'image_path' => 'receipts/scontrino.jpg',
+        ]);
+
+        $url = $product->image_url;
+        $this->assertStringContainsString('/api/media?', $url);
+        $this->assertStringContainsString('signature=', $url);
+
+        $this->get($url)->assertOk()->assertHeader('Cache-Control');
+        $this->assertSame('jpeg-bytes', $this->get($url)->streamedContent());
+        $this->get(str_replace('signature=', 'signature=x', $url))->assertForbidden();
+        $this->get('/api/media?path=receipts/scontrino.jpg')->assertForbidden();
+    }
+
+    public function test_media_rejects_paths_outside_image_folders(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('diagnostica/x.txt', 'x');
+        $url = \Illuminate\Support\Facades\URL::signedRoute('media.show', ['path' => 'diagnostica/x.txt'], absolute: false);
+
+        $this->get($url)->assertNotFound();
     }
 
     public function test_failed_upload_returns_clear_422_and_keeps_old_image(): void

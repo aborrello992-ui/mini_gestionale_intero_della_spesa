@@ -244,7 +244,8 @@ class RestockRegistrationTest extends TestCase
 
         $url = $this->getJson('/api/receipts')->assertOk()->json('data.0.receipt_image_url');
         $this->assertNotEmpty($url);
-        $this->assertStringContainsString('receipts/', $url);
+        $this->assertStringContainsString('receipts%2F', $url);
+        $this->get($url)->assertOk();
         $this->getJson("/api/receipts/{$id}")->assertJsonPath('receipt_image_url', $url);
     }
 }

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DebtController;
 use App\Http\Controllers\Api\HistoryController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\LocationController;
+use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\ManagementController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\ProductController;
@@ -25,6 +26,7 @@ use App\Http\Controllers\Api\WithdrawalController;
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/guest', [AuthController::class, 'guest']);
 Route::get('/members', [MemberController::class, 'index']);
+Route::get('/media', [MediaController::class, 'show'])->middleware('signed:relative')->name('media.show');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

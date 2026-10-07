@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
+use App\Support\MediaUrl;
 use App\Support\NameNormalizer;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'category_id', 'location_id', 'name', 'normalized_name', 'description', 'unit',
@@ -67,6 +67,6 @@ class Product extends Model
 
     public function getImageUrlAttribute(): ?string
     {
-        return $this->image_path ? Storage::disk('public')->url($this->image_path) : null;
+        return MediaUrl::for($this->image_path);
     }
 }

@@ -25,6 +25,9 @@ RUN chmod +x docker-entrypoint.sh \
     && composer dump-autoload --optimize \
     && php artisan package:discover --ansi
 
+# Piu processi PHP in parallelo: il server consegna anche le immagini (link firmati).
+ENV PHP_CLI_SERVER_WORKERS=4
+
 EXPOSE 10000
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
