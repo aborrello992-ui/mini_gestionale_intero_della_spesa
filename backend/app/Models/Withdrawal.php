@@ -2,20 +2,21 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Archivable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable([
+#[Fillable(['archived_at', 'archived_reason', 
     'user_id', 'product_id', 'created_by', 'quantity', 'unit_price_cents',
     'total_amount_cents', 'payment_status', 'withdrawn_at', 'status', 'notes',
     'original_user_id', 'reassigned_at', 'reassigned_by', 'reassign_reason', 'is_manual', 'affects_stock',
 ])]
 class Withdrawal extends Model
 {
-    use HasFactory;
+    use Archivable, HasFactory;
 
     protected function casts(): array
     {

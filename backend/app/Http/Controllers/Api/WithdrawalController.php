@@ -90,18 +90,20 @@ class WithdrawalController extends Controller
             'product_id' => ['required', 'exists:products,id'],
             'quantity' => ['required', 'numeric', 'min:0.001'],
             'payment_status' => ['required', 'in:paid,coppone'],
-            'withdrawn_date' => ['required', 'date', 'before_or_equal:today'],
+            'withdrawn_date' => ['required', 'date'],
             'withdrawn_time' => ['required', 'date_format:H:i'],
             'affects_stock' => ['sometimes', 'boolean'],
             'notes' => ['nullable', 'string', 'max:500'],
-        ], [
-            'withdrawn_date.before_or_equal' => 'La data del prelievo non può essere nel futuro.',
         ]);
 
-        $withdrawnAt = Carbon::parse($data['withdrawn_date'].' '.$data['withdrawn_time']);
+        $withdrawnAt = Carbon::parse($data['withdrawn_date'].' '.$data['withdrawn_time'], AccountReset::LOCAL_TIMEZONE)->setTimezone(config('app.timezone'));
+        if ($withdrawnAt->gt(now()->addMinutes(5))) {
+            return response()->json(['message' => 'La data del prelievo non può essere nel futuro.'], 422);
+        }
+
         $cutoff = AccountReset::currentCutoff();
         if ($cutoff && $withdrawnAt->lt($cutoff)) {
-            return response()->json(['message' => 'Non puoi inserire prelievi prima dell\'azzeramento dei conti del '.$cutoff->format('d/m/Y').'.'], 422);
+            return response()->json(['message' => 'Non puoi inserire prelievi prima dell\'azzeramento dei conti del '.$cutoff->copy()->setTimezone(AccountReset::LOCAL_TIMEZONE)->format('d/m/Y').'.'], 422);
         }
 
         try {

@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\ArchiveController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CashController;
 use App\Http\Controllers\Api\CategoryController;
@@ -60,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/withdrawals', [WithdrawalController::class, 'index']);
         Route::post('/withdrawals/manual', [WithdrawalController::class, 'manual']);
         Route::post('/withdrawals/{withdrawal}/reassign', [WithdrawalController::class, 'reassign']);
+        Route::get('/archive', [ArchiveController::class, 'index']);
         Route::get('/management/summary', [ManagementController::class, 'summary']);
         Route::post('/management/movements', [ManagementController::class, 'store']);
         Route::post('/shopping-list/restock-sessions', [ShoppingListController::class, 'registerRestock']);

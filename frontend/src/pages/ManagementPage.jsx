@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowRightLeft, BarChart3, Boxes, FileText, Plus, Receipt, TrendingDown, TrendingUp, UserRound, WalletCards } from 'lucide-react'
+import { Archive, ArrowRightLeft, BarChart3, Boxes, FileText, Plus, Receipt, TrendingDown, TrendingUp, UserRound, WalletCards } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import { dateTime, errorMessage, localDate, money, quantity } from '../utils/format'
@@ -12,6 +12,7 @@ import FormField from '../components/forms/FormField'
 import StatusBadge from '../components/ui/StatusBadge'
 import AppModal from '../components/ui/AppModal'
 import WithdrawalReassignPanel from '../components/WithdrawalReassignPanel'
+import ArchivePanel from '../components/ArchivePanel'
 
 const personalTypes = [['accredito', 'Accredito'], ['quota', 'Quota mensile'], ['rimborso', 'Rimborso'], ['correzione', 'Correzione']]
 
@@ -133,6 +134,7 @@ export default function ManagementPage() {
         <button className={`btn ${tab === 'generiche' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('generiche')}><WalletCards size={17} /> Spese generiche</button>
         <button className={`btn ${tab === 'scontrini' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('scontrini')}><FileText size={17} /> Registro scontrini</button>
         <button className={`btn ${tab === 'prelievi' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('prelievi')}><ArrowRightLeft size={17} /> Riassegna prelievi</button>
+        <button className={`btn ${tab === 'archivio' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setTab('archivio')}><Archive size={17} /> Archivio</button>
       </div>
 
       {tab === 'riepilogo' && summary && <div className="card-grid mb-3">
@@ -182,6 +184,7 @@ export default function ManagementPage() {
       {tab === 'scontrini' && <DataTable columns={receiptColumns} rows={activeRows} getKey={(row) => row.id} emptyTitle="Nessuno scontrino registrato" emptyMessage="Gli scontrini si registrano dalla Lista spesa." renderMobile={(row) => <><div className="split"><strong>{money(row.total_cents)}</strong><StatusBadge tone="success">{row.status}</StatusBadge></div><div className="small text-muted-app">{new Date(row.purchased_at).toLocaleDateString('it-IT')} · {row.items_count} prodotti</div><button className="btn btn-outline-primary" onClick={() => openReceipt(row)}>Vedi dettaglio</button></>} />}
 
       {tab === 'prelievi' && <WithdrawalReassignPanel members={members} onChanged={loadSummary} />}
+      {tab === 'archivio' && <ArchivePanel />}
 
       {receiptDetail && <AppModal title="Dettaglio scontrino" subtitle={`${new Date(receiptDetail.purchased_at).toLocaleDateString('it-IT')} · ${money(receiptDetail.total_cents)}`} onClose={() => setReceiptDetail(null)}>
         <div className="stack-md">

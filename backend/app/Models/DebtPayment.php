@@ -2,15 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Archivable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['user_id', 'admin_user_id', 'amount_cents', 'paid_at', 'type', 'note'])]
+#[Fillable(['archived_at', 'archived_reason', 'user_id', 'admin_user_id', 'amount_cents', 'paid_at', 'type', 'note'])]
 class DebtPayment extends Model
 {
-    use HasFactory;
+    use Archivable, HasFactory;
 
     protected function casts(): array
     {

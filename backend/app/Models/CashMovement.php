@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Archivable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable([
+#[Fillable(['archived_at', 'archived_reason', 
     'restoration_key', 'user_id', 'member_id', 'product_id', 'purchase_id', 'withdrawal_id', 'debt_payment_id',
     'reverses_movement_id', 'amount_cents', 'resulting_balance_cents', 'direction',
     'type', 'category', 'description', 'movement_date', 'movement_time', 'occurred_at',
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 ])]
 class CashMovement extends Model
 {
-    use HasFactory;
+    use Archivable, HasFactory;
 
     protected function casts(): array
     {
