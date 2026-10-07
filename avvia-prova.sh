@@ -6,6 +6,12 @@
 set -e
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+if lsof -nP -iTCP:5173 -sTCP:LISTEN >/dev/null 2>&1 || lsof -nP -iTCP:8010 -sTCP:LISTEN >/dev/null 2>&1; then
+  echo "La prova è già accesa: apri http://localhost:5173"
+  echo "Per riavviarla chiudi prima l'altro terminale (Ctrl+C)."
+  exit 0
+fi
 COPY="$ROOT/backend/database/prova.sqlite"
 
 if [ ! -f "$COPY" ] || [ "$1" = "--nuova" ]; then
