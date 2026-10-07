@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Services\ManagementMovementService;
 use App\Services\ManagementSummaryService;
+use App\Services\StorageHealthService;
 use Illuminate\Http\Request;
 use RuntimeException;
 
@@ -18,6 +19,11 @@ class ManagementController extends Controller
         ]);
 
         return $service->summary($data['from'] ?? null, $data['to'] ?? null);
+    }
+
+    public function storageCheck(StorageHealthService $service)
+    {
+        return $service->check();
     }
 
     public function store(Request $request, ManagementMovementService $service)

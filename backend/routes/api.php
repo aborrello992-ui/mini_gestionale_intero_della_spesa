@@ -61,6 +61,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/withdrawals/manual', [WithdrawalController::class, 'manual']);
         Route::post('/withdrawals/{withdrawal}/reassign', [WithdrawalController::class, 'reassign']);
         Route::get('/archive', [ArchiveController::class, 'index']);
+        Route::get('/storage-check', [ManagementController::class, 'storageCheck']);
         Route::get('/management/summary', [ManagementController::class, 'summary']);
         Route::post('/management/movements', [ManagementController::class, 'store']);
         Route::post('/shopping-list/restock-sessions', [ShoppingListController::class, 'registerRestock']);

@@ -215,10 +215,7 @@ class RestockSessionService
 
     private function storeFile(UploadedFile $file, string $directory, array &$storedFiles): string
     {
-        $path = $file->store($directory, 'public');
-        if (! is_string($path) || $path === '') {
-            throw new RuntimeException("Impossibile salvare l'immagine. Riprova.");
-        }
+        $path = app(StorageHealthService::class)->store($file, $directory);
         $storedFiles[] = $path;
 
         return $path;

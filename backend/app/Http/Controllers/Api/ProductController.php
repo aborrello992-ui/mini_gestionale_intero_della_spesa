@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AdminAuditLog;
 use App\Models\Product;
+use App\Services\StorageHealthService;
 use App\Support\NameNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class ProductController extends Controller
 {
@@ -211,16 +213,14 @@ class ProductController extends Controller
             return;
         }
 
-        if ($product?->image_path) {
-            Storage::disk('public')->delete($product->image_path);
+        try {
+            $path = app(StorageHealthService::class)->store($request->file('image'), 'products');
+        } catch (RuntimeException $exception) {
+            throw ValidationException::withMessages(['image' => $exception->getMessage()]);
         }
 
-        $path = $request->file('image')->store('products', 'public');
-
-        if (! is_string($path) || $path === '') {
-            throw ValidationException::withMessages([
-                "image" => "Impossibile salvare l'immagine nello storage configurato.",
-            ]);
+        if ($product?->image_path) {
+            Storage::disk('public')->delete($product->image_path);
         }
 
         $data['image_path'] = $path;

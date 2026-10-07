@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ImagePlus, ImageOff, RotateCcw, Trash2, Upload } from 'lucide-react'
+import { Archive, ImagePlus, ImageOff, RotateCcw, Stethoscope, Trash2, Upload } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import PageHeader from '../components/layout/PageHeader'
@@ -19,6 +19,16 @@ export default function AdminProductsPage() {
   const [message, setMessage] = useState('')
   const [confirm, setConfirm] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [storageCheck, setStorageCheck] = useState(null)
+
+  async function runStorageCheck() {
+    setStorageCheck({ loading: true })
+    try {
+      setStorageCheck((await api.get('/storage-check')).data)
+    } catch (err) {
+      setStorageCheck({ ok: false, summary: errorMessage(err), steps: {} })
+    }
+  }
 
   const load = useCallback(async () => {
     const params = new URLSearchParams({ include_archived: '1', per_page: '200' })
@@ -126,7 +136,7 @@ export default function AdminProductsPage() {
 
   return (
     <section>
-      <PageHeader title="Magazzino" subtitle="Immagini, prezzi, archiviazione ed eliminazione dei prodotti." badge={<StatusBadge tone={withoutImages.length ? 'warning' : 'success'}>{withoutImages.length} senza immagine</StatusBadge>} />
+      <PageHeader title="Magazzino" subtitle="Immagini, prezzi, archiviazione ed eliminazione dei prodotti." primaryAction={<button type="button" className="btn btn-outline-primary" onClick={runStorageCheck}><Stethoscope size={17} /> Controlla immagini</button>} badge={<StatusBadge tone={withoutImages.length ? 'warning' : 'success'}>{withoutImages.length} senza immagine</StatusBadge>} />
       <AlertMessage type={isSuccess ? 'success' : 'danger'}>{message}</AlertMessage>
       <div className="app-card filter-bar">
         <FormField label="Stato">
@@ -153,6 +163,16 @@ export default function AdminProductsPage() {
           {renderActions(product, true)}
         </>
       )} />
+      {storageCheck && <AppModal title="Controllo immagini" subtitle={storageCheck.loading ? 'Prova in corso…' : storageCheck.summary} onClose={() => setStorageCheck(null)} labelledBy="storage-check-title">
+        {storageCheck.loading ? <p className="mb-0">Salvo, rileggo e apro un file di prova…</p> : <div className="stack-sm">
+          {Object.entries(storageCheck.steps || {}).map(([step, outcome]) => <div className={`summary-box ${outcome.ok ? '' : 'border-danger'}`} key={step}>
+            <div className="split"><strong className="text-capitalize">{step.replaceAll('_', ' ')}</strong><StatusBadge tone={outcome.ok ? 'success' : 'danger'}>{outcome.ok ? 'OK' : 'Errore'}</StatusBadge></div>
+            <div className="small text-break">{outcome.message}</div>
+          </div>)}
+          {storageCheck.php_limits && <div className="small text-muted-app">Limiti PHP: file {storageCheck.php_limits.upload_max_filesize}, richiesta {storageCheck.php_limits.post_max_size}</div>}
+          <button type="button" className="btn btn-primary" onClick={runStorageCheck}>Ripeti controllo</button>
+        </div>}
+      </AppModal>}
       {confirm && <AppModal title={confirm.type === 'delete' ? 'Eliminare definitivamente?' : 'Archiviare il prodotto?'} subtitle={confirm.product.name} onClose={() => !busy && setConfirm(null)} labelledBy="product-confirm-title">
         <div className="stack-md">
           {confirm.type === 'delete'

@@ -11,6 +11,9 @@ RUN apt-get update \
     && docker-php-ext-install pdo pdo_pgsql zip \
     && rm -rf /var/lib/apt/lists/*
 
+# Limiti di caricamento: il default di PHP (2 MB) rifiuta le foto da telefono.
+RUN printf "upload_max_filesize=10M\npost_max_size=25M\nmemory_limit=256M\n" > /usr/local/etc/php/conf.d/uploads.ini
+
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 COPY composer.json composer.lock ./
