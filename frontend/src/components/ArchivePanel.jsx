@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react'
 import api from '../api/client'
 import AlertMessage from './AlertMessage'
 import AccountResetPanel from './AccountResetPanel'
+import PhotoViewer from './ui/PhotoViewer'
+import { Camera } from 'lucide-react'
 import StatusBadge from './ui/StatusBadge'
 import { dateTime, errorMessage, money, quantity, shortDate } from '../utils/format'
 
 const TYPES = [['cash', 'Cassa'], ['debts', 'Debiti'], ['withdrawals', 'Prelievi'], ['receipts', 'Scontrini']]
 
-function ArchiveRow({ type, row }) {
+function ArchiveRow({ type, row, onPhoto }) {
   if (type === 'debts') return <><div className="split"><strong>{row.member?.name}</strong><strong className="num">{money(row.original_amount_cents)}</strong></div><div className="small text-muted-app">{shortDate(row.created_at)} · pagato {money(row.paid_amount_cents)} · residuo {money(row.remaining_amount_cents)} · {row.status}</div></>
   if (type === 'withdrawals') return <><div className="split"><strong className="text-break">{row.product?.name} · {quantity(row.quantity, row.product?.unit)}</strong><strong className="num">{money(row.total_amount_cents)}</strong></div><div className="small text-muted-app">{row.member?.name} · {dateTime(row.withdrawn_at)} · <StatusBadge status={row.payment_status} /></div></>
-  if (type === 'receipts') return <><div className="split"><strong>Scontrino #{row.id}</strong><strong className="num">{money(row.total_cents)}</strong></div><div className="small text-muted-app">{shortDate(row.purchased_at)} · {row.user?.name}</div></>
+  if (type === 'receipts') return <><div className="split"><strong>Scontrino #{row.id}</strong><strong className="num">{money(row.total_cents)}</strong></div><div className="small text-muted-app">{shortDate(row.purchased_at)} · {row.user?.name}</div>{row.receipt_image_url && <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => onPhoto(row)}><Camera size={15} /> Vedi foto</button>}</>
   return <><div className="split"><strong className="text-break">{row.description}</strong><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{shortDate(row.movement_date)} · {row.type?.replaceAll('_', ' ')}{row.member ? ` · ${row.member.name}` : ''}{row.status !== 'active' ? ` · ${row.status}` : ''}</div></>
 }
 
@@ -19,6 +21,7 @@ export default function ArchivePanel({ onChanged }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [version, setVersion] = useState(0)
+  const [photo, setPhoto] = useState(null)
 
   useEffect(() => {
     api.get(`/archive?type=${type}&per_page=100`).then(({ data: response }) => { setData(response); setError('') }).catch((err) => setError(errorMessage(err)))
@@ -39,8 +42,9 @@ export default function ArchivePanel({ onChanged }) {
         {TYPES.map(([value, label]) => <button type="button" key={value} className={`btn ${type === value ? 'btn-primary' : 'btn-outline-primary'}`} aria-pressed={type === value} onClick={() => setType(value)}>{label}</button>)}
       </div>
       {data?.records?.data?.length
-        ? <div className="stack-sm">{data.records.data.map((row) => <div className="app-card stack-sm" key={row.id}><ArchiveRow type={type} row={row} /></div>)}{data.records.total > data.records.data.length && <p className="small text-muted-app">Mostrati {data.records.data.length} di {data.records.total}.</p>}</div>
+        ? <div className="stack-sm">{data.records.data.map((row) => <div className="app-card stack-sm" key={row.id}><ArchiveRow type={type} row={row} onPhoto={setPhoto} /></div>)}{data.records.total > data.records.data.length && <p className="small text-muted-app">Mostrati {data.records.data.length} di {data.records.total}.</p>}</div>
         : <p className="text-muted-app">Nessun record archiviato.</p>}
+      {photo && <PhotoViewer url={photo.receipt_image_url} subtitle={`${shortDate(photo.purchased_at)} · ${money(photo.total_cents)}`} onClose={() => setPhoto(null)} />}
     </div>
   )
 }

@@ -234,4 +234,17 @@ class RestockRegistrationTest extends TestCase
             ['item_type' => 'expense', 'description' => 'Detersivo'],
         ]))->assertUnprocessable()->assertJsonValidationErrors(['items.0.expense_category', 'items.0.line_cost']);
     }
+
+    public function test_receipt_photo_url_is_exposed_for_the_app(): void
+    {
+        Storage::fake('public');
+        $id = $this->post('/api/shopping-list/restock-sessions', $this->payload([
+            ['product_id' => $this->product->id, 'quantity' => 12, 'line_cost' => '5.00'],
+        ], ['receipt_image' => UploadedFile::fake()->image('scontrino.jpg')]), ['Accept' => 'application/json'])->assertCreated()->json('id');
+
+        $url = $this->getJson('/api/receipts')->assertOk()->json('data.0.receipt_image_url');
+        $this->assertNotEmpty($url);
+        $this->assertStringContainsString('receipts/', $url);
+        $this->getJson("/api/receipts/{$id}")->assertJsonPath('receipt_image_url', $url);
+    }
 }

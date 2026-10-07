@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ArrowRightLeft, BarChart3, FileText, Plus, UserRound, WalletCards } from 'lucide-react'
+import { Archive, ArrowRightLeft, BarChart3, Camera, FileText, Plus, UserRound, WalletCards } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import { errorMessage, localDate, localTime, money, movementDateTime, movementStatusLabel, quantity, shortDate } from '../utils/format'
-import { storageUrl } from '../utils/storage'
+import PhotoViewer from '../components/ui/PhotoViewer'
 import { expenseCategoryLabel } from '../utils/restock'
 import PageHeader from '../components/layout/PageHeader'
 import DataTable from '../components/tables/DataTable'
@@ -19,7 +19,7 @@ const TABS = [
   ['generiche', 'Spese generiche', WalletCards],
   ['scontrini', 'Scontrini', FileText],
   ['prelievi', 'Riassegna prelievi', ArrowRightLeft],
-  ['archivio', 'Archivio', Archive],
+  ['archivio', 'Azzera e archivio', Archive],
 ]
 
 const personalTypes = [['accredito', 'Accredito'], ['quota', 'Quota mensile'], ['rimborso', 'Rimborso'], ['correzione', 'Correzione']]
@@ -33,6 +33,7 @@ export default function ManagementPage() {
   const [genericRows, setGenericRows] = useState([])
   const [receipts, setReceipts] = useState([])
   const [receiptDetail, setReceiptDetail] = useState(null)
+  const [photo, setPhoto] = useState(null)
   const [message, setMessage] = useState('')
   const now = new Date()
   const [personalForm, setPersonalForm] = useState({ type: 'accredito', member_id: '', direction: 'entrata', amount: '', reason: '', movement_date: localDate(now), movement_time: localTime(now) })
@@ -111,7 +112,7 @@ export default function ManagementPage() {
   const receiptColumns = [
     { key: 'date', header: 'Data', render: (row) => `${shortDate(row.purchased_at)} ${String(row.purchased_time || '').slice(0, 5)}` },
     { key: 'total', header: 'Totale', align: 'right', render: (row) => money(row.total_cents) },
-    { key: 'photo', header: 'Foto', render: (row) => row.receipt_image_path ? <a className="btn btn-sm btn-outline-primary" href={storageUrl(row.receipt_image_path)} target="_blank">Visualizza</a> : <StatusBadge tone="neutral">Assente</StatusBadge> },
+    { key: 'photo', header: 'Foto', render: (row) => row.receipt_image_url ? <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => setPhoto(row)}><Camera size={15} /> Vedi foto</button> : <StatusBadge tone="neutral">Assente</StatusBadge> },
     { key: 'items', header: 'Prodotti acquistati', render: (row) => <div><strong>{row.items_count} righe</strong><div className="small text-muted-app">{quantity(row.total_quantity || 0, 'pezzi')}</div></div> },
     { key: 'user', header: 'Registrato da', render: (row) => row.user?.name || '-' },
     { key: 'status', header: 'Stato', render: (row) => <StatusBadge tone="success">{movementStatusLabel(row.status || 'completed')}</StatusBadge> },
@@ -188,12 +189,13 @@ export default function ManagementPage() {
         <DataTable columns={genericColumns} rows={genericRows} getKey={(row) => row.id} emptyTitle="Nessuna spesa generica" renderMobile={(row) => <><div className="split"><StatusBadge status={row.direction}>{row.direction}</StatusBadge><strong>{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{movementDateTime(row)} · {row.user?.name}</div></>} />
       </>}
 
-      {tab === 'scontrini' && <DataTable columns={receiptColumns} rows={activeRows} getKey={(row) => row.id} emptyTitle="Nessuno scontrino registrato" emptyMessage="Gli scontrini si registrano dalla Lista spesa." renderMobile={(row) => <><div className="split"><strong>{money(row.total_cents)}</strong><StatusBadge tone="success">{movementStatusLabel(row.status)}</StatusBadge></div><div className="small text-muted-app">{shortDate(row.purchased_at)} · {row.items_count} prodotti</div><button className="btn btn-outline-primary" onClick={() => openReceipt(row)}>Vedi dettaglio</button></>} />}
+      {tab === 'scontrini' && <DataTable columns={receiptColumns} rows={activeRows} getKey={(row) => row.id} emptyTitle="Nessuno scontrino registrato" emptyMessage="Gli scontrini si registrano dalla Lista spesa." renderMobile={(row) => <><div className="split"><strong>{money(row.total_cents)}</strong><StatusBadge tone="success">{movementStatusLabel(row.status)}</StatusBadge></div><div className="small text-muted-app">{shortDate(row.purchased_at)} · {row.items_count} prodotti</div><div className="product-admin-actions">{row.receipt_image_url ? <button type="button" className="btn btn-outline-primary" onClick={() => setPhoto(row)}><Camera size={16} /> Foto</button> : <span className="small text-muted-app align-self-center">Senza foto</span>}<button type="button" className="btn btn-outline-primary" onClick={() => openReceipt(row)}>Dettaglio</button></div></>} />}
 
       {tab === 'prelievi' && <WithdrawalReassignPanel members={members} onChanged={loadSummary} />}
       {tab === 'archivio' && <ArchivePanel onChanged={load} />}
 
-      {receiptDetail && <AppModal title="Dettaglio scontrino" subtitle={`${shortDate(receiptDetail.purchased_at)} · ${money(receiptDetail.total_cents)}`} onClose={() => setReceiptDetail(null)}>
+      {photo && <PhotoViewer url={photo.receipt_image_url} subtitle={`${shortDate(photo.purchased_at)} · ${money(photo.total_cents)}`} onClose={() => setPhoto(null)} />}
+      {receiptDetail && !photo && <AppModal title="Dettaglio scontrino" subtitle={`${shortDate(receiptDetail.purchased_at)} · ${money(receiptDetail.total_cents)}`} onClose={() => setReceiptDetail(null)}>
         <div className="stack-md">
           <div className="summary-box">
             <div className="split"><span>Totale scontrino</span><strong>{money(receiptDetail.total_cents)}</strong></div>
@@ -201,7 +203,7 @@ export default function ManagementPage() {
             {receiptDetail.difference_reason && <div className="small text-muted-app">Motivo: {receiptDetail.difference_reason.replaceAll('_', ' ')}</div>}
             <div className="small text-muted-app">Registrato da {receiptDetail.user?.name || '-'} · stato {movementStatusLabel(receiptDetail.status)}</div>
           </div>
-          {receiptDetail.receipt_image_path && <a className="btn btn-outline-primary" href={storageUrl(receiptDetail.receipt_image_path)} target="_blank">Visualizza foto scontrino</a>}
+          {receiptDetail.receipt_image_url && <button type="button" className="btn btn-outline-primary" onClick={() => setPhoto(receiptDetail)}><Camera size={17} /> Vedi foto scontrino</button>}
           {receiptDetail.items.map((item) => {
             if (item.item_type === 'expense') {
               return <div className="list-row" key={item.id}>
