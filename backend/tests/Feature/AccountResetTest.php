@@ -213,4 +213,40 @@ class AccountResetTest extends TestCase
             ->expectsOutputToContain('come atteso')
             ->assertSuccessful();
     }
+
+    public function test_admin_can_preview_execute_and_undo_reset_from_the_app(): void
+    {
+        Sanctum::actingAs($this->admin);
+        $query = 'cutoff=2026-10-05%2019:34&opening_cash=0';
+
+        $this->getJson("/api/account-reset/preview?{$query}")
+            ->assertOk()
+            ->assertJsonPath('cutoff', '05/10/2026 19:34')
+            ->assertJsonPath('balance_after_cents', 150 - 4552)
+            ->assertJsonPath('already_done', false);
+        $this->assertSame(0, AccountReset::count());
+
+        $payload = ['cutoff' => '2026-10-05 19:34', 'opening_cash' => '0'];
+        $this->postJson('/api/account-reset', [...$payload, 'confirm_text' => 'azzera'])->assertUnprocessable()->assertJsonValidationErrors('confirm_text');
+        $this->postJson('/api/account-reset', [...$payload, 'confirm_text' => 'AZZERA', 'expected_open_debts' => '14,40'])->assertUnprocessable()->assertJsonValidationErrors('expected_open_debts');
+        $this->assertSame(0, AccountReset::count());
+
+        $this->postJson('/api/account-reset', [...$payload, 'confirm_text' => 'AZZERA', 'expected_open_debts' => '0'])->assertCreated();
+        $this->assertSame(150 - 4552, app(CashService::class)->balanceCents());
+        $this->assertSame(0, (int) MemberDebt::where('status', 'open')->sum('remaining_amount_cents'));
+        $this->assertDatabaseHas('admin_audit_logs', ['action' => 'account_reset']);
+        $this->getJson("/api/account-reset/preview?{$query}")->assertJsonPath('already_done', true);
+        $this->postJson('/api/account-reset', [...$payload, 'confirm_text' => 'AZZERA'])->assertUnprocessable();
+
+        $this->postJson('/api/account-reset/undo', ['cutoff' => '2026-10-05 19:34', 'confirm_text' => 'ANNULLA'])->assertNoContent();
+        $this->assertSame(0, AccountReset::count());
+        $this->assertSame(18500 + 500 + 150 - 4552, app(CashService::class)->balanceCents());
+    }
+
+    public function test_member_cannot_reset_accounts(): void
+    {
+        Sanctum::actingAs($this->luca);
+        $this->getJson('/api/account-reset/preview?cutoff=2026-10-05&opening_cash=0')->assertForbidden();
+        $this->postJson('/api/account-reset', ['cutoff' => '2026-10-05', 'opening_cash' => 0, 'confirm_text' => 'AZZERA'])->assertForbidden();
+    }
 }

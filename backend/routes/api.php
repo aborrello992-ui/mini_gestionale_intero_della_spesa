@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AccountResetController;
 use App\Http\Controllers\Api\ArchiveController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CashController;
@@ -67,6 +68,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/withdrawals/manual', [WithdrawalController::class, 'manual']);
         Route::post('/withdrawals/{withdrawal}/reassign', [WithdrawalController::class, 'reassign']);
         Route::get('/archive', [ArchiveController::class, 'index']);
+        Route::get('/account-reset/preview', [AccountResetController::class, 'preview']);
+        Route::post('/account-reset', [AccountResetController::class, 'store']);
+        Route::post('/account-reset/undo', [AccountResetController::class, 'undo']);
         Route::get('/storage-check', [ManagementController::class, 'storageCheck']);
         Route::get('/management/summary', [ManagementController::class, 'summary']);
         Route::post('/management/movements', [ManagementController::class, 'store']);

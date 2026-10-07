@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../api/client'
 import AlertMessage from './AlertMessage'
+import AccountResetPanel from './AccountResetPanel'
 import StatusBadge from './ui/StatusBadge'
 import { dateTime, errorMessage, money, quantity, shortDate } from '../utils/format'
 
@@ -13,18 +14,20 @@ function ArchiveRow({ type, row }) {
   return <><div className="split"><strong className="text-break">{row.description}</strong><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{shortDate(row.movement_date)} · {row.type?.replaceAll('_', ' ')}{row.member ? ` · ${row.member.name}` : ''}{row.status !== 'active' ? ` · ${row.status}` : ''}</div></>
 }
 
-export default function ArchivePanel() {
+export default function ArchivePanel({ onChanged }) {
   const [type, setType] = useState('cash')
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
+  const [version, setVersion] = useState(0)
 
   useEffect(() => {
     api.get(`/archive?type=${type}&per_page=100`).then(({ data: response }) => { setData(response); setError('') }).catch((err) => setError(errorMessage(err)))
-  }, [type])
+  }, [type, version])
 
   return (
     <div className="stack-md">
       <AlertMessage>{error}</AlertMessage>
+      {data && <AccountResetPanel resets={data.resets} onChanged={() => { setVersion((value) => value + 1); onChanged?.() }} />}
       <div className="summary-box stack-sm">
         <strong>Archivio conti precedenti (sola lettura)</strong>
         {data?.resets?.length

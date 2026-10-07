@@ -191,7 +191,7 @@ export default function ManagementPage() {
       {tab === 'scontrini' && <DataTable columns={receiptColumns} rows={activeRows} getKey={(row) => row.id} emptyTitle="Nessuno scontrino registrato" emptyMessage="Gli scontrini si registrano dalla Lista spesa." renderMobile={(row) => <><div className="split"><strong>{money(row.total_cents)}</strong><StatusBadge tone="success">{movementStatusLabel(row.status)}</StatusBadge></div><div className="small text-muted-app">{shortDate(row.purchased_at)} · {row.items_count} prodotti</div><button className="btn btn-outline-primary" onClick={() => openReceipt(row)}>Vedi dettaglio</button></>} />}
 
       {tab === 'prelievi' && <WithdrawalReassignPanel members={members} onChanged={loadSummary} />}
-      {tab === 'archivio' && <ArchivePanel />}
+      {tab === 'archivio' && <ArchivePanel onChanged={load} />}
 
       {receiptDetail && <AppModal title="Dettaglio scontrino" subtitle={`${shortDate(receiptDetail.purchased_at)} · ${money(receiptDetail.total_cents)}`} onClose={() => setReceiptDetail(null)}>
         <div className="stack-md">
