@@ -7,7 +7,7 @@ use App\Models\AccountReset;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Withdrawal;
-use App\Services\PinService;
+use App\Support\ConsumerAuth;
 use App\Services\WithdrawalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -16,24 +16,18 @@ use RuntimeException;
 
 class WithdrawalController extends Controller
 {
-    public function store(Request $request, PinService $pinService, WithdrawalService $withdrawalService)
+    public function store(Request $request, WithdrawalService $withdrawalService)
     {
         $data = $request->validate([
             'product_id' => ['required', 'exists:products,id'],
             'member_id' => ['required', 'exists:users,id'],
-            'pin' => ['required', 'regex:/^\d{3}$/'],
+            'pin' => ['nullable', 'regex:/^\d{3}$/'],
             'quantity' => ['required', 'numeric', 'min:0.001'],
             'payment_status' => ['required', 'in:paid,coppone'],
             'notes' => ['nullable', 'string'],
-        ]);
+        ], ['pin.regex' => 'Il PIN deve avere 3 cifre.']);
 
-        $member = User::query()
-            ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_MEMBER])
-            ->where('is_active', true)
-            ->where('can_consume', true)
-            ->whereKey($data['member_id'])
-            ->firstOrFail();
-        $pinService->verify($member, $data['pin'], $request->ip() ?: 'local');
+        $member = ConsumerAuth::resolve($request->user(), $data['member_id'], $data['pin'] ?? null, $request->ip() ?: 'local');
 
         try {
             $withdrawal = $withdrawalService->take(

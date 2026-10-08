@@ -20,10 +20,12 @@ class GuestUsersAndRestockTest extends TestCase
 
     public function test_guest_access_without_password_and_admin_functions_are_blocked(): void
     {
-        $token = $this->postJson('/api/guest')->assertOk()->json('token');
-        $this->assertNotEmpty($token);
+        $response = $this->postJson('/api/guest')->assertOk();
+        $this->assertNotEmpty($response->json('token'));
+        $this->assertMatchesRegularExpression('/^\d{3}$/', $response->json('pin'));
 
-        $guest = User::where('email', 'guest-device@locale.test')->firstOrFail();
+        $guest = User::findOrFail($response->json('user.id'));
+        $this->assertSame(User::ROLE_GUEST, $guest->role);
         Sanctum::actingAs($guest);
 
         $this->getJson('/api/products')->assertOk();

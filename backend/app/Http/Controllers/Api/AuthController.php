@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\GuestAccessService;
 use App\Services\PinService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class AuthController extends Controller
 {
@@ -35,27 +37,30 @@ class AuthController extends Controller
         ];
     }
 
-    public function guest()
+    /** Ospite esterno: accesso temporaneo con PIN generato, mostrato una sola volta. */
+    public function guest(GuestAccessService $guests)
     {
-        $guest = User::firstOrCreate(
-            ['email' => 'guest-device@locale.test'],
-            [
-                'name' => 'Ospite Locale',
-                'password' => bin2hex(random_bytes(16)),
-                'role' => User::ROLE_DEVICE,
-                'is_active' => true,
-            ],
-        );
+        try {
+            $access = $guests->create();
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 503);
+        }
 
         return [
-            'token' => $guest->createToken('guest-device')->plainTextToken,
-            'user' => $guest,
+            'token' => $access['token'],
+            'user' => $access['user'],
+            'pin' => $access['pin'],
+            'expires_at' => $access['user']->guest_expires_at,
         ];
     }
 
-    public function logout(Request $request)
+    public function logout(Request $request, GuestAccessService $guests)
     {
-        $request->user()->currentAccessToken()?->delete();
+        $user = $request->user();
+        $user->currentAccessToken()?->delete();
+        if ($user->isGuest()) {
+            $guests->end($user);
+        }
 
         return response()->json(['message' => 'Logout effettuato.']);
     }

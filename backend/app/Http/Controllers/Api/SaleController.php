@@ -3,17 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use App\Services\PinService;
 use App\Services\SaleService;
+use App\Support\ConsumerAuth;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class SaleController extends Controller
 {
     /** Acquisto di prodotti e/o combo, da soli o divisi fra piu soci: ognuno conferma con il proprio PIN. */
-    public function store(Request $request, SaleService $service, PinService $pinService)
+    public function store(Request $request, SaleService $service)
     {
         $data = $request->validate([
             'items' => ['required', 'array', 'min:1', 'max:20'],
@@ -22,7 +20,7 @@ class SaleController extends Controller
             'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
             'participants' => ['required', 'array', 'min:1', 'max:'.SaleService::MAX_PARTICIPANTS],
             'participants.*.member_id' => ['required', 'distinct', 'exists:users,id'],
-            'participants.*.pin' => ['required', 'regex:/^\d{3}$/'],
+            'participants.*.pin' => ['nullable', 'regex:/^\d{3}$/'],
             'participants.*.payment_status' => ['required', 'in:paid,coppone'],
             'note' => ['nullable', 'string', 'max:255'],
         ], [
@@ -31,21 +29,10 @@ class SaleController extends Controller
             'participants.*.pin.regex' => 'Il PIN deve avere 3 cifre.',
         ]);
 
+        // Chi e entrato con il proprio PIN non lo ridigita; gli amici (soci o ospiti) si, ciascuno il suo.
         $participants = [];
         foreach ($data['participants'] as $index => $participant) {
-            $member = User::query()
-                ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_MEMBER])
-                ->where('is_active', true)
-                ->where('can_consume', true)
-                ->find($participant['member_id']);
-            if (! $member) {
-                throw ValidationException::withMessages(["participants.$index.member_id" => 'Socio non attivo.']);
-            }
-            try {
-                $pinService->verify($member, $participant['pin'], $request->ip() ?: 'local');
-            } catch (ValidationException $exception) {
-                throw ValidationException::withMessages(["participants.$index.pin" => "{$member->name}: ".collect($exception->errors())->flatten()->first()]);
-            }
+            $member = ConsumerAuth::resolve($request->user(), $participant['member_id'], $participant['pin'] ?? null, $request->ip() ?: 'local', "participants.$index.member_id", "participants.$index.pin");
             $participants[] = ['member' => $member, 'payment_status' => $participant['payment_status']];
         }
 

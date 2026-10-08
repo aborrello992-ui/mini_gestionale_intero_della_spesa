@@ -36,6 +36,10 @@ class WithdrawalService
             throw new RuntimeException('La quantita deve essere maggiore di zero.');
         }
 
+        if ($paymentStatus === 'coppone' && $member->isGuest()) {
+            throw new RuntimeException("{$member->name} è un ospite: paga subito, niente coppone.");
+        }
+
         return DB::transaction(function () use ($product, $member, $actor, $quantity, $paymentStatus, $notes, $withdrawnAt, $affectsStock, $options) {
             $locked = Product::query()->whereKey($product->id)->lockForUpdate()->firstOrFail();
             $previous = (float) $locked->current_quantity;

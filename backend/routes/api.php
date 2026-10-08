@@ -31,7 +31,6 @@ Route::get('/media', [MediaController::class, 'show'])->middleware('signed:relat
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
-    Route::get('/dashboard', DashboardController::class);
     Route::get('/products/low-stock', [InventoryController::class, 'lowStock']);
     Route::get('/products', [ProductController::class, 'index']);
     Route::get('/products/{product}', [ProductController::class, 'show']);
@@ -40,15 +39,20 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/withdrawals', [WithdrawalController::class, 'store']);
     Route::get('/combos', [ComboController::class, 'index']);
     Route::post('/sales', [SaleController::class, 'store']);
-    Route::get('/inventory/movements', [InventoryController::class, 'movements']);
-    Route::get('/cash/balance', [CashController::class, 'balance']);
-    Route::get('/cash/movements', [CashController::class, 'index']);
-    Route::get('/debts', [DebtController::class, 'index']);
-    Route::get('/debts/{member}', [DebtController::class, 'show']);
     Route::get('/shopping-list', [ShoppingListController::class, 'index']);
     Route::get('/shopping-list/reminders', [ShoppingListController::class, 'reminders']);
     Route::post('/shopping-list', [ShoppingListController::class, 'store']);
-    Route::get('/history', HistoryController::class);
+
+    // Non visibili agli ospiti esterni.
+    Route::middleware('members')->group(function () {
+        Route::get('/dashboard', DashboardController::class);
+        Route::get('/inventory/movements', [InventoryController::class, 'movements']);
+        Route::get('/cash/balance', [CashController::class, 'balance']);
+        Route::get('/cash/movements', [CashController::class, 'index']);
+        Route::get('/debts', [DebtController::class, 'index']);
+        Route::get('/debts/{member}', [DebtController::class, 'show']);
+        Route::get('/history', HistoryController::class);
+    });
 
     Route::middleware('admin')->group(function () {
         Route::post('/products', [ProductController::class, 'store']);
