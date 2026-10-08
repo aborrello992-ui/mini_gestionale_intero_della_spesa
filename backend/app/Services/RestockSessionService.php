@@ -149,6 +149,7 @@ class RestockSessionService
             'unit_cost_cents' => $unitCostCents,
             'previous_average_cost_cents' => $previousAverage,
             'new_average_cost_cents' => $newAverage,
+            'note' => $item['note'] ?? null,
         ]);
 
         InventoryMovement::create([

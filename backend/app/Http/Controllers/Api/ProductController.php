@@ -196,7 +196,7 @@ class ProductController extends Controller
             'description' => ['nullable', 'string'],
             'image' => ['sometimes', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
             'image_alt' => ['nullable', 'string', 'max:255'],
-            'unit' => ['required', Rule::in(['pezzi', 'bottiglie', 'confezioni', 'chilogrammi', 'grammi', 'litri', 'millilitri'])],
+            'unit' => ['required', Rule::in(Product::UNITS)],
             'current_quantity' => ['required', 'numeric', 'min:0'],
             'minimum_threshold' => ['required', 'numeric', 'min:0'],
             'stock_reference_quantity' => ['nullable', 'numeric', 'min:0'],

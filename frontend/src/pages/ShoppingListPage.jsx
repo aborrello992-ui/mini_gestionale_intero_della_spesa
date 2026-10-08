@@ -108,7 +108,7 @@ export default function ShoppingListPage() {
         </div>
       </div>
 
-      {isAdmin && <RestockForm products={products} listItems={items} reminders={reminders} onSaved={load} />}
+      {isAdmin && <RestockForm products={products} listItems={items} reminders={reminders} categories={categories} onSaved={load} />}
 
       {!isAdmin && <form className="app-card stack-md" onSubmit={suggest}>
         <h2 className="section-title mb-0"><Send size={18} aria-hidden="true" /> Suggerisci un prodotto</h2>

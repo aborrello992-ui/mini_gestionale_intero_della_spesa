@@ -20,6 +20,9 @@ class Product extends Model
 {
     use HasFactory;
 
+    /** Unita di vendita: bustine/porzioni per prodotti comprati sfusi e divisi in sacchetti. */
+    public const UNITS = ['pezzi', 'bustine', 'porzioni', 'bottiglie', 'confezioni', 'chilogrammi', 'grammi', 'litri', 'millilitri'];
+
     protected $appends = ['image_url'];
 
     protected function casts(): array

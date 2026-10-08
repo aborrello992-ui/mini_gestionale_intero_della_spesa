@@ -217,6 +217,7 @@ export default function ManagementPage() {
               <div className="split"><strong>{item.product?.name}</strong><StatusBadge tone="info">{quantity(item.quantity, item.product?.unit)}</StatusBadge></div>
               <div className="small text-muted-app">Costo unitario {money(item.unit_cost_cents || 0)} · totale riga {money(item.cost_cents || 0)} · prezzo vendita {money(item.product?.selling_price_cents || item.selling_price_cents || 0)} · margine {money(margin)}</div>
               <div className="small text-muted-app">Quantità: {previousQty.toFixed(3)} → {item.product?.current_quantity}</div>
+              {item.note && <div className="small fst-italic">{item.note}</div>}
             </div>
           })}
         </div>

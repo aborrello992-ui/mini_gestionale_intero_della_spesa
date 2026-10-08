@@ -7,7 +7,8 @@ import { MB, shrinkImage } from '../utils/image'
 import { EXPENSE_CATEGORIES } from '../utils/restock'
 import { centsToInput, errorMessage, localDate, localTime, money, newUuid, quantity as formatQuantity, toCents } from '../utils/format'
 
-const UNITS = ['pezzi', 'bottiglie', 'confezioni', 'chilogrammi', 'grammi', 'litri', 'millilitri']
+const UNITS = ['pezzi', 'bustine', 'porzioni', 'bottiglie', 'confezioni', 'chilogrammi', 'grammi', 'litri', 'millilitri']
+const NEW_CATEGORY = '__nuova'
 const DIFFERENCE_REASONS = [
   ['arrotondamento', 'Arrotondamento'],
   ['sacchetto', 'Sacchetto non inserito'],
@@ -72,12 +73,14 @@ function rowErrors(row) {
   if (!hasCost(row)) errors.cost = 'Inserisci quanto hai pagato (0 se omaggio).'
   if (row.kind === 'new') {
     if (!row.name.trim()) errors.name = 'Inserisci il nome.'
+    if (!row.categoryChoice) errors.category = 'Scegli la categoria.'
+    if (row.categoryChoice === NEW_CATEGORY && !row.newCategory.trim()) errors.category = 'Scrivi il nome della nuova categoria.'
     if (row.selling_price === '') errors.selling_price = 'Inserisci il prezzo di vendita.'
   }
   return errors
 }
 
-export default function RestockForm({ products, listItems, reminders = [], onSaved }) {
+export default function RestockForm({ products, listItems, reminders = [], categories: categoryList = [], onSaved }) {
   const formId = useId()
   const [step, setStep] = useState(0)
   const [receipt, setReceipt] = useState(emptyReceipt)
@@ -99,6 +102,10 @@ export default function RestockForm({ products, listItems, reminders = [], onSav
   const expensesTotal = expenseRows.reduce((sum, row) => sum + lineCostCents(row), 0)
   const receiptTotal = toCents(receipt.total_amount)
   const difference = receiptTotal - productsTotal - expensesTotal
+  const categories = useMemo(() => {
+    const names = categoryList.length ? categoryList.map((category) => category.name) : products.map((product) => product.category?.name)
+    return [...new Set(names.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'it'))
+  }, [categoryList, products])
   const usedProductIds = useMemo(() => new Set(rows.map((row) => row.product_id).filter(Boolean)), [rows])
   const invalidRows = rows.filter((row) => Object.keys(rowErrors(row)).length > 0)
 
@@ -147,14 +154,17 @@ export default function RestockForm({ products, listItems, reminders = [], onSav
   }
 
   function addNew(prefill = {}) {
-    setRows((current) => [...current, { ...baseProductRow, id: rowId(), kind: 'new', name: search.trim(), category: 'Altro', unit: 'pezzi', minimum_threshold: '2', image: null, imagePreview: '', shopping_list_item_id: null, ...prefill }])
+    const { category, ...rest } = prefill
+    const known = category && categories.find((name) => name.toLowerCase() === category.toLowerCase())
+    const categoryFields = !category ? { categoryChoice: '', newCategory: '' } : known ? { categoryChoice: known, newCategory: '' } : { categoryChoice: NEW_CATEGORY, newCategory: category }
+    setRows((current) => [...current, { ...baseProductRow, id: rowId(), kind: 'new', name: search.trim(), ...categoryFields, unit: 'pezzi', minimum_threshold: '2', image: null, imagePreview: '', shopping_list_item_id: null, ...rest }])
     setSearch('')
   }
 
   function addFromList(item) {
     const product = products.find((candidate) => candidate.id === item.product_id) || item.product
     if (product) addExisting(product, item)
-    else addNew({ name: item.suggested_name || '', category: item.suggested_category || 'Altro', quantity: String(Number(item.suggested_quantity || 1)), shopping_list_item_id: item.id })
+    else addNew({ name: item.suggested_name || '', category: item.suggested_category || '', quantity: String(Number(item.suggested_quantity || 1)), shopping_list_item_id: item.id })
   }
 
   function addExpense() {
@@ -233,6 +243,7 @@ export default function RestockForm({ products, listItems, reminders = [], onSav
       put('quantity', rowQuantity(row))
       put('package_count', row.package_count)
       put('pieces_per_package', row.pieces_per_package)
+      put('note', row.portion_note)
       if (row.costMode === 'line') put('line_cost', centsToInput(toCents(row.line_cost)))
       else put('unit_cost', centsToInput(toCents(row.unit_cost)))
       if (row.selling_price !== '') put('selling_price', centsToInput(toCents(row.selling_price)))
@@ -241,7 +252,7 @@ export default function RestockForm({ products, listItems, reminders = [], onSav
         put('shopping_list_item_id', row.shopping_list_item_id)
       } else {
         put('name', row.name.trim())
-        put('category', row.category.trim())
+        put('category', row.categoryChoice === NEW_CATEGORY ? row.newCategory.trim() : row.categoryChoice)
         put('unit', row.unit)
         put('minimum_threshold', row.minimum_threshold)
         put('shopping_list_item_id', row.shopping_list_item_id)
@@ -294,12 +305,12 @@ export default function RestockForm({ products, listItems, reminders = [], onSav
         {row.costMode === 'line'
           ? <><label className="visually-hidden" htmlFor={fieldId(row, 'line_cost')}>Totale pagato per {rowLabel(row)}</label><input id={fieldId(row, 'line_cost')} className="form-control form-control-lg" inputMode="decimal" placeholder="Totale riga €" value={row.line_cost} onChange={(e) => updateRow(row.id, { line_cost: e.target.value })} /></>
           : <><label className="visually-hidden" htmlFor={fieldId(row, 'unit_cost')}>Costo a pezzo per {rowLabel(row)}</label><input id={fieldId(row, 'unit_cost')} className="form-control form-control-lg" inputMode="decimal" placeholder="Costo a pezzo €" value={row.unit_cost} onChange={(e) => updateRow(row.id, { unit_cost: e.target.value })} /></>}
-        <div className="field-help">{hasCost(row) ? `Totale riga ${money(lineCostCents(row))} · a pezzo ${money(Math.round(unitCost))}` : 'Usa 0 per un omaggio.'}</div>
+        <div className="field-help">{hasCost(row) ? `Totale riga ${money(lineCostCents(row))} · ${row.portion_note ? 'a porzione' : 'a pezzo'} ${money(Math.round(unitCost))}` : 'Usa 0 per un omaggio.'}</div>
         {showErrors && errors.cost && <div className="field-error">{errors.cost}</div>}
       </fieldset>
 
       <div>
-        <label className="form-label" htmlFor={fieldId(row, 'selling_price')}>Prezzo di vendita a pezzo{row.kind === 'new' ? '' : ' (facoltativo)'}</label>
+        <label className="form-label" htmlFor={fieldId(row, 'selling_price')}>Prezzo di vendita {row.portion_note ? 'a porzione' : 'a pezzo'}{row.kind === 'new' ? '' : ' (facoltativo)'}</label>
         <input id={fieldId(row, 'selling_price')} className="form-control form-control-lg" inputMode="decimal" placeholder={row.currentSellingCents ? `Attuale ${centsToInput(row.currentSellingCents)}` : '€'} value={row.selling_price} onChange={(e) => updateRow(row.id, { selling_price: e.target.value })} />
         {hasCost(row) && rowQuantity(row) > 0 && <div className="restock-suggestions" aria-label="Prezzi suggeriti">
           {MARKUPS.map(([label, multiplier]) => {
@@ -307,7 +318,7 @@ export default function RestockForm({ products, listItems, reminders = [], onSav
             return <button type="button" className="btn btn-sm btn-outline-secondary" key={label} onClick={() => updateRow(row.id, { selling_price: centsToInput(price) })}>{label} {money(price)}</button>
           })}
         </div>}
-        {margin !== null && <div className={`field-help ${margin < 0 ? 'text-danger fw-bold' : ''}`}>Guadagno per pezzo: {money(Math.round(margin))}</div>}
+        {margin !== null && <div className={`field-help ${margin < 0 ? 'text-danger fw-bold' : ''}`}>Guadagno {row.portion_note ? 'a porzione' : 'per pezzo'}: {money(Math.round(margin))}</div>}
         {showErrors && errors.selling_price && <div className="field-error">{errors.selling_price}</div>}
       </div>
     </>
@@ -317,19 +328,46 @@ export default function RestockForm({ products, listItems, reminders = [], onSav
     return <div>
       <label className="form-label" htmlFor={fieldId(row, 'quantity')}>Quantità acquistata{row.unit ? ` (${row.unit})` : ''}</label>
       <div className="quantity-stepper">
-        <button type="button" className="btn btn-outline-secondary" aria-label={`Diminuisci quantità di ${rowLabel(row)}`} onClick={() => updateRow(row.id, { quantity: String(Math.max(1, toNumber(row.quantity) - 1)) })}>−</button>
-        <input id={fieldId(row, 'quantity')} className="form-control form-control-lg text-center" inputMode="decimal" value={row.quantity} onChange={(e) => updateRow(row.id, { quantity: e.target.value })} />
-        <button type="button" className="btn btn-outline-secondary" aria-label={`Aumenta quantità di ${rowLabel(row)}`} onClick={() => updateRow(row.id, { quantity: String(toNumber(row.quantity) + 1) })}>+</button>
+        <button type="button" className="btn btn-outline-secondary" aria-label={`Diminuisci quantità di ${rowLabel(row)}`} onClick={() => updateRow(row.id, { quantity: String(Math.max(1, toNumber(row.quantity) - 1)), portion_note: '' })}>−</button>
+        <input id={fieldId(row, 'quantity')} className="form-control form-control-lg text-center" inputMode="decimal" value={row.quantity} onChange={(e) => updateRow(row.id, { quantity: e.target.value, portion_note: '' })} />
+        <button type="button" className="btn btn-outline-secondary" aria-label={`Aumenta quantità di ${rowLabel(row)}`} onClick={() => updateRow(row.id, { quantity: String(toNumber(row.quantity) + 1), portion_note: '' })}>+</button>
       </div>
       <details className="restock-packages">
         <summary>Calcola da confezioni</summary>
         <div className="restock-two">
-          <div><label className="form-label small" htmlFor={fieldId(row, 'packages')}>Confezioni</label><input id={fieldId(row, 'packages')} className="form-control" inputMode="decimal" value={row.package_count} onChange={(e) => { const patch = { package_count: e.target.value }; const qty = toNumber(e.target.value) * toNumber(row.pieces_per_package); if (qty > 0) patch.quantity = String(qty); updateRow(row.id, patch) }} /></div>
-          <div><label className="form-label small" htmlFor={fieldId(row, 'pieces')}>Pezzi per confezione</label><input id={fieldId(row, 'pieces')} className="form-control" inputMode="decimal" value={row.pieces_per_package} onChange={(e) => { const patch = { pieces_per_package: e.target.value }; const qty = toNumber(row.package_count) * toNumber(e.target.value); if (qty > 0) patch.quantity = String(qty); updateRow(row.id, patch) }} /></div>
+          <div><label className="form-label small" htmlFor={fieldId(row, 'packages')}>Confezioni</label><input id={fieldId(row, 'packages')} className="form-control" inputMode="decimal" value={row.package_count} onChange={(e) => { const patch = { package_count: e.target.value, portion_note: '' }; const qty = toNumber(e.target.value) * toNumber(row.pieces_per_package); if (qty > 0) patch.quantity = String(qty); updateRow(row.id, patch) }} /></div>
+          <div><label className="form-label small" htmlFor={fieldId(row, 'pieces')}>Pezzi per confezione</label><input id={fieldId(row, 'pieces')} className="form-control" inputMode="decimal" value={row.pieces_per_package} onChange={(e) => { const patch = { pieces_per_package: e.target.value, portion_note: '' }; const qty = toNumber(row.package_count) * toNumber(e.target.value); if (qty > 0) patch.quantity = String(qty); updateRow(row.id, patch) }} /></div>
         </div>
+      </details>
+      <details className="restock-packages" open={Boolean(row.portion_note)}>
+        <summary>Diviso in porzioni (es. busta divisa in bustine)</summary>
+        <div className="restock-two">
+          <div><label className="form-label small" htmlFor={fieldId(row, 'counted')}>Pezzi contati</label><input id={fieldId(row, 'counted')} className="form-control" inputMode="numeric" placeholder="Es. 37" value={row.portion_pieces || ''} onChange={(e) => applyPortions(row, e.target.value, row.portion_size)} /></div>
+          <div><label className="form-label small" htmlFor={fieldId(row, 'portion')}>Pezzi per porzione</label><input id={fieldId(row, 'portion')} className="form-control" inputMode="numeric" placeholder="Es. 5" value={row.portion_size || ''} onChange={(e) => applyPortions(row, row.portion_pieces, e.target.value)} /></div>
+        </div>
+        {row.portion_note && <div className="summary-box small mt-2">{row.portion_note}. In magazzino entrano <strong>{row.quantity}</strong> {row.kind === 'new' ? row.unit : 'unità'}; il costo si divide sulle porzioni.</div>}
       </details>
       {showErrors && errors.quantity && <div className="field-error">{errors.quantity}</div>}
     </div>
+  }
+
+  // Busta contata e divisa in porzioni: in magazzino vanno le porzioni intere, gli avanzi sono omaggio.
+  function applyPortions(row, piecesValue, sizeValue) {
+    const pieces = Math.floor(toNumber(piecesValue))
+    const size = Math.floor(toNumber(sizeValue))
+    const patch = { portion_pieces: piecesValue, portion_size: sizeValue }
+    if (pieces > 0 && size > 0 && pieces >= size) {
+      const portions = Math.floor(pieces / size)
+      const leftover = pieces % size
+      patch.quantity = String(portions)
+      patch.package_count = ''
+      patch.pieces_per_package = ''
+      patch.portion_note = `${pieces} pezzi in ${portions} porzioni da ${size}${leftover ? `, ${leftover} in omaggio` : ''}`
+      if (row.kind === 'new' && row.unit === 'pezzi') patch.unit = 'bustine'
+    } else {
+      patch.portion_note = ''
+    }
+    updateRow(row.id, patch)
   }
 
   function renderRow(row) {
@@ -376,7 +414,16 @@ export default function RestockForm({ products, listItems, reminders = [], onSav
           {showErrors && errors.name && <div className="field-error">{errors.name}</div>}
         </div>
         <div className="restock-two">
-          <div><label className="form-label" htmlFor={fieldId(row, 'cat')}>Categoria</label><input id={fieldId(row, 'cat')} className="form-control" list={`${formId}-categories`} value={row.category} onChange={(e) => updateRow(row.id, { category: e.target.value })} /></div>
+          <div>
+            <label className="form-label" htmlFor={fieldId(row, 'cat')}>Categoria</label>
+            <select id={fieldId(row, 'cat')} className="form-select" value={row.categoryChoice} onChange={(e) => updateRow(row.id, { categoryChoice: e.target.value })}>
+              <option value="">Scegli…</option>
+              {categories.map((name) => <option key={name} value={name}>{name}</option>)}
+              <option value={NEW_CATEGORY}>+ Nuova categoria…</option>
+            </select>
+            {row.categoryChoice === NEW_CATEGORY && <><label className="visually-hidden" htmlFor={fieldId(row, 'newcat')}>Nome nuova categoria</label><input id={fieldId(row, 'newcat')} className="form-control mt-2" maxLength={80} placeholder="Nome nuova categoria" value={row.newCategory} onChange={(e) => updateRow(row.id, { newCategory: e.target.value })} autoFocus /></>}
+            {showErrors && errors.category && <div className="field-error">{errors.category}</div>}
+          </div>
           <div><label className="form-label" htmlFor={fieldId(row, 'unit')}>Unità</label><select id={fieldId(row, 'unit')} className="form-select" value={row.unit} onChange={(e) => updateRow(row.id, { unit: e.target.value })}>{UNITS.map((unit) => <option key={unit}>{unit}</option>)}</select></div>
         </div>
         <div><label className="form-label" htmlFor={fieldId(row, 'min')}>Soglia minima (avviso scorta bassa)</label><input id={fieldId(row, 'min')} className="form-control" inputMode="decimal" value={row.minimum_threshold} onChange={(e) => updateRow(row.id, { minimum_threshold: e.target.value })} /></div>
@@ -396,11 +443,9 @@ export default function RestockForm({ products, listItems, reminders = [], onSav
     </article>
   }
 
-  const categories = useMemo(() => [...new Set(products.map((product) => product.category?.name).filter(Boolean))], [products])
 
   return (
     <form className="restock-form" onSubmit={submit} noValidate>
-      <datalist id={`${formId}-categories`}>{categories.map((name) => <option key={name} value={name} />)}</datalist>
       <div className="split mb-3">
         <h2 className="section-title mb-0">Registra spesa</h2>
         <StatusBadge tone="primary">{rows.length} righe</StatusBadge>

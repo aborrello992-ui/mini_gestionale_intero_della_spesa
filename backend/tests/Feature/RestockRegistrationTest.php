@@ -248,4 +248,24 @@ class RestockRegistrationTest extends TestCase
         $this->get($url)->assertOk();
         $this->getJson("/api/receipts/{$id}")->assertJsonPath('receipt_image_url', $url);
     }
+
+    public function test_bag_split_into_portions_is_stocked_as_portions_with_note(): void
+    {
+        // Busta da 600 g a 1,59 EUR: 37 crocchette contate, 7 bustine da 5, 2 in omaggio.
+        $this->postJson('/api/shopping-list/restock-sessions', $this->payload([
+            [
+                'name' => 'Crocchette di patate', 'category' => 'Surgelati', 'unit' => 'bustine', 'quantity' => 7,
+                'line_cost' => '1.59', 'selling_price' => '0.50', 'note' => '37 pezzi in 7 porzioni da 5, 2 in omaggio',
+            ],
+        ], ['total_amount' => '1.59']))->assertCreated();
+
+        $product = Product::where('name', 'Crocchette di patate')->sole();
+        $this->assertSame('7.000', $product->current_quantity);
+        $this->assertSame('bustine', $product->unit);
+        $this->assertSame(23, $product->average_price_cents);
+        $this->assertSame(50, $product->selling_price_cents);
+        $this->assertDatabaseHas('categories', ['name' => 'Surgelati']);
+        $this->assertDatabaseHas('restock_session_items', ['cost_cents' => 159, 'note' => '37 pezzi in 7 porzioni da 5, 2 in omaggio']);
+        $this->assertDatabaseHas('restock_sessions', ['difference_cents' => 0]);
+    }
 }

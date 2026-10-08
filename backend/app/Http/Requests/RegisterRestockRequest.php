@@ -48,6 +48,7 @@ class RegisterRestockRequest extends FormRequest
             'items.*.line_cost' => ['required_if:items.*.item_type,expense', 'nullable', 'numeric', 'min:0'],
             'items.*.cost_amount' => ['nullable', 'numeric', 'min:0'],
             'items.*.location' => ['nullable', 'string', 'max:255'],
+            'items.*.note' => ['nullable', 'string', 'max:255'],
             'items.*.image' => ['exclude_if:items.*.item_type,expense', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
     }
