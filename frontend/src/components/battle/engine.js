@@ -287,8 +287,8 @@ export function createBattle(root, opts = {}) {
     const who = state.active
     later(() => {
       if (state.phase !== 'fight' || who !== state.active) return
-      const spinSpeed = { drill: 540, wrench: 720, pillow: 280, lightning: 0, sleep: 0 }[move.kind] || 0
-      spawn({ kind: move.kind, from: 'team', x: HAND.x, y: HAND.y + (move.kind === 'sleep' ? -4 : 0), vx: move.kind === 'sleep' ? 250 : 460, spin: spinSpeed, dmg: move.dmg, stun: move.stun || 0 })
+      const spinSpeed = { drill: 540, wrench: 720, board: 620, cone: 480, shirt: 420, blazer: 340, sneaker: 640, pillow: 280, lightning: 0, sleep: 0 }[move.kind] || 0
+      spawn({ kind: move.kind, from: 'team', x: HAND.x, y: HAND.y + (move.kind === 'sleep' ? -4 : 0), vx: { sleep: 250, board: 520, cone: 470, shirt: 500, macaw: 600, parakeet: 680, flock: 540, blazer: 470, sneaker: 560, arrow: 620, firearrow: 540, bullet: 820 }[move.kind] || 460, spin: spinSpeed, dmg: move.dmg, stun: move.stun || 0 })
     }, 90)
   }
 

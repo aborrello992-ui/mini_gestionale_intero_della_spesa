@@ -138,6 +138,8 @@
 .bb-enter:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 @keyframes bb-pulse { 50% { transform: scale(1.06); } }
 
+@keyframes bb-flapy { to { transform: scaleY(0.35); } }
+.bb .bb-flap { transform-box: fill-box; transform-origin: 50% 100%; animation: bb-flapy 0.16s ease-in-out infinite alternate; }
 @keyframes bb-bob { to { translate: 0 -2.5px; } }
 @keyframes bb-bobz { to { translate: 0 -5px; } }
 @keyframes bb-flick { 50% { opacity: 0.35; } }

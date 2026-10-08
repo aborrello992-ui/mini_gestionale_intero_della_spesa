@@ -2,10 +2,15 @@
 // gli altri un personaggio generico con colori sempre uguali ricavati dal nome.
 import { FIGHTERS } from './fighters.js'
 
-// Riconoscimento automatico finché l'admin non assegna l'avatar dalla pagina Utenti.
+// Riconoscimento automatico dal nome dell'account, finché l'admin non assegna l'avatar dalla pagina Utenti.
+// Ogni alias è un insieme di parole che devono comparire tutte nel nome (es. "Squeo" da solo non basta: ci sono due Squeo).
 const NAME_MATCHES = {
-  michele: ['michele lisco', 'michele', 'miwoki'],
-  luca: ['luca manca'],
+  michele: ['michele lisco', 'miwoki', 'lisco'],
+  luca: ['luca manca', 'manca'],
+  roberto: ['roberto squeo', 'roberto'],
+  nello: ['nello lorusso', 'lorusso', 'nello'],
+  saverio: ['saverio squeo', 'saverio'],
+  borrello: ['borrello'],
 }
 
 const normalize = (value) => String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
@@ -33,10 +38,11 @@ function genericLook(name) {
 }
 
 export function avatarKeyFor(user) {
-  if (!user) return null
+  // Gli ospiti non prendono mai l'avatar di un socio, anche se si chiamano allo stesso modo.
+  if (!user || user.role === 'guest') return null
   if (user.avatar_key && FIGHTERS.some((fighter) => fighter.id === user.avatar_key)) return user.avatar_key
-  const name = normalize(user.name)
-  return Object.entries(NAME_MATCHES).find(([, names]) => names.includes(name))?.[0] || null
+  const words = normalize(user.name).split(/\s+/)
+  return Object.entries(NAME_MATCHES).find(([, aliases]) => aliases.some((alias) => alias.split(' ').every((word) => words.includes(word))))?.[0] || null
 }
 
 /** { id, name, look, moves, generic } per l'utente (o un ospite) da mostrare nel gioco e nelle attese. */

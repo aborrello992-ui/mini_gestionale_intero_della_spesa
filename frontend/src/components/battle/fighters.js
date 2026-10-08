@@ -1,7 +1,7 @@
 // I soci che combattono. Per aggiungerne uno: copia un blocco, cambia look e moves.
-// kind delle mosse: lightning | drill | wrench | sleep | pillow  (vedi PROJECTILES in art.js)
+// kind delle mosse: lightning | drill | wrench | sleep | pillow | board | cone | shirt | blazer | sneaker | macaw | parakeet | flock | arrow | firearrow | bullet  (vedi PROJECTILES in art.js)
 // dmg = danno al boss (il boss ha 180 punti vita), stun = millisecondi in cui il boss resta addormentato.
-// outfit.style: 'vest' (elettricista) | 'apron' (commesso di ferramenta) | (omesso = giacca)
+// outfit.style: 'vest' (elettricista) | 'apron' (commesso di ferramenta) | 'cowboy' (pistolero) | 'coach' (allenatore) | 'stylist' | 'jungle' (uomo della giungla) | (omesso = giacca)
 
 export const FIGHTERS = [
   {
@@ -64,6 +64,129 @@ export const FIGHTERS = [
       { kind: 'pillow', label: 'CUSCINO KO!', dmg: 3.4 },
       { kind: 'wrench', label: 'CHIAVE INGLESE!', dmg: 2.8 },
       { kind: 'sleep', label: 'NUVOLA DEL SONNO!', dmg: 1.5, stun: 1400 },
+    ],
+  },
+  {
+    id: 'roberto',
+    name: 'ROBERTO SQUEO',
+    look: {
+      skin: '#e3b08a',
+      hair: '#17110e',
+      hairStyle: 'cowboy',
+      hat: '#a8743a',
+      hatBand: '#3b2412',
+      brows: 'thick',
+      browColor: '#17110e',
+      beard: '#5a2e20',
+      beardStyle: 'full',
+      glasses: 'rect-thick',
+      frame: '#8a3f1b',
+      lens: '#14100e',
+      smile: 'smirk',
+      frontHold: 'bow',
+      gloves: '#5b3a1c',
+      glovesRear: '#5b3a1c',
+      outfit: {
+        style: 'cowboy',
+        jacket: '#e7d3b0', jacketDark: '#cdb68c', shirt: '#e3b08a',
+        vest: '#8a5a2b', vestDark: '#3b2412', bandana: '#dc2626', belt: '#3b2412',
+        pants: '#3b5b8c', shoes: '#5b3a1c',
+      },
+    },
+    moves: [
+      { kind: 'arrow', label: 'FRECCIA!', dmg: 3 },
+      { kind: 'bullet', label: 'COLPO DI REVOLVER!', dmg: 3.4 },
+      { kind: 'firearrow', label: 'FRECCIA DI FUOCO!', dmg: 4.2 },
+      { kind: 'arrow', label: 'FRECCIA!', dmg: 3 },
+    ],
+  },
+  {
+    id: 'nello',
+    name: 'NELLO LORUSSO',
+    look: {
+      skin: '#dba988',
+      eye: '#4a3224',
+      hair: '#2a211c',
+      hairStyle: 'bald',
+      brows: 'thick',
+      browColor: '#2a211c',
+      beard: '#2c231e',
+      streak: '#9a948c',
+      beardStyle: 'dense',
+      earring: '#e5e7eb',
+      smile: 'lips',
+      rearHold: 'board',
+      outfit: {
+        style: 'coach',
+        jacket: '#2563eb', jacketDark: '#1e3a8a', trim: '#f8fafc', shirt: '#dba988',
+        pants: '#1e3a8a', pantStripe: '#f8fafc', shoes: '#f1f5f9',
+      },
+    },
+    moves: [
+      { kind: 'board', label: 'LAVAGNETTA TATTICA!', dmg: 3.2 },
+      { kind: 'cone', label: 'CONO DA ALLENAMENTO!', dmg: 2.8 },
+      { kind: 'board', label: 'LAVAGNETTA TATTICA!', dmg: 3.2 },
+      { kind: 'cone', label: 'CONO DA ALLENAMENTO!', dmg: 2.8 },
+    ],
+  },
+  {
+    id: 'saverio',
+    name: 'SAVERIO',
+    look: {
+      skin: '#c98f68',
+      eye: '#2a1810',
+      hair: '#0f0d0c',
+      hairStyle: 'swept',
+      brows: 'thick',
+      browColor: '#0f0d0c',
+      beard: '#2a1d17',
+      beardStyle: 'stubble',
+      earring: '#d6b48a',
+      earring2: true,
+      smile: 'soft',
+      rearHold: 'hanger',
+      outfit: {
+        style: 'stylist',
+        jacket: '#c8a27a', jacketDark: '#8b6a46', shirt: '#18181b',
+        pants: '#e5dfd0', shoes: '#18181b',
+      },
+    },
+    moves: [
+      { kind: 'shirt', label: 'T-SHIRT LANCIATA!', dmg: 2.8 },
+      { kind: 'blazer', label: 'GIACCA OVERSIZE!', dmg: 3.6 },
+      { kind: 'sneaker', label: 'SNEAKER LIMITED!', dmg: 3.2 },
+      { kind: 'shirt', label: 'T-SHIRT LANCIATA!', dmg: 2.8 },
+    ],
+  },
+  {
+    id: 'borrello',
+    name: 'RE DELLA GIUNGLA',   // Borrello
+    look: {
+      skin: '#b9825a',
+      eye: '#2a1810',
+      hair: '#17110e',
+      hairStyle: 'crop',
+      brows: 'thick',
+      browColor: '#17110e',
+      beard: '#241a15',
+      streak: '#8d8780',
+      beardStyle: 'dense',
+      glasses: 'rect-thick',
+      frame: '#0b0b0f',
+      lens: 'rgba(220,235,240,.22)',
+      smile: 'lips',
+      outfit: {
+        style: 'jungle',
+        jacket: '#b9825a', jacketDark: '#b9825a', shirt: '#b9825a',
+        fur: '#d9a441', vine: '#4d7c0f',
+        pants: '#b9825a', shoes: '#a8704a',
+      },
+    },
+    moves: [
+      { kind: 'macaw', label: 'ARA ROSSA!', dmg: 3.4 },
+      { kind: 'parakeet', label: 'PAPPAGALLINO!', dmg: 2.6 },
+      { kind: 'flock', label: 'STORMO DI PAPPAGALLI!', dmg: 4.4 },
+      { kind: 'macaw', label: 'ARA ROSSA!', dmg: 3.4 },
     ],
   },
 ]

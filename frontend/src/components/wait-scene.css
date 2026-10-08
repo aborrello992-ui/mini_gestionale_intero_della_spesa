@@ -52,44 +52,72 @@
 .ws-boss { animation: ws-bob 0.6s ease-in-out 0.3s infinite alternate; }
 .ws-boss .bb-head { transform-origin: 60px 66px; }
 
-/* Pagato: il socio lancia le monete, il boss annuisce */
-.ws-pay .ws-user .bb-arm { animation: ws-throw 0.9s ease-in-out infinite; }
-.ws-pay .ws-boss .bb-head { animation: ws-nod 0.9s ease-in-out infinite; }
-.ws-coin { animation: ws-coin 0.9s cubic-bezier(0.3, 0.6, 0.6, 1) infinite; }
-.ws-coin-2 { animation-delay: 0.45s; }
+/* Pagato (ciclo 2.4s): monete dal socio al boss, il boss conta annuendo, poi timbra PAGATO */
+.ws-pay .ws-user .bb-arm { animation: ws-give 2.4s ease-in-out infinite; }
+.ws-pay .ws-boss .bb-head { animation: ws-count 2.4s ease-in-out infinite; }
+.ws-pay .ws-boss .bb-arm { animation: ws-stamp-arm 2.4s ease-in-out infinite; }
+.ws-coin { opacity: 0; animation: ws-coin 2.4s ease-in-out infinite; }
+.ws-coin-2 { animation-delay: 0.12s; }
+.ws-coin-3 { animation-delay: 0.24s; }
+.ws-stamp { opacity: 0; transform: translate(200px, 46px); animation: ws-stamp 2.4s ease-out infinite; }
 
 /* Coppone: il boss scrive, il socio si gratta la testa */
 .ws-coppone .ws-user .bb-arm { animation: ws-scratch 0.5s ease-in-out infinite alternate; }
 .ws-pencil { animation: ws-write 0.35s ease-in-out infinite alternate; }
+.ws-scribble { stroke-dasharray: 30; animation: ws-scribble 1.4s linear infinite; }
 .ws-question { animation: ws-pop 1s ease-in-out infinite; transform-origin: 120px 30px; }
 
-/* Suggerimento: fumetto con puntini, il boss annuisce */
-.ws-suggest .ws-boss .bb-head { animation: ws-nod 1.1s ease-in-out infinite; }
-.ws-dot { animation: ws-dot 1s ease-in-out infinite; }
-.ws-dot-2 { animation-delay: 0.15s; }
-.ws-dot-3 { animation-delay: 0.3s; }
+/* Suggerimento (ciclo 3s): il socio va dal boss, sussurra, il boss annuisce e approva */
+.ws-suggest .ws-user { animation: ws-walk 3s ease-in-out infinite; }
+.ws-suggest .ws-boss .bb-head { animation: ws-listen 3s ease-in-out infinite; }
+.ws-bubble { opacity: 0; animation: ws-whisper 3s ease-in-out infinite; }
+.ws-check { opacity: 0; animation: ws-approve 3s ease-out infinite; }
 
-/* Attesa generica: si allenano */
-.ws-generic .ws-user .bb-arm { animation: ws-punch 0.45s ease-in-out infinite alternate; }
-.ws-generic .ws-boss .bb-arm { animation: ws-punch 0.45s ease-in-out 0.22s infinite alternate; }
-.ws-spark { animation: ws-pop 0.45s ease-in-out infinite alternate; transform-origin: 200px 120px; }
+/* Attesa generica (ciclo 1.6s): mossa personale del socio, il boss para */
+.ws-generic .ws-user .bb-arm { animation: ws-throw 1.6s ease-in-out infinite; }
+.ws-generic .ws-boss .bb-arm { animation: ws-block 1.6s ease-in-out infinite; }
+.ws-generic .ws-boss { animation: ws-recoil 1.6s ease-in-out infinite; }
+.ws-shot { opacity: 0; animation: ws-shot 1.6s linear infinite; }
+.ws-spin { animation: ws-spin 0.5s linear infinite; transform-origin: 0 0; }
+.ws-hit { opacity: 0; animation: ws-hit 1.6s ease-out infinite; }
 
 @keyframes ws-fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ws-bob { from { transform: translateY(0); } to { transform: translateY(-4px); } }
-@keyframes ws-nod { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(10deg); } }
-@keyframes ws-throw { 0%, 100% { transform: rotate(0); } 40% { transform: rotate(-70deg); } }
 @keyframes ws-scratch { from { transform: rotate(-150deg); } to { transform: rotate(-170deg); } }
 @keyframes ws-write { from { transform: translate(0, 0); } to { transform: translate(-10px, 6px); } }
-@keyframes ws-punch { from { transform: rotate(0); } to { transform: rotate(-60deg); } }
 @keyframes ws-pop { 0%, 100% { transform: scale(0.8); } 50% { transform: scale(1.15); } }
-@keyframes ws-dot { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
 @keyframes ws-coin {
-  0% { transform: translate(135px, 120px) scale(0.8); opacity: 0; }
-  15% { opacity: 1; }
-  50% { transform: translate(205px, 60px) scale(1.1); }
-  90% { opacity: 1; }
-  100% { transform: translate(270px, 110px) scale(0.7); opacity: 0; }
+  0%, 8% { transform: translate(138px, 118px) scale(0.7); opacity: 0; }
+  12% { opacity: 1; }
+  32% { transform: translate(196px, 74px) scale(1.05); }
+  48% { transform: translate(250px, 118px) scale(0.8); opacity: 1; }
+  56%, 100% { transform: translate(250px, 124px) scale(0.6); opacity: 0; }
 }
+@keyframes ws-give { 0%, 100% { transform: rotate(0); } 15%, 40% { transform: rotate(-80deg); } 55% { transform: rotate(0); } }
+@keyframes ws-count { 0%, 45%, 100% { transform: rotate(0); } 50%, 60% { transform: rotate(12deg); } 55%, 65% { transform: rotate(0); } }
+@keyframes ws-stamp-arm { 0%, 66%, 100% { transform: rotate(0); } 72% { transform: rotate(-120deg); } 78% { transform: rotate(-20deg); } }
+@keyframes ws-stamp {
+  0%, 74% { opacity: 0; transform: translate(200px, 46px) scale(2.2); }
+  80% { opacity: 1; transform: translate(200px, 46px) scale(0.92); }
+  84%, 96% { opacity: 1; transform: translate(200px, 46px) scale(1); }
+  100% { opacity: 0; transform: translate(200px, 46px) scale(1); }
+}
+@keyframes ws-scribble { from { stroke-dashoffset: 30; } to { stroke-dashoffset: 0; } }
+@keyframes ws-walk { 0%, 8%, 92%, 100% { transform: translateX(0); } 24%, 74% { transform: translateX(86px) rotate(4deg); } }
+@keyframes ws-listen { 0%, 26%, 100% { transform: rotate(0); } 32%, 50% { transform: rotate(-8deg); } 58%, 70% { transform: rotate(12deg); } 64%, 76% { transform: rotate(0); } }
+@keyframes ws-whisper { 0%, 24% { opacity: 0; transform: translate(196px, 28px) scale(0.6); } 30%, 62% { opacity: 1; transform: translate(196px, 28px) scale(1); } 68%, 100% { opacity: 0; transform: translate(196px, 28px); } }
+@keyframes ws-approve { 0%, 60% { opacity: 0; transform: translate(300px, 34px) scale(0.4); } 66%, 86% { opacity: 1; transform: translate(300px, 34px) scale(1.1); } 100% { opacity: 0; transform: translate(300px, 34px) scale(1); } }
+@keyframes ws-throw { 0%, 100% { transform: rotate(0); } 10% { transform: rotate(30deg); } 22% { transform: rotate(-98deg); } 40% { transform: rotate(0); } }
+@keyframes ws-shot {
+  0%, 18% { opacity: 0; transform: translate(138px, 118px); }
+  22% { opacity: 1; transform: translate(146px, 118px); }
+  58% { opacity: 1; transform: translate(246px, 114px); }
+  62%, 100% { opacity: 0; transform: translate(252px, 114px); }
+}
+@keyframes ws-spin { to { transform: rotate(360deg); } }
+@keyframes ws-block { 0%, 40%, 100% { transform: rotate(0); } 50%, 66% { transform: rotate(-70deg); } }
+@keyframes ws-recoil { 0%, 56%, 100% { transform: translateX(0); } 62% { transform: translateX(8px); } 72% { transform: translateX(0); } }
+@keyframes ws-hit { 0%, 56% { opacity: 0; transform: translate(252px, 112px) scale(0.4); } 60% { opacity: 1; transform: translate(252px, 112px) scale(1.1); } 74%, 100% { opacity: 0; transform: translate(252px, 112px) scale(1.4); } }
 
 @media (prefers-reduced-motion: reduce) {
   .ws-overlay, .ws-overlay * { animation: none !important; }
