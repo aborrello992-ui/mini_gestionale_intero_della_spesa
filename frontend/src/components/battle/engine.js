@@ -29,6 +29,8 @@ const CFG = {
 }
 
 const rand = (a, b) => a + Math.random() * (b - a)
+// I nomi possono arrivare dagli utenti: mai inserirli nell'HTML senza escape.
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char])
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
 
 function sceneMarkup(fighters) {
@@ -103,7 +105,7 @@ export function createBattle(root, opts = {}) {
       <div class="bb-side">
         <div class="bb-label"><span class="bb-team">SOCI</span><span class="bb-active"></span></div>
         <div class="bb-bar bb-bar-team"><i class="bb-lag"></i><i class="bb-fill"></i></div>
-        <div class="bb-roster">${fighters.map((f, i) => `<span class="bb-pic" data-i="${i}" title="${f.name}">${portrait(f.look)}</span>`).join('')}</div>
+        <div class="bb-roster">${fighters.map((f, i) => `<span class="bb-pic" data-i="${i}" title="${escapeHtml(f.name)}">${portrait(f.look)}</span>`).join('')}</div>
       </div>
       <div class="bb-vs">VS</div>
       <div class="bb-side bb-side-r">

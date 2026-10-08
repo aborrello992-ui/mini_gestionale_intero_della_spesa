@@ -15,6 +15,6 @@ class MemberController extends Controller
             ->consumers($request->boolean('include_guests'))
             ->orderByRaw("CASE WHEN role = 'guest' THEN 1 ELSE 0 END")
             ->orderBy('name')
-            ->get(['id', 'name', 'last_name', 'role', 'avatar_path']);
+            ->get(['id', 'name', 'last_name', 'role', 'avatar_path', 'avatar_key']);
     }
 }

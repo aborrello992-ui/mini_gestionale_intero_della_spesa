@@ -195,4 +195,17 @@ class GuestAndMemberAccessTest extends TestCase
         $this->postJson('/api/withdrawals', ['product_id' => $this->birra->id, 'member_id' => $guest->id, 'quantity' => 1, 'payment_status' => 'paid', 'sponsor_id' => $this->luca->id, 'sponsor_pin' => '111'])
             ->assertUnprocessable()->assertJsonValidationErrors('member_id');
     }
+
+    public function test_admin_assigns_avatar_and_members_list_exposes_it(): void
+    {
+        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_ADMIN]));
+
+        $this->putJson("/api/users/{$this->luca->id}", ['name' => 'Luca', 'role' => 'member', 'is_active' => true, 'avatar_key' => 'luca'])
+            ->assertOk()->assertJsonPath('avatar_key', 'luca');
+        $this->putJson("/api/users/{$this->luca->id}", ['name' => 'Luca', 'role' => 'member', 'is_active' => true, 'avatar_key' => '<b>'])
+            ->assertUnprocessable();
+
+        $luca = collect($this->getJson('/api/members')->json())->firstWhere('id', $this->luca->id);
+        $this->assertSame('luca', $luca['avatar_key']);
+    }
 }

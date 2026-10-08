@@ -3,6 +3,7 @@ import { KeyRound, Pencil, UserPlus } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import { errorMessage } from '../utils/format'
+import { AVATAR_OPTIONS, avatarKeyFor } from '../components/battle/avatars'
 import PageHeader from '../components/layout/PageHeader'
 import DataTable from '../components/tables/DataTable'
 import FormField from '../components/forms/FormField'
@@ -25,14 +26,14 @@ export default function UsersPage() {
   async function saveUser(event) {
     event.preventDefault()
     try {
-      await api.put(`/users/${userEdit.id}`, userEdit)
+      await api.put(`/users/${userEdit.id}`, { ...userEdit, avatar_key: userEdit.avatar_key || null })
       setMessage('Utente aggiornato.')
       setUserEdit(null)
       load()
     } catch (err) { setMessage(errorMessage(err)) }
   }
 
-  const startEdit = (user) => setUserEdit({ id: user.id, name: user.name, last_name: user.last_name || '', role: user.role, is_active: Boolean(user.is_active) })
+  const startEdit = (user) => setUserEdit({ id: user.id, name: user.name, last_name: user.last_name || '', role: user.role, is_active: Boolean(user.is_active), avatar_key: user.avatar_key || avatarKeyFor(user) || '' })
   useEffect(() => { load() }, [])
 
   async function submit(event) {
@@ -103,6 +104,12 @@ export default function UsersPage() {
             <FormField label="Nome" htmlFor="edit-name"><input id="edit-name" className="form-control" value={userEdit.name} onChange={(e) => setUserEdit({ ...userEdit, name: e.target.value })} required /></FormField>
             <FormField label="Cognome" htmlFor="edit-last"><input id="edit-last" className="form-control" value={userEdit.last_name} onChange={(e) => setUserEdit({ ...userEdit, last_name: e.target.value })} /></FormField>
             <FormField label="Ruolo" htmlFor="edit-role"><select id="edit-role" className="form-select" value={userEdit.role} onChange={(e) => setUserEdit({ ...userEdit, role: e.target.value })}><option value="member">Membro</option><option value="admin">Amministratore</option></select></FormField>
+            <FormField label="Avatar del minigioco" htmlFor="edit-avatar" help="Il personaggio che rappresenta questo socio nel gioco e nelle attese.">
+              <select id="edit-avatar" className="form-select" value={userEdit.avatar_key} onChange={(e) => setUserEdit({ ...userEdit, avatar_key: e.target.value })}>
+                <option value="">Personaggio generico</option>
+                {AVATAR_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+              </select>
+            </FormField>
             <FormField label="Stato" htmlFor="edit-active"><select id="edit-active" className="form-select" value={userEdit.is_active ? '1' : '0'} onChange={(e) => setUserEdit({ ...userEdit, is_active: e.target.value === '1' })}><option value="1">Attivo</option><option value="0">Disattivato</option></select></FormField>
             <button className="btn btn-primary btn-lg w-100">Salva</button>
           </form>

@@ -57,6 +57,7 @@ class UserController extends Controller
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', Rule::in([User::ROLE_ADMIN, User::ROLE_MEMBER])],
             'is_active' => ['required', 'boolean'],
+            'avatar_key' => ['nullable', 'string', 'max:40', 'alpha_dash'],
         ]);
 
         if (blank($data['password'] ?? null)) {
@@ -72,7 +73,7 @@ class UserController extends Controller
         }
         $data['can_consume'] = true;
 
-        $before = $user->only(['name', 'last_name', 'aliases', 'email', 'role', 'is_active']);
+        $before = $user->only(['name', 'last_name', 'aliases', 'email', 'role', 'is_active', 'avatar_key']);
         $user->update($data);
         $this->audit($request, $user, 'user_updated', ['before' => $before, 'after' => $user->only(array_keys($before))]);
 
