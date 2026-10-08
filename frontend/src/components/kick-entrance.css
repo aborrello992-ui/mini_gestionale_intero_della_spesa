@@ -1,6 +1,6 @@
 .kf-overlay {
-  --w: min(80vw, 380px);
-  --h: calc(var(--w) * 280 / 260);
+  --w: min(66vw, 300px);
+  --h: calc(var(--w) * 170 / 120);
   position: fixed;
   inset: 0;
   z-index: 9999;
@@ -22,6 +22,7 @@
 .kf-s3 { clip-path: polygon(100% 30%, 100% 100%, 70% 100%, 60% 50%); }
 .kf-s4 { clip-path: polygon(0 40%, 60% 50%, 70% 100%, 0 100%); }
 
+.kf-overlay.kf-impact { pointer-events: none; }
 .kf-impact .kf-s1 { transform: translate(-70vw, -60vh) rotate(-28deg); opacity: 0; }
 .kf-impact .kf-s2 { transform: translate(70vw, -55vh) rotate(24deg); opacity: 0; }
 .kf-impact .kf-s3 { transform: translate(75vw, 65vh) rotate(32deg); opacity: 0; }
@@ -32,8 +33,8 @@
   position: absolute;
   width: var(--w);
   height: var(--h);
-  left: calc(60vw - 0.92 * var(--w));
-  top: calc(50vh - 0.493 * var(--h));
+  left: calc(60vw - 0.97 * var(--w));
+  top: calc(50vh - 0.72 * var(--h));
   animation: kf-run-in 0.65s cubic-bezier(0.2, 0.7, 0.3, 1) both;
   transition: opacity 0.5s ease-in 0.2s;
 }
@@ -41,28 +42,20 @@
 
 .kf-svg { width: 100%; height: 100%; overflow: visible; display: block; }
 .kf-run .kf-svg { animation: kf-bob 0.16s ease-in-out infinite alternate; }
-.kf-shadow { fill: rgba(0, 0, 0, 0.35); }
-
-.kf-torso, .kf-kick-leg, .kf-rear-leg, .kf-arm-front, .kf-arm-back, .kf-fist-back {
-  transform-box: view-box;
-  transform-origin: 108px 138px;
-  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.kf-arm-front { transform-origin: 92px 82px; }
-.kf-arm-back, .kf-fist-back { transform-origin: 122px 82px; }
-
-.kf-kick .kf-kick-leg, .kf-impact .kf-kick-leg { transform: rotate(-92deg); }
-.kf-kick .kf-torso, .kf-impact .kf-torso { transform: rotate(-12deg); }
-.kf-kick .kf-rear-leg, .kf-impact .kf-rear-leg { transform: rotate(4deg); }
-.kf-kick .kf-arm-front, .kf-impact .kf-arm-front { transform: rotate(-35deg); }
-.kf-kick .kf-arm-back, .kf-kick .kf-fist-back,
-.kf-impact .kf-arm-back, .kf-impact .kf-fist-back { transform: rotate(30deg); }
+/* pose del lottatore (stesse parti usate dal minigioco) */
+.kf-svg g { transform-box: view-box; transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.kf-svg .bb-torso { transform-origin: 60px 125px; }
+.kf-svg .bb-head { transform-origin: 60px 66px; }
+.kf-kick .bb-leg-f, .kf-impact .bb-leg-f { transform: rotate(-92deg); }
+.kf-kick .bb-torso, .kf-impact .bb-torso { transform: rotate(-12deg); }
+.kf-kick .bb-arm, .kf-impact .bb-arm { transform: rotate(-35deg); }
+.kf-kick .bb-rear-arm, .kf-impact .bb-rear-arm { transform: rotate(30deg); }
 
 /* Onda d'urto sul punto d'impatto */
 .kf-ring {
   position: absolute;
-  left: 92%;
-  top: 49.3%;
+  left: 97%;
+  top: 72%;
   width: 20px;
   height: 20px;
   margin: -10px 0 0 -10px;
@@ -89,23 +82,6 @@
   80% { translate: 5px 5px; }
 }
 
-/* Posa di guardia: respira e saltella come nella schermata di combattimento */
-.kf-idle {
-  width: clamp(220px, 24vw, 340px);
-  aspect-ratio: 260 / 280;
-  transition: opacity 0.15s ease-out;
-}
-.kf-idle.is-hidden { opacity: 0; }
-.kf-idle .kf-svg { animation: kf-breathe 0.55s ease-in-out infinite alternate; transform-origin: 50% 100%; }
-.kf-idle .kf-arm-front { animation: kf-guard 0.55s ease-in-out infinite alternate; }
-.kf-idle .kf-arm-back, .kf-idle .kf-fist-back { animation: kf-guard-back 0.55s ease-in-out infinite alternate; }
-.kf-idle .kf-shadow { animation: kf-shadow 0.55s ease-in-out infinite alternate; transform-origin: 110px 266px; transform-box: view-box; }
-
-@keyframes kf-breathe { from { transform: translateY(0) scaleY(1); } to { transform: translateY(-6px) scaleY(1.015); } }
-@keyframes kf-guard { from { transform: rotate(0deg); } to { transform: rotate(-6deg); } }
-@keyframes kf-guard-back { from { transform: rotate(0deg); } to { transform: rotate(5deg); } }
-@keyframes kf-shadow { from { transform: scaleX(1); } to { transform: scaleX(0.9); } }
-
 @media (prefers-reduced-motion: reduce) {
-  .kf-overlay, .kf-overlay *, .kf-idle, .kf-idle * { animation: none !important; transition: none !important; }
+  .kf-overlay, .kf-overlay * { animation: none !important; transition: none !important; }
 }

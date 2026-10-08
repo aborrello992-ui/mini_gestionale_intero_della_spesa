@@ -1359,14 +1359,6 @@ legend.form-label {
   background: linear-gradient(180deg, rgba(14, 16, 32, 0) 55%, rgba(14, 16, 32, 0.35));
 }
 
-.arena-fighter {
-  position: fixed;
-  z-index: 0;
-  left: max(2vw, calc(50% - 330px));
-  bottom: 1.5vh;
-  pointer-events: none;
-  filter: drop-shadow(4px 4px 0 rgba(14, 16, 32, 0.25));
-}
 
 .login-arena .login-box {
   position: relative;
@@ -1399,15 +1391,7 @@ legend.form-label {
     padding-bottom: 150px;
   }
 
-  /* Su telefono il personaggio resta sul pavimento, sotto il riquadro di accesso */
-  .arena-fighter {
-    left: 4vw;
-    bottom: 1.5vh;
-  }
 
-  .arena-fighter .kf-idle {
-    width: clamp(160px, 44vw, 240px);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1484,4 +1468,39 @@ legend.form-label {
 .btn:disabled,
 .btn.disabled {
   --bs-btn-disabled-opacity: 0.45;
+}
+
+/* ---------- Ingresso: minigioco "Soci vs Locale" nell'arena ---------- */
+.arena-game {
+  position: fixed;
+  z-index: 1;
+  left: max(2vw, calc(50% - 640px));
+  bottom: 5vh;
+  width: min(460px, 44vw);
+}
+
+.arena-game .bb {
+  box-shadow: 6px 6px 0 rgba(14, 16, 32, 0.45);
+}
+
+@media (max-width: 899px) {
+  .login-arena {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 32px;
+  }
+
+  .arena-game {
+    position: relative;
+    order: 2;
+    left: auto;
+    bottom: auto;
+    width: min(100%, 460px);
+  }
+
+  .login-arena .login-box {
+    order: 1;
+  }
 }

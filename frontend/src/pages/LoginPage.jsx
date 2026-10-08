@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ShieldCheck, Store, UserRound } from 'lucide-react'
 import api from '../api/client'
@@ -6,7 +6,7 @@ import AlertMessage from '../components/AlertMessage'
 import { useAuth } from '../hooks/useAuth'
 import { errorMessage } from '../utils/format'
 import FormField from '../components/forms/FormField'
-import { IdleFighter } from '../components/KickEntrance'
+import BossBattle from '../components/BossBattle'
 import { useKickEntrance } from '../hooks/useKickEntrance'
 
 export default function LoginPage() {
@@ -21,6 +21,36 @@ export default function LoginPage() {
   const [form, setForm] = useState({ member_id: '', pin: '' })
   const [error, setError] = useState('')
   const { overlay, play, playing } = useKickEntrance()
+  const battleRef = useRef(null)
+  const enterRef = useRef(null) // come entrare, quando il server ha già risposto
+  const timerRef = useRef(0)
+  const [holding, setHolding] = useState(false) // server pronto, ma stai ancora giocando
+  const busy = playing || holding
+
+  useEffect(() => () => clearTimeout(timerRef.current), [])
+
+  function proceed() {
+    clearTimeout(timerRef.current)
+    const go = enterRef.current
+    if (!go) return
+    enterRef.current = null
+    setHolding(false)
+    go()
+  }
+
+  // Server pronto: se non stai giocando entri subito; se stai giocando la partita continua,
+  // compare "Server pronto · Entra nel sito", oppure entri da solo poco dopo la fine della partita.
+  function serverReady(go) {
+    const engagement = battleRef.current?.getEngagement() || 'idle'
+    if (engagement === 'idle') return go()
+    enterRef.current = go
+    setHolding(true)
+    if (engagement === 'ended') timerRef.current = setTimeout(proceed, 1800)
+  }
+
+  function onBattleEnd() {
+    if (enterRef.current) timerRef.current = setTimeout(proceed, 2200)
+  }
 
   useEffect(() => {
     api.get('/members').then(({ data }) => {
@@ -33,7 +63,8 @@ export default function LoginPage() {
     event.preventDefault()
     setError('')
     try {
-      await play(() => login(form), () => navigate('/products'))
+      await play(() => login(form))
+      serverReady(() => navigate('/products'))
     } catch (err) {
       setError(errorMessage(err))
       setForm((current) => ({ ...current, pin: '' }))
@@ -50,7 +81,8 @@ export default function LoginPage() {
         // Il PIN generato viene mostrato con l'animazione appena si entra.
         sessionStorage.setItem('guest_pin', data.pin)
         sessionStorage.setItem('guest_pin_reveal', '1')
-      }, () => { window.location.href = '/products' })
+      })
+      serverReady(() => { window.location.href = '/products' })
     } catch (err) {
       setError(errorMessage(err))
     }
@@ -71,8 +103,8 @@ export default function LoginPage() {
         <div className="arena-stage" />
       </div>
 
-      <div className="arena-fighter">
-        <IdleFighter hidden={playing} />
+      <div className="arena-game">
+        <BossBattle ref={battleRef} waiting={playing} caption="Attendo il server…" onEnd={onBattleEnd} onEnter={holding ? proceed : undefined} />
       </div>
 
       <div className="login-box">
@@ -84,15 +116,15 @@ export default function LoginPage() {
         </div>
         <AlertMessage>{error}</AlertMessage>
         {!showAdmin && !showGuest && <>
-          <button className="btn btn-primary btn-lg w-100" type="button" onClick={() => { setError(''); setShowGuest(true) }} disabled={playing}><UserRound size={19} /> Entra come ospite</button>
-          <button className="btn btn-outline-secondary btn-lg w-100 mt-2" type="button" onClick={() => { setError(''); setShowAdmin(true) }} disabled={playing}><ShieldCheck size={19} /> Area socio / amministratore</button>
+          <button className="btn btn-primary btn-lg w-100" type="button" onClick={() => { setError(''); setShowGuest(true) }} disabled={busy}><UserRound size={19} /> Entra come ospite</button>
+          <button className="btn btn-outline-secondary btn-lg w-100 mt-2" type="button" onClick={() => { setError(''); setShowAdmin(true) }} disabled={busy}><ShieldCheck size={19} /> Area socio / amministratore</button>
         </>}
         {showGuest && <form className="stack-md" onSubmit={guestLogin}>
           <FormField label="Come ti chiami?" htmlFor="guest-name" help="Il nome appare ai soci; riceverai un PIN solo per te.">
             <input id="guest-name" className="form-control form-control-lg" autoComplete="given-name" maxLength={40} placeholder="Es. Marco" value={guestName} onChange={(e) => setGuestName(e.target.value)} autoFocus />
           </FormField>
-          <button className="btn btn-primary btn-lg w-100" disabled={playing || guestName.trim().length < 2}><UserRound size={19} /> Entra e ricevi il PIN</button>
-          <button className="btn btn-link w-100" type="button" onClick={() => setShowGuest(false)} disabled={playing}>Torna indietro</button>
+          <button className="btn btn-primary btn-lg w-100" disabled={busy || guestName.trim().length < 2}><UserRound size={19} /> Entra e ricevi il PIN</button>
+          <button className="btn btn-link w-100" type="button" onClick={() => setShowGuest(false)} disabled={busy}>Torna indietro</button>
         </form>}
         {showAdmin && <form className="stack-md" onSubmit={adminLogin}>
           <FormField label="Chi sei?" htmlFor="login-admin">
@@ -104,8 +136,8 @@ export default function LoginPage() {
           <FormField label="PIN personale" help="3 cifre. Il PIN non viene salvato nel browser." htmlFor="login-pin">
             <input id="login-pin" className="form-control form-control-lg pin-input" type="password" inputMode="numeric" maxLength="3" autoComplete="one-time-code" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 3) })} />
           </FormField>
-          <button className="btn btn-primary btn-lg w-100" disabled={playing || !form.member_id || form.pin.length !== 3}><ShieldCheck size={19} /> Entra</button>
-          <button className="btn btn-link w-100 mt-2" type="button" onClick={() => setShowAdmin(false)} disabled={playing}>Torna indietro</button>
+          <button className="btn btn-primary btn-lg w-100" disabled={busy || !form.member_id || form.pin.length !== 3}><ShieldCheck size={19} /> Entra</button>
+          <button className="btn btn-link w-100 mt-2" type="button" onClick={() => setShowAdmin(false)} disabled={busy}>Torna indietro</button>
         </form>}
       </div>
       {overlay}
