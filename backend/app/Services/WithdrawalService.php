@@ -36,11 +36,20 @@ class WithdrawalService
             throw new RuntimeException('La quantita deve essere maggiore di zero.');
         }
 
-        if ($paymentStatus === 'coppone' && $member->isGuest()) {
-            throw new RuntimeException("{$member->name} è un ospite: paga subito, niente coppone.");
+        // Ospite: serve un socio garante; il pagamento resta da verificare finche un admin non lo conferma.
+        $sponsor = null;
+        if ($member->isGuest()) {
+            if ($paymentStatus === 'coppone') {
+                throw new RuntimeException("{$member->name} è un ospite: paga subito, niente coppone.");
+            }
+            $sponsor = $options['sponsor'] ?? null;
+            if (! $sponsor instanceof User || $sponsor->isGuest()) {
+                throw new RuntimeException("{$member->name} è un ospite: serve un socio garante che confermi con il suo PIN.");
+            }
+            $paymentStatus = Withdrawal::PAYMENT_PENDING;
         }
 
-        return DB::transaction(function () use ($product, $member, $actor, $quantity, $paymentStatus, $notes, $withdrawnAt, $affectsStock, $options) {
+        return DB::transaction(function () use ($product, $member, $actor, $quantity, $paymentStatus, $notes, $withdrawnAt, $affectsStock, $options, $sponsor) {
             $locked = Product::query()->whereKey($product->id)->lockForUpdate()->firstOrFail();
             $previous = (float) $locked->current_quantity;
             $resulting = $affectsStock ? $previous - $quantity : $previous;
@@ -71,6 +80,7 @@ class WithdrawalService
                 'sale_id' => $options['sale_id'] ?? null,
                 'combo_id' => $options['combo_id'] ?? null,
                 'affects_stock' => $affectsStock,
+                'sponsor_id' => $sponsor?->id,
             ]);
 
             if ($affectsStock) {
@@ -81,7 +91,11 @@ class WithdrawalService
                 'product_id' => $locked->id,
                 'user_id' => $member->id,
                 'withdrawal_id' => $withdrawal->id,
-                'type' => $paymentStatus === 'paid' ? 'prelievo_pagato' : 'prelievo_coppone',
+                'type' => match ($paymentStatus) {
+                    'paid' => 'prelievo_pagato',
+                    Withdrawal::PAYMENT_PENDING => 'prelievo_ospite',
+                    default => 'prelievo_coppone',
+                },
                 'quantity' => $quantity,
                 'previous_quantity' => $previous,
                 'resulting_quantity' => $resulting,
@@ -90,8 +104,8 @@ class WithdrawalService
                 'note' => $notes,
             ]);
 
-            if ($total <= 0) {
-                // Quota a costo zero (es. parte gratuita di una combo): nessun movimento di denaro.
+            if ($total <= 0 || $paymentStatus === Withdrawal::PAYMENT_PENDING) {
+                // Quota a costo zero, oppure acquisto di un ospite: il denaro si registra alla verifica.
             } elseif ($paymentStatus === 'paid') {
                 $cashMovement = $this->cashService->createFromCents([
                     'amount_cents' => $total,
@@ -138,6 +152,9 @@ class WithdrawalService
 
             if ($locked->status !== 'active') {
                 throw new RuntimeException('Non si può riassegnare un prelievo annullato.');
+            }
+            if ($locked->payment_status === Withdrawal::PAYMENT_PENDING) {
+                throw new RuntimeException('Prima verifica il pagamento dell\'ospite in Gestione › Incassi ospiti.');
             }
             if ((int) $locked->user_id === (int) $newMember->id) {
                 throw new RuntimeException('Il prelievo è già intestato a questo socio.');
@@ -218,6 +235,63 @@ class WithdrawalService
             $this->debtService->applyWalletCreditToOpenDebts($newMember, $admin, 'Credito usato dopo riassegnazione prelievo');
 
             return $locked->fresh()->load('member:id,name', 'originalMember:id,name', 'product:id,name,unit', 'debts');
+        });
+    }
+
+    /**
+     * Verifica di un acquisto ospite: "paid" registra l'entrata in cassa,
+     * "unpaid" trasforma l'importo in coppone del socio garante.
+     */
+    public function verifyGuestPayment(Withdrawal $withdrawal, string $outcome, User $admin): Withdrawal
+    {
+        return DB::transaction(function () use ($withdrawal, $outcome, $admin) {
+            $locked = Withdrawal::query()->whereKey($withdrawal->id)->lockForUpdate()->firstOrFail();
+            if ($locked->payment_status !== Withdrawal::PAYMENT_PENDING) {
+                throw new RuntimeException('Questo acquisto è già stato verificato.');
+            }
+
+            $guest = User::query()->findOrFail($locked->user_id);
+            $product = Product::query()->find($locked->product_id);
+            $total = (int) $locked->total_amount_cents;
+
+            if ($outcome === 'paid') {
+                if ($total > 0) {
+                    $cash = $this->cashService->createFromCents([
+                        'amount_cents' => $total,
+                        'direction' => 'entrata',
+                        'type' => 'prodotto_pagato',
+                        'category' => 'prodotti',
+                        'description' => 'Pagamento '.($product?->name ?? 'prodotto')." ({$guest->name})",
+                        'movement_date' => now()->toDateString(),
+                        'movement_time' => now()->format('H:i:s'),
+                        'member_id' => $guest->id,
+                        'product_id' => $locked->product_id,
+                        'withdrawal_id' => $locked->id,
+                        'note' => 'Incasso ospite verificato',
+                    ], $admin);
+                    InventoryMovement::query()->where('withdrawal_id', $locked->id)->update(['cash_movement_id' => $cash->id]);
+                }
+                $locked->update(['payment_status' => 'paid']);
+            } else {
+                $sponsor = User::query()->findOrFail($locked->sponsor_id);
+                if ($total > 0) {
+                    MemberDebt::create([
+                        'withdrawal_id' => $locked->id,
+                        'user_id' => $sponsor->id,
+                        'original_amount_cents' => $total,
+                        'remaining_amount_cents' => $total,
+                        'type' => 'garante',
+                        'description' => "Garante per {$guest->name}: ".($product?->name ?? 'prodotto'),
+                        'notes' => 'Acquisto ospite non pagato',
+                    ]);
+                    $this->debtService->applyWalletCreditToOpenDebts($sponsor, $admin, 'Credito usato per un acquisto ospite non pagato');
+                }
+                $locked->update(['payment_status' => 'coppone']);
+            }
+
+            $locked->update(['payment_verified_at' => now(), 'payment_verified_by' => $admin->id]);
+
+            return $locked->fresh()->load('member:id,name', 'sponsor:id,name', 'product:id,name,unit');
         });
     }
 }

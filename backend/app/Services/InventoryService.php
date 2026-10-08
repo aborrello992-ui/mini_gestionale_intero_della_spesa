@@ -79,7 +79,7 @@ class InventoryService
             $product = Product::query()->whereKey($movement->product_id)->lockForUpdate()->firstOrFail();
             $previous = (float) $product->current_quantity;
             $delta = match ($movement->type) {
-                'prelievo', 'prelievo_pagato', 'prelievo_coppone', 'correzione_negativa' => (float) $movement->quantity,
+                'prelievo', 'prelievo_pagato', 'prelievo_coppone', 'prelievo_ospite', 'correzione_negativa' => (float) $movement->quantity,
                 default => -(float) $movement->quantity,
             };
             $resulting = $previous + $delta;

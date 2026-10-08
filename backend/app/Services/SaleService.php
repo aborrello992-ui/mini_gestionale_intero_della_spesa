@@ -30,7 +30,13 @@ class SaleService
             throw new RuntimeException('Da 1 a '.self::MAX_PARTICIPANTS.' persone per ogni acquisto.');
         }
 
-        return DB::transaction(function () use ($lines, $participants, $actor, $note) {
+        // Gli ospiti al tavolo sono garantiti dal primo socio presente (che ha confermato con il PIN).
+        $sponsor = collect($participants)->map(fn ($participant) => $participant['member'])->first(fn (User $member) => ! $member->isGuest());
+        if (! $sponsor && collect($participants)->contains(fn ($participant) => $participant['member']->isGuest())) {
+            throw new RuntimeException('Con gli ospiti deve esserci almeno un socio, che fa da garante.');
+        }
+
+        return DB::transaction(function () use ($lines, $participants, $actor, $note, $sponsor) {
             $components = $this->components($lines);
             $total = array_sum(array_column($components, 'cents'));
             $count = count($participants);
@@ -68,7 +74,7 @@ class SaleService
                         $quantities[$index],
                         $participant['payment_status'],
                         $this->noteFor($component, $count, $note),
-                        ['total_cents' => $cents[$index], 'sale_id' => $sale->id, 'combo_id' => $component['combo_id']],
+                        ['total_cents' => $cents[$index], 'sale_id' => $sale->id, 'combo_id' => $component['combo_id'], 'sponsor' => $sponsor],
                     );
                     $shares[$index] += $cents[$index];
                 }
@@ -80,7 +86,7 @@ class SaleService
                 'shares' => collect($participants)->map(fn ($participant, $index) => [
                     'member_id' => $participant['member']->id,
                     'name' => $participant['member']->name,
-                    'payment_status' => $participant['payment_status'],
+                    'payment_status' => $participant['member']->isGuest() ? 'pending' : $participant['payment_status'],
                     'total_cents' => $shares[$index],
                 ])->values()->all(),
             ];

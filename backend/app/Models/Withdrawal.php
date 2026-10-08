@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable(['archived_at', 'archived_reason', 
     'user_id', 'product_id', 'created_by', 'quantity', 'unit_price_cents',
     'total_amount_cents', 'payment_status', 'withdrawn_at', 'status', 'notes',
-    'original_user_id', 'reassigned_at', 'reassigned_by', 'reassign_reason', 'is_manual', 'affects_stock', 'sale_id', 'combo_id',
+    'original_user_id', 'reassigned_at', 'reassigned_by', 'reassign_reason', 'is_manual', 'affects_stock', 'sale_id', 'combo_id', 'sponsor_id', 'payment_verified_at', 'payment_verified_by',
 ])]
 class Withdrawal extends Model
 {
@@ -24,6 +24,7 @@ class Withdrawal extends Model
             'quantity' => 'decimal:3',
             'withdrawn_at' => 'datetime',
             'reassigned_at' => 'datetime',
+            'payment_verified_at' => 'datetime',
             'is_manual' => 'boolean',
             'affects_stock' => 'boolean',
         ];
@@ -37,6 +38,14 @@ class Withdrawal extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /** Pagamento di un ospite in attesa di verifica da parte di un admin. */
+    public const PAYMENT_PENDING = 'pending';
+
+    public function sponsor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'sponsor_id');
     }
 
     public function combo(): BelongsTo

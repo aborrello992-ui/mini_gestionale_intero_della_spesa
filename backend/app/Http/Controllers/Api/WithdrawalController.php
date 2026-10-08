@@ -25,9 +25,24 @@ class WithdrawalController extends Controller
             'quantity' => ['required', 'numeric', 'min:0.001'],
             'payment_status' => ['required', 'in:paid,coppone'],
             'notes' => ['nullable', 'string'],
-        ], ['pin.regex' => 'Il PIN deve avere 3 cifre.']);
+            'sponsor_id' => ['nullable', 'exists:users,id'],
+            'sponsor_pin' => ['nullable', 'regex:/^\d{3}$/'],
+        ], ['pin.regex' => 'Il PIN deve avere 3 cifre.', 'sponsor_pin.regex' => 'Il PIN del garante deve avere 3 cifre.']);
 
         $member = ConsumerAuth::resolve($request->user(), $data['member_id'], $data['pin'] ?? null, $request->ip() ?: 'local');
+
+        // Ospite: un socio presente fa da garante confermando con il suo PIN.
+        $options = [];
+        if ($member->isGuest()) {
+            if (empty($data['sponsor_id'])) {
+                throw ValidationException::withMessages(['sponsor_id' => 'Scegli il socio garante: deve confermare con il suo PIN.']);
+            }
+            $sponsor = ConsumerAuth::resolve($request->user(), $data['sponsor_id'], $data['sponsor_pin'] ?? null, $request->ip() ?: 'local', 'sponsor_id', 'sponsor_pin');
+            if ($sponsor->isGuest()) {
+                throw ValidationException::withMessages(['sponsor_id' => 'Il garante deve essere un socio, non un ospite.']);
+            }
+            $options['sponsor'] = $sponsor;
+        }
 
         try {
             $withdrawal = $withdrawalService->take(
@@ -37,6 +52,7 @@ class WithdrawalController extends Controller
                 (float) $data['quantity'],
                 $data['payment_status'],
                 $data['notes'] ?? null,
+                $options,
             );
 
             return response()->json($withdrawal, 201);
@@ -112,6 +128,27 @@ class WithdrawalController extends Controller
             );
 
             return response()->json($withdrawal, 201);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    /** Acquisti degli ospiti in attesa di verifica (admin). */
+    public function pendingGuestPayments()
+    {
+        return Withdrawal::query()
+            ->with('member:id,name', 'sponsor:id,name', 'product:id,name,unit', 'combo:id,name')
+            ->where('payment_status', Withdrawal::PAYMENT_PENDING)
+            ->latest('withdrawn_at')
+            ->get();
+    }
+
+    public function verifyGuestPayment(Withdrawal $withdrawal, Request $request, WithdrawalService $withdrawalService)
+    {
+        $data = $request->validate(['outcome' => ['required', 'in:paid,unpaid']]);
+
+        try {
+            return $withdrawalService->verifyGuestPayment($withdrawal, $data['outcome'], $request->user());
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }

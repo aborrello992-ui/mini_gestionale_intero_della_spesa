@@ -66,19 +66,47 @@ class GuestAndMemberAccessTest extends TestCase
         $this->getJson('/api/history')->assertForbidden();
     }
 
-    public function test_guest_takes_for_himself_without_pin_but_only_paid(): void
+    public function test_guest_needs_a_sponsor_and_payment_stays_pending(): void
     {
         [$guest] = $this->guest();
         Sanctum::actingAs($guest);
-        $payload = ['product_id' => $this->birra->id, 'member_id' => $guest->id, 'quantity' => 1];
+        $payload = ['product_id' => $this->birra->id, 'member_id' => $guest->id, 'quantity' => 1, 'payment_status' => 'paid'];
 
-        $this->postJson('/api/withdrawals', [...$payload, 'payment_status' => 'coppone'])
-            ->assertUnprocessable()->assertJsonPath('message', "{$guest->name} è un ospite: paga subito, niente coppone.");
-        $this->postJson('/api/withdrawals', [...$payload, 'payment_status' => 'paid'])->assertCreated();
+        $this->postJson('/api/withdrawals', $payload)->assertUnprocessable()->assertJsonValidationErrors('sponsor_id');
+        $this->postJson('/api/withdrawals', [...$payload, 'sponsor_id' => $this->luca->id, 'sponsor_pin' => '999'])->assertUnprocessable()->assertJsonValidationErrors('sponsor_pin');
+        $this->postJson('/api/withdrawals', [...$payload, 'payment_status' => 'coppone', 'sponsor_id' => $this->luca->id, 'sponsor_pin' => '111'])->assertUnprocessable();
 
-        $this->assertSame(150, (int) CashMovement::where('member_id', $guest->id)->sum('amount_cents'));
-        $this->postJson('/api/withdrawals', ['product_id' => $this->birra->id, 'member_id' => $this->luca->id, 'quantity' => 1, 'payment_status' => 'paid'])
-            ->assertUnprocessable()->assertJsonValidationErrors('pin');
+        $this->postJson('/api/withdrawals', [...$payload, 'sponsor_id' => $this->luca->id, 'sponsor_pin' => '111'])
+            ->assertCreated()
+            ->assertJsonPath('payment_status', 'pending')
+            ->assertJsonPath('sponsor_id', $this->luca->id);
+
+        // Magazzino scalato subito, cassa ferma finche un admin non verifica.
+        $this->assertSame('19.000', $this->birra->fresh()->current_quantity);
+        $this->assertSame(0, CashMovement::count());
+    }
+
+    public function test_admin_verifies_guest_payment_paid_or_charges_the_sponsor(): void
+    {
+        [$guest] = $this->guest();
+        Sanctum::actingAs($guest);
+        $payload = ['product_id' => $this->birra->id, 'member_id' => $guest->id, 'quantity' => 1, 'payment_status' => 'paid', 'sponsor_id' => $this->luca->id, 'sponsor_pin' => '111'];
+        $paid = $this->postJson('/api/withdrawals', $payload)->assertCreated()->json('id');
+        $unpaid = $this->postJson('/api/withdrawals', [...$payload, 'quantity' => 2])->assertCreated()->json('id');
+
+        $this->postJson("/api/withdrawals/{$paid}/verify", ['outcome' => 'paid'])->assertForbidden();
+
+        Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_ADMIN]));
+        $this->assertCount(2, $this->getJson('/api/guest-payments')->assertOk()->json());
+
+        $this->postJson("/api/withdrawals/{$paid}/verify", ['outcome' => 'paid'])->assertOk()->assertJsonPath('payment_status', 'paid');
+        $this->assertSame(150, (int) CashMovement::where('type', 'prodotto_pagato')->sum('amount_cents'));
+
+        $this->postJson("/api/withdrawals/{$unpaid}/verify", ['outcome' => 'unpaid'])->assertOk()->assertJsonPath('payment_status', 'coppone');
+        $this->assertSame(300, (int) MemberDebt::where('user_id', $this->luca->id)->where('status', 'open')->sum('remaining_amount_cents'));
+
+        $this->postJson("/api/withdrawals/{$paid}/verify", ['outcome' => 'unpaid'])->assertUnprocessable();
+        $this->assertCount(0, $this->getJson('/api/guest-payments')->json());
     }
 
     public function test_member_logged_in_with_pin_takes_without_retyping_it(): void
@@ -115,7 +143,20 @@ class GuestAndMemberAccessTest extends TestCase
         $this->postJson('/api/sales', ['items' => $items, 'participants' => [
             ['member_id' => $this->luca->id, 'payment_status' => 'coppone'],
             ['member_id' => $guest->id, 'pin' => $guestPin, 'payment_status' => 'paid'],
-        ]])->assertCreated()->assertJsonPath('shares.0.total_cents', 150)->assertJsonPath('shares.1.total_cents', 150);
+        ]])->assertCreated()
+            ->assertJsonPath('shares.0.total_cents', 150)
+            ->assertJsonPath('shares.1.total_cents', 150)
+            ->assertJsonPath('shares.1.payment_status', 'pending');
+        $this->assertSame($this->luca->id, \App\Models\Withdrawal::where('user_id', $guest->id)->value('sponsor_id'));
+        $this->assertSame(0, CashMovement::count());
+
+        // Solo ospiti al tavolo: serve un socio garante.
+        [$second, $secondPin] = $this->guest();
+        Sanctum::actingAs($guest);
+        $this->postJson('/api/sales', ['items' => $items, 'participants' => [
+            ['member_id' => $guest->id, 'payment_status' => 'paid'],
+            ['member_id' => $second->id, 'pin' => $secondPin, 'payment_status' => 'paid'],
+        ]])->assertUnprocessable()->assertJsonPath('message', 'Con gli ospiti deve esserci almeno un socio, che fa da garante.');
     }
 
     public function test_members_list_hides_guests_unless_asked_and_logout_ends_guest(): void
@@ -137,7 +178,7 @@ class GuestAndMemberAccessTest extends TestCase
         $guest->update(['guest_expires_at' => now()->subMinute()]);
         Sanctum::actingAs($guest->fresh());
 
-        $this->postJson('/api/withdrawals', ['product_id' => $this->birra->id, 'member_id' => $guest->id, 'quantity' => 1, 'payment_status' => 'paid'])
+        $this->postJson('/api/withdrawals', ['product_id' => $this->birra->id, 'member_id' => $guest->id, 'quantity' => 1, 'payment_status' => 'paid', 'sponsor_id' => $this->luca->id, 'sponsor_pin' => '111'])
             ->assertUnprocessable()->assertJsonValidationErrors('member_id');
     }
 }
