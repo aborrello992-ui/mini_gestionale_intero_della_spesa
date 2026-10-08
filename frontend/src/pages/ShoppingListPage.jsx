@@ -8,6 +8,7 @@ import { errorMessage, money, quantity } from '../utils/format'
 import PageHeader from '../components/layout/PageHeader'
 import FormField from '../components/forms/FormField'
 import StatusBadge from '../components/ui/StatusBadge'
+import { useWaitScene } from '../hooks/useWaitScene'
 
 const PRIORITIES = [['bassa', 'Bassa'], ['media', 'Media'], ['alta', 'Alta']]
 const OTHER_CATEGORY = '__altro'
@@ -15,7 +16,8 @@ const emptySuggestion = { product: '', category: '', customCategory: '', suggest
 const normalize = (value) => String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
 
 export default function ShoppingListPage() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, user } = useAuth()
+  const { run: runWithScene, scene: waitScene } = useWaitScene()
   const fieldId = useId()
   const [items, setItems] = useState([])
   const [reminders, setReminders] = useState([])
@@ -50,13 +52,13 @@ export default function ShoppingListPage() {
     setMessage({ type: 'success', text: '' })
     const category = form.category === OTHER_CATEGORY ? form.customCategory.trim() : form.category
     try {
-      await api.post('/shopping-list', {
+      await runWithScene('suggest', user, () => api.post('/shopping-list', {
         ...(matchedProduct ? { product_id: matchedProduct.id } : { suggested_name: form.product.trim(), suggested_category: category || null }),
         suggested_quantity: form.suggested_quantity,
         priority: form.priority,
         estimated_price: form.estimated_price || null,
         note: form.note || null,
-      })
+      }))
       setMessage({ type: 'success', text: `Grazie! «${form.product.trim()}» è nella lista della spesa.` })
       setForm(emptySuggestion)
       await load()
@@ -76,6 +78,7 @@ export default function ShoppingListPage() {
     <section>
       <PageHeader title="Lista spesa" subtitle={isAdmin ? 'Cosa manca e registrazione dello scontrino.' : 'Cosa manca nel locale. Suggerisci quello che vorresti trovare.'} badge={<StatusBadge tone="info">{total} da comprare</StatusBadge>} />
       <AlertMessage type={message.type}>{message.text}</AlertMessage>
+      {waitScene}
 
       <div className="card-grid mb-4">
         <div className="app-card stack-sm">

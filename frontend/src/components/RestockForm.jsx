@@ -5,6 +5,8 @@ import AlertMessage from './AlertMessage'
 import StatusBadge from './ui/StatusBadge'
 import { MB, shrinkImage } from '../utils/image'
 import { EXPENSE_CATEGORIES } from '../utils/restock'
+import { useAuth } from '../hooks/useAuth'
+import { useWaitScene } from '../hooks/useWaitScene'
 import { centsToInput, errorMessage, localDate, localTime, money, newUuid, quantity as formatQuantity, toCents } from '../utils/format'
 
 const UNITS = ['pezzi', 'bustine', 'porzioni', 'bottiglie', 'confezioni', 'chilogrammi', 'grammi', 'litri', 'millilitri']
@@ -82,6 +84,8 @@ function rowErrors(row) {
 
 export default function RestockForm({ products, listItems, reminders = [], categories: categoryList = [], onSaved }) {
   const formId = useId()
+  const { user } = useAuth()
+  const { run: runWithScene, scene: waitScene } = useWaitScene()
   const [step, setStep] = useState(0)
   const [receipt, setReceipt] = useState(emptyReceipt)
   const [rows, setRows] = useState([])
@@ -274,7 +278,7 @@ export default function RestockForm({ products, listItems, reminders = [], categ
     setSaving(true)
     setMessage({ type: 'danger', text: '' })
     try {
-      const response = await api.post('/shopping-list/restock-sessions', payload(), { headers: { 'Content-Type': 'multipart/form-data' } })
+      const response = await runWithScene('generic', user, () => api.post('/shopping-list/restock-sessions', payload(), { headers: { 'Content-Type': 'multipart/form-data' } }))
       rows.forEach((row) => row.imagePreview && URL.revokeObjectURL(row.imagePreview))
       setRows([])
       setReceipt(emptyReceipt())
@@ -446,6 +450,7 @@ export default function RestockForm({ products, listItems, reminders = [], categ
 
   return (
     <form className="restock-form" onSubmit={submit} noValidate>
+      {waitScene}
       <div className="split mb-3">
         <h2 className="section-title mb-0">Registra spesa</h2>
         <StatusBadge tone="primary">{rows.length} righe</StatusBadge>

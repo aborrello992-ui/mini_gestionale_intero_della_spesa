@@ -14,6 +14,7 @@ import StatusBadge from '../components/ui/StatusBadge'
 import { stockLevel } from '../utils/stock'
 import CheckoutModal from '../components/CheckoutModal'
 import ArcadeBurst from '../components/ArcadeBurst'
+import { useWaitScene } from '../hooks/useWaitScene'
 import { useAuth } from '../hooks/useAuth'
 
 export default function ProductsPage() {
@@ -30,6 +31,7 @@ export default function ProductsPage() {
   const [allProducts, setAllProducts] = useState([])
   const [checkout, setCheckout] = useState(null)
   const [celebration, setCelebration] = useState(null)
+  const { run: runWithScene, scene: waitScene } = useWaitScene()
   const closeCelebration = useCallback(() => setCelebration(null), [])
 
   // Pagato: festa dorata. Coppone: avvertimento rosso, stessa esplosione.
@@ -90,7 +92,9 @@ export default function ProductsPage() {
   async function take(paymentStatus) {
     setMessage('')
     try {
-      const { data } = await api.post('/withdrawals', {
+      // L'attesa mostra l'avatar di chi sta prendendo il prodotto.
+      const taker = isPersonal ? user : members.find((member) => String(member.id) === String(takeForm.member_id))
+      const { data } = await runWithScene(paymentStatus === 'coppone' ? 'coppone' : 'pay', taker, () => api.post('/withdrawals', {
         product_id: selected.id,
         // Chi è entrato con il proprio PIN preleva per sé senza ridigitarlo.
         member_id: isPersonal ? user.id : takeForm.member_id,
@@ -100,7 +104,7 @@ export default function ProductsPage() {
         notes: takeForm.notes,
         // Ospite: un socio presente fa da garante con il suo PIN.
         ...(isGuest ? { sponsor_id: takeForm.sponsor_id, sponsor_pin: takeForm.sponsor_pin } : {}),
-      })
+      }))
       setMessage(data.payment_status === 'pending'
         ? `Acquisto registrato: metti ${money(data.total_amount_cents)} in cassa. Un amministratore verificherà il pagamento.`
         : `${paymentStatus === 'paid' ? 'Pagato' : 'Coppone'} registrato: ${money(data.total_amount_cents)}.`)
@@ -284,6 +288,7 @@ export default function ProductsPage() {
           </div>
         </div>
       </div>}
+      {waitScene}
       {celebration && <ArcadeBurst tone={celebration.tone} label={celebration.label} words={celebration.words} subtitle={celebration.subtitle} autoCloseMs={celebration.tone === 'red' ? 7000 : 5000} onClose={closeCelebration} />}
       {checkout && <CheckoutModal members={members} products={allProducts} combos={combos} initialLines={checkout.lines} initialPeople={checkout.people} onClose={() => setCheckout(null)} onDone={checkoutDone} />}
     </section>

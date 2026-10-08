@@ -5,6 +5,7 @@ import AppModal from './ui/AppModal'
 import AlertMessage from './AlertMessage'
 import { errorMessage, money, quantity as formatQuantity } from '../utils/format'
 import { useAuth } from '../hooks/useAuth'
+import { useWaitScene } from '../hooks/useWaitScene'
 
 const MAX_PEOPLE = 6
 const emptyPerson = () => ({ member_id: '', pin: '', payment_status: 'coppone' })
@@ -23,6 +24,7 @@ export default function CheckoutModal({ members, products, combos, initialLines 
   const fieldId = useId()
   const { user, isPersonal, isGuest } = useAuth()
   const [lines, setLines] = useState(initialLines)
+  const { run: runWithScene, scene: waitScene } = useWaitScene()
   // Chi è entrato con il proprio PIN è già la prima persona: non lo ridigita.
   const [people, setPeople] = useState(() => {
     const others = Array.from({ length: Math.max(0, initialPeople - (isPersonal ? 1 : 0)) }, emptyPerson)
@@ -75,10 +77,12 @@ export default function CheckoutModal({ members, products, combos, initialLines 
     setSaving(true)
     setError('')
     try {
-      const { data } = await api.post('/sales', {
+      const kind = people.some((person) => person.payment_status === 'coppone' && !isGuestMember(person.member_id)) ? 'coppone' : 'pay'
+      const first = members.find((member) => String(member.id) === String(people[0]?.member_id)) || user
+      const { data } = await runWithScene(kind, isPersonal ? user : first, () => api.post('/sales', {
         items: lines.map((line) => (line.combo_id ? { combo_id: line.combo_id, quantity: line.quantity } : { product_id: line.product_id, quantity: line.quantity })),
         participants: people.map((person) => ({ member_id: Number(person.member_id), ...(person.self ? {} : { pin: person.pin }), payment_status: isGuestMember(person.member_id) ? 'paid' : person.payment_status })),
-      })
+      }))
       onDone?.(data)
     } catch (err) {
       setError(errorMessage(err))
@@ -159,6 +163,7 @@ export default function CheckoutModal({ members, products, combos, initialLines 
           <span>Totale{people.length > 1 ? ` · ${money(shares[0] || 0)} a testa circa` : ''}</span>
           <strong className="h4 mb-0 num">{money(total)}</strong>
         </div>
+        {waitScene}
         <button className="btn btn-primary btn-lg" disabled={!ready || saving}>{saving ? 'Registrazione…' : people.filter((person) => !person.self).length ? `Conferma (${people.filter((person) => !person.self).length} PIN)` : 'Conferma'}</button>
       </form>
     </AppModal>
