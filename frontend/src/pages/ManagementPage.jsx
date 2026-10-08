@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ArrowRightLeft, BarChart3, Camera, FileText, Plus, UserRound, WalletCards } from 'lucide-react'
+import { Archive, ArrowRightLeft, BarChart3, Camera, FileText, HandCoins, Plus, UserRound, WalletCards } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import { errorMessage, localDate, localTime, money, movementDateTime, movementStatusLabel, quantity, shortDate } from '../utils/format'
@@ -12,12 +12,14 @@ import StatusBadge from '../components/ui/StatusBadge'
 import AppModal from '../components/ui/AppModal'
 import WithdrawalReassignPanel from '../components/WithdrawalReassignPanel'
 import ArchivePanel from '../components/ArchivePanel'
+import GuestPaymentsPanel from '../components/GuestPaymentsPanel'
 
 const TABS = [
   ['riepilogo', 'Riepilogo', BarChart3],
   ['personali', 'Movimenti soci', UserRound],
   ['generiche', 'Spese generiche', WalletCards],
   ['scontrini', 'Scontrini', FileText],
+  ['ospiti', 'Incassi ospiti', HandCoins],
   ['prelievi', 'Riassegna prelievi', ArrowRightLeft],
   ['archivio', 'Azzera e archivio', Archive],
 ]
@@ -34,6 +36,7 @@ export default function ManagementPage() {
   const [receipts, setReceipts] = useState([])
   const [receiptDetail, setReceiptDetail] = useState(null)
   const [photo, setPhoto] = useState(null)
+  const [guestPayments, setGuestPayments] = useState([])
   const [message, setMessage] = useState('')
   const now = new Date()
   const [personalForm, setPersonalForm] = useState({ type: 'accredito', member_id: '', direction: 'entrata', amount: '', reason: '', movement_date: localDate(now), movement_time: localTime(now) })
@@ -60,6 +63,7 @@ export default function ManagementPage() {
     setGenericRows(generic.data.data)
     setReceipts(receiptRows.data.data)
     loadSummary()
+    api.get('/guest-payments').then(({ data }) => setGuestPayments(data)).catch(() => setGuestPayments([]))
   }, [loadSummary])
 
   useEffect(() => { load() }, [load])
@@ -131,7 +135,7 @@ export default function ManagementPage() {
         <div><span>Magazzino</span><strong className="num">{money(summary?.inventory.value_at_price_cents || 0)}</strong><small>costo {money(summary?.inventory.value_at_cost_cents || 0)}</small></div>
       </div>
       <div className="tab-strip mb-3" role="group" aria-label="Sezioni gestione">
-        {TABS.map(([value, label, Icon]) => <button type="button" key={value} className={`btn ${tab === value ? 'btn-primary' : 'btn-outline-primary'}`} aria-pressed={tab === value} onClick={() => setTab(value)}><Icon size={17} aria-hidden="true" /> {label}</button>)}
+        {TABS.map(([value, label, Icon]) => <button type="button" key={value} className={`btn ${tab === value ? 'btn-primary' : 'btn-outline-primary'}`} aria-pressed={tab === value} onClick={() => setTab(value)}><Icon size={17} aria-hidden="true" /> {label}{value === 'ospiti' && guestPayments.length > 0 && <span className="tab-count">{guestPayments.length}</span>}</button>)}
       </div>
 
       {tab === 'riepilogo' && <>
@@ -191,6 +195,7 @@ export default function ManagementPage() {
 
       {tab === 'scontrini' && <DataTable columns={receiptColumns} rows={activeRows} getKey={(row) => row.id} emptyTitle="Nessuno scontrino registrato" emptyMessage="Gli scontrini si registrano dalla Lista spesa." renderMobile={(row) => <><div className="split"><strong>{money(row.total_cents)}</strong><StatusBadge tone="success">{movementStatusLabel(row.status)}</StatusBadge></div><div className="small text-muted-app">{shortDate(row.purchased_at)} · {row.items_count} prodotti</div><div className="product-admin-actions">{row.receipt_image_url ? <button type="button" className="btn btn-outline-primary" onClick={() => setPhoto(row)}><Camera size={16} /> Foto</button> : <span className="small text-muted-app align-self-center">Senza foto</span>}<button type="button" className="btn btn-outline-primary" onClick={() => openReceipt(row)}>Dettaglio</button></div></>} />}
 
+      {tab === 'ospiti' && <GuestPaymentsPanel rows={guestPayments} onChanged={load} />}
       {tab === 'prelievi' && <WithdrawalReassignPanel members={members} onChanged={loadSummary} />}
       {tab === 'archivio' && <ArchivePanel onChanged={load} />}
 

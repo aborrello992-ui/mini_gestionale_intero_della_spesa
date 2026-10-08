@@ -146,7 +146,7 @@ export default function CheckoutModal({ members, products, combos, initialLines 
               </div>
                 </>}
               <div className="segmented" role="group" aria-label={`Pagamento persona ${index + 1}`}>
-                <button type="button" className={`btn ${person.payment_status === 'paid' || isGuestMember(person.member_id) ? 'btn-success' : 'btn-outline-secondary'}`} aria-pressed={person.payment_status === 'paid' || isGuestMember(person.member_id)} onClick={() => updatePerson(index, { payment_status: 'paid' })}>{isGuestMember(person.member_id) ? 'Pagato (ospite)' : 'Pagato'}</button>
+                <button type="button" className={`btn ${person.payment_status === 'paid' || isGuestMember(person.member_id) ? 'btn-success' : 'btn-outline-secondary'}`} aria-pressed={person.payment_status === 'paid' || isGuestMember(person.member_id)} onClick={() => updatePerson(index, { payment_status: 'paid' })}>{isGuestMember(person.member_id) ? 'Da verificare (ospite)' : 'Pagato'}</button>
                 {!isGuestMember(person.member_id) && <button type="button" className={`btn ${person.payment_status === 'coppone' ? 'btn-warning' : 'btn-outline-secondary'}`} aria-pressed={person.payment_status === 'coppone'} onClick={() => updatePerson(index, { payment_status: 'coppone' })}>Coppone</button>}
               </div>
             </fieldset>
@@ -154,6 +154,7 @@ export default function CheckoutModal({ members, products, combos, initialLines 
           {people.length < MAX_PEOPLE && <button type="button" className="btn btn-outline-primary" onClick={() => setPeople([...people, emptyPerson()])}><UserPlus size={17} /> Aggiungi una persona</button>}
         </section>
 
+        {people.some((person) => isGuestMember(person.member_id)) && <p className="small text-muted-app mb-0">Gli ospiti mettono i soldi in cassa: il primo socio al tavolo fa da garante finché un amministratore non verifica il pagamento.</p>}
         <div className="summary-box split">
           <span>Totale{people.length > 1 ? ` · ${money(shares[0] || 0)} a testa circa` : ''}</span>
           <strong className="h4 mb-0 num">{money(total)}</strong>

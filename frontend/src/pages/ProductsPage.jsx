@@ -42,7 +42,8 @@ export default function ProductsPage() {
 
   function checkoutDone(result) {
     setCheckout(null)
-    const parts = result.shares.map((share) => `${share.name} ${money(share.total_cents)} ${share.payment_status === 'paid' ? 'pagato' : 'a coppone'}`)
+    const label = { paid: 'pagato', coppone: 'a coppone', pending: 'da verificare (ospite)' }
+    const parts = result.shares.map((share) => `${share.name} ${money(share.total_cents)} ${label[share.payment_status] || share.payment_status}`)
     setMessage(`Acquisto registrato: ${parts.join(' · ')}.`)
     load(meta?.current_page || 1)
     loadCombos()
@@ -86,8 +87,12 @@ export default function ProductsPage() {
         quantity: takeForm.quantity,
         payment_status: paymentStatus,
         notes: takeForm.notes,
+        // Ospite: un socio presente fa da garante con il suo PIN.
+        ...(isGuest ? { sponsor_id: takeForm.sponsor_id, sponsor_pin: takeForm.sponsor_pin } : {}),
       })
-      setMessage(`${paymentStatus === 'paid' ? 'Pagato' : 'Coppone'} registrato: ${money(data.total_amount_cents)}.`)
+      setMessage(data.payment_status === 'pending'
+        ? `Acquisto registrato: metti ${money(data.total_amount_cents)} in cassa. Un amministratore verificherà il pagamento.`
+        : `${paymentStatus === 'paid' ? 'Pagato' : 'Coppone'} registrato: ${money(data.total_amount_cents)}.`)
       setSelected(null)
       setTakeForm({ member_id: '', pin: '', quantity: 1, notes: '' })
       load(meta?.current_page || 1)
@@ -120,7 +125,9 @@ export default function ProductsPage() {
     )
   }
 
-  const canSubmit = selected && (isPersonal || (takeForm.member_id && takeForm.pin.length === 3)) && Number(takeForm.quantity) >= 1
+  const sponsors = members.filter((member) => member.role !== 'guest')
+  const sponsorReady = !isGuest || (takeForm.sponsor_id && /^\d{3}$/.test(takeForm.sponsor_pin || ''))
+  const canSubmit = selected && (isPersonal || (takeForm.member_id && takeForm.pin.length === 3)) && sponsorReady && Number(takeForm.quantity) >= 1
 
   return (
     <section>
@@ -202,7 +209,17 @@ export default function ProductsPage() {
             </div>
 
             {isPersonal
-              ? <div className="summary-box split"><span>Prendi come <strong>{user.name}</strong></span><UserAvatar name={user.name} size="sm" /></div>
+              ? <>
+                <div className="summary-box split"><span>Prendi come <strong>{user.name}</strong></span><UserAvatar name={user.name} size="sm" /></div>
+                {isGuest && <fieldset className="checkout-person">
+                  <legend className="form-label mb-0">Socio garante</legend>
+                  <p className="small text-muted-app mb-0">Un socio presente conferma il tuo acquisto con il suo PIN. Poi metti i soldi in cassa: un amministratore li verifica.</p>
+                  <div className="restock-two">
+                    <div><label className="form-label" htmlFor="sponsor-member">Socio</label><select id="sponsor-member" className="form-select" value={takeForm.sponsor_id || ''} onChange={(e) => setTakeForm({ ...takeForm, sponsor_id: e.target.value })}><option value="">Chi garantisce?</option>{sponsors.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}</select></div>
+                    <div><label className="form-label" htmlFor="sponsor-pin">PIN del socio</label><input id="sponsor-pin" className="form-control pin-input" type="password" inputMode="numeric" autoComplete="off" maxLength="3" value={takeForm.sponsor_pin || ''} onChange={(e) => setTakeForm({ ...takeForm, sponsor_pin: e.target.value.replace(/\D/g, '').slice(0, 3) })} /></div>
+                  </div>
+                </fieldset>}
+              </>
               : <>
             <FormField label="Membro">
               <div className="member-grid">
@@ -243,7 +260,7 @@ export default function ProductsPage() {
             </FormField>
             <div className="choice-grid">
               <button className="btn btn-success btn-lg choice-button" disabled={!canSubmit} onClick={() => take('paid')}>
-                <CheckCircle2 size={20} /> Pagato <small>Incassa subito</small>
+                <CheckCircle2 size={20} /> {isGuest ? 'Prendi e pago in cassa' : 'Pagato'} <small>{isGuest ? 'Verifica di un amministratore' : 'Incassa subito'}</small>
               </button>
               {!isGuest && <button className="btn btn-warning btn-lg choice-button" disabled={!canSubmit} onClick={() => take('coppone')}>
                 <AlertTriangle size={20} /> Coppone <small>Aggiungi al debito</small>

@@ -1442,3 +1442,29 @@ legend.form-label {
 .choice-grid > :only-child {
   grid-column: 1 / -1;
 }
+
+/* Numero di elementi da gestire sulla scheda (es. incassi ospiti) */
+.tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--gold);
+  color: var(--ink);
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.guest-payment-row {
+  flex-wrap: wrap;
+}
+
+.guest-payment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  justify-content: flex-end;
+}
