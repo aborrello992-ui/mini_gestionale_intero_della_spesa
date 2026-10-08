@@ -89,7 +89,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="login-page login-arena">
+    <main className="login-page login-arena has-game">
       <div className="arena-backdrop" aria-hidden="true">
         <div className="arena-hud">
           <div className="arena-score"><span>1P</span> 000000 <span>HI</span> 945520</div>
@@ -104,7 +104,7 @@ export default function LoginPage() {
       </div>
 
       <div className="arena-game">
-        <BossBattle ref={battleRef} waiting={playing} caption="Attendo il server…" onEnd={onBattleEnd} onEnter={holding ? proceed : undefined} />
+        <BossBattle ref={battleRef} bare waiting={playing} caption="Attendo il server…" onEnd={onBattleEnd} onEnter={holding ? proceed : undefined} />
       </div>
 
       <div className="login-box">

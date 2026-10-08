@@ -1470,17 +1470,51 @@ legend.form-label {
   --bs-btn-disabled-opacity: 0.45;
 }
 
-/* ---------- Ingresso: minigioco "Soci vs Locale" nell'arena ---------- */
+/* ---------- Ingresso: minigioco "Soci vs Locale" direttamente sull'arena ---------- */
+/* Le barre vere del gioco prendono il posto di quelle decorative, nella fascia in alto. */
+.login-arena.has-game {
+  --hud-h: 86px;
+}
+
+.login-arena.has-game .arena-hud > * {
+  display: none;
+}
+
 .arena-game {
   position: fixed;
   z-index: 1;
-  left: max(2vw, calc(50% - 640px));
-  bottom: 5vh;
-  width: min(460px, 44vw);
+  left: max(1vw, calc(50% - 660px));
+  bottom: 0;
+  width: min(640px, 50vw);
 }
 
-.arena-game .bb {
-  box-shadow: 6px 6px 0 rgba(14, 16, 32, 0.45);
+.arena-game .bb-wrap {
+  max-width: none;
+}
+
+.arena-game .bb-hud {
+  position: fixed;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--hud-h);
+  padding: 8px clamp(10px, 4vw, 48px) 6px;
+  background: linear-gradient(180deg, #2a0d0f, #120609);
+  border-bottom: 3px solid #7a1e1e;
+}
+
+.arena-game .bb-label {
+  font-size: 13px;
+}
+
+.arena-game .bb-bar {
+  height: 17px;
+}
+
+/* Il gioco in basso tocca il pavimento dello sfondo: niente spazio vuoto sotto i piedi. */
+.arena-game .bb-stage {
+  margin-bottom: -4%;
 }
 
 @media (max-width: 899px) {
@@ -1488,8 +1522,10 @@ legend.form-label {
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: space-between;
+    min-height: 100dvh;
     gap: 16px;
-    padding-bottom: 32px;
+    padding-bottom: 0;
   }
 
   .arena-game {
@@ -1497,7 +1533,7 @@ legend.form-label {
     order: 2;
     left: auto;
     bottom: auto;
-    width: min(100%, 460px);
+    width: min(100%, 520px);
   }
 
   .login-arena .login-box {

@@ -9,21 +9,23 @@ import './battle/battle.css'
  *  - waiting=true  -> l'app sta aspettando il server: se nessuno gioca parte una lotta in loop.
  *  - onEnter       -> se passato, mostra il pulsante "Entra nel sito" (server pronto mentre si gioca).
  *  - onEnd('win' | 'lose') parte a fine partita (solo se giocata dall'utente).
+ *  - bare=true      -> senza riquadro né scenario: i personaggi stanno sullo sfondo della pagina.
  *  - ref.getEngagement() -> 'fighting' | 'ended' | 'idle' (l'utente sta giocando?)
  */
-export default function BossBattle({ waiting = false, caption = '', onEnd, onEnter, ref }) {
+export default function BossBattle({ waiting = false, bare = false, caption = '', onEnd, onEnter, ref }) {
   const rootRef = useRef(null)
   const battleRef = useRef(null)
   const onEndRef = useRef(onEnd)
   onEndRef.current = onEnd
 
   useEffect(() => {
-    const battle = createBattle(rootRef.current, { fighters: FIGHTERS, onEnd: (r) => onEndRef.current?.(r) })
+    const battle = createBattle(rootRef.current, { fighters: FIGHTERS, bare, onEnd: (r) => onEndRef.current?.(r) })
     battleRef.current = battle
     return () => {
       battle.destroy()
       battleRef.current = null
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- il gioco si crea una volta sola
   }, [])
 
   useEffect(() => {

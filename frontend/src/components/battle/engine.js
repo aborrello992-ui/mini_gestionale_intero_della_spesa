@@ -33,7 +33,7 @@ const rand = (a, b) => a + Math.random() * (b - a)
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char])
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v))
 
-function sceneMarkup(fighters) {
+function sceneMarkup(fighters, bare = false) {
   const fighterG = fighters
     .map(
       (f, i) => `<g class="bb-actor bb-fighter${i === 0 ? ' bb-on' : ''}" data-i="${i}">
@@ -51,14 +51,17 @@ function sceneMarkup(fighters) {
         <stop offset="0" stop-color="#6b3f2a"/><stop offset="1" stop-color="#2f1a12"/>
       </linearGradient>
     </defs>
-    <rect width="400" height="240" fill="url(#bb-sky)"/>
+    ${bare
+      ? `<ellipse cx="${FIGHTER_BOX.x + FIGHTER_BOX.w / 2}" cy="${GROUND}" rx="34" ry="6" fill="rgba(0,0,0,.28)"/>
+    <ellipse cx="${BOSS_CX}" cy="${GROUND}" rx="44" ry="7" fill="rgba(0,0,0,.28)"/>`
+      : `<rect width="400" height="240" fill="url(#bb-sky)"/>
     <circle cx="312" cy="120" r="64" fill="#ffb36b" opacity=".35"/>
     <circle cx="312" cy="120" r="46" fill="#ffd08a" opacity=".5"/>
     <path d="M0 170 L40 138 L78 160 L120 126 L170 164 L214 134 L262 166 L316 130 L362 160 L400 140 L400 200 L0 200 Z" fill="#1a1238" opacity=".85"/>
     <text x="200" y="26" text-anchor="middle" font-family="Impact, 'Arial Black', sans-serif" font-size="15" letter-spacing="5" fill="#5eead4" stroke="#0f766e" stroke-width=".6" opacity=".95">LOCALE</text>
     <rect x="0" y="${GROUND - 4}" width="400" height="${240 - GROUND + 4}" fill="url(#bb-floor)"/>
     <path d="M0 ${GROUND - 4} H400" stroke="#9a6a4a" stroke-width="2"/>
-    <path d="M0 222 H400 M0 235 H400 M60 ${GROUND} L20 240 M150 ${GROUND} L130 240 M250 ${GROUND} L270 240 M340 ${GROUND} L380 240" stroke="rgba(0,0,0,.28)" stroke-width="1.5"/>
+    <path d="M0 222 H400 M0 235 H400 M60 ${GROUND} L20 240 M150 ${GROUND} L130 240 M250 ${GROUND} L270 240 M340 ${GROUND} L380 240" stroke="rgba(0,0,0,.28)" stroke-width="1.5"/>`}
     ${fighterG}
     <g class="bb-actor bb-boss">
       <g transform="translate(${2 * BOSS_CX} 0) scale(-1 1)">
@@ -97,6 +100,8 @@ export function createBattle(root, opts = {}) {
   const results = resultMarkup()
 
   root.classList.add('bb')
+  // bare: niente riquadro né scenario, i personaggi stanno sullo sfondo della pagina
+  if (opts.bare) root.classList.add('bb-bare')
   root.setAttribute('tabindex', '0')
   root.setAttribute('role', 'button')
   root.setAttribute('aria-label', 'Minigioco: tocca per far combattere i soci contro il boss')
@@ -114,7 +119,7 @@ export function createBattle(root, opts = {}) {
       </div>
     </div>
     <div class="bb-stage">
-      ${sceneMarkup(fighters)}
+      ${sceneMarkup(fighters, opts.bare)}
       <div class="bb-move" aria-hidden="true"></div>
       <div class="bb-prompt">TOCCA PER COMBATTERE</div>
       <div class="bb-result" aria-live="polite"></div>

@@ -161,3 +161,21 @@
   .bb *, .bb *::before, .bb *::after { animation: none !important; transition-duration: 0.01ms !important; }
   .bb-move { opacity: 1; }
 }
+
+/* ---------- senza riquadro: i personaggi stanno sullo sfondo della pagina ---------- */
+.bb.bb-bare {
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+}
+.bb-bare .bb-hud { background: transparent; }
+.bb-bare .bb-scene { overflow: visible; }
+.bb-bare .bb-prompt,
+.bb-bare .bb-hint { text-shadow: 0 2px 0 #7a3b00, 0 0 6px #000, 0 0 14px rgba(0, 0, 0, 0.7); }
+.bb-bare .bb-move { text-shadow: 0 2px 0 #000, 0 0 8px #000; }
+.bb-bare .bb-result { background: none; }
+.bb-bare .bb-prompt { bottom: auto; top: 4%; }
+.bb-bare .bb-move { bottom: auto; top: 16%; }
