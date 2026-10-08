@@ -79,10 +79,10 @@ export default function CheckoutModal({ members, products, combos, initialLines 
     try {
       const kind = people.some((person) => person.payment_status === 'coppone' && !isGuestMember(person.member_id)) ? 'coppone' : 'pay'
       const first = members.find((member) => String(member.id) === String(people[0]?.member_id)) || user
-      const { data } = await runWithScene(kind, isPersonal ? user : first, () => api.post('/sales', {
+      const { data } = await runWithScene(kind, isPersonal ? user : first, (idempotencyKey) => api.post('/sales', {
         items: lines.map((line) => (line.combo_id ? { combo_id: line.combo_id, quantity: line.quantity } : { product_id: line.product_id, quantity: line.quantity })),
         participants: people.map((person) => ({ member_id: Number(person.member_id), ...(person.self ? {} : { pin: person.pin }), payment_status: isGuestMember(person.member_id) ? 'paid' : person.payment_status })),
-      }))
+      }, { headers: { 'Idempotency-Key': idempotencyKey } }))
       onDone?.(data)
     } catch (err) {
       setError(errorMessage(err))

@@ -36,12 +36,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/products/{product}', [ProductController::class, 'show']);
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/locations', [LocationController::class, 'index']);
-    Route::post('/withdrawals', [WithdrawalController::class, 'store']);
+    Route::post('/withdrawals', [WithdrawalController::class, 'store'])->middleware('idempotent');
     Route::get('/combos', [ComboController::class, 'index']);
-    Route::post('/sales', [SaleController::class, 'store']);
+    Route::post('/sales', [SaleController::class, 'store'])->middleware('idempotent');
     Route::get('/shopping-list', [ShoppingListController::class, 'index']);
     Route::get('/shopping-list/reminders', [ShoppingListController::class, 'reminders']);
-    Route::post('/shopping-list', [ShoppingListController::class, 'store']);
+    Route::post('/shopping-list', [ShoppingListController::class, 'store'])->middleware('idempotent');
 
     // Non visibili agli ospiti esterni.
     Route::middleware('members')->group(function () {
@@ -71,7 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/locations', [LocationController::class, 'store']);
         Route::put('/locations/{location}', [LocationController::class, 'update']);
         Route::get('/withdrawals', [WithdrawalController::class, 'index']);
-        Route::post('/withdrawals/manual', [WithdrawalController::class, 'manual']);
+        Route::post('/withdrawals/manual', [WithdrawalController::class, 'manual'])->middleware('idempotent');
         Route::post('/withdrawals/{withdrawal}/reassign', [WithdrawalController::class, 'reassign']);
         Route::get('/guest-payments', [WithdrawalController::class, 'pendingGuestPayments']);
         Route::post('/withdrawals/{withdrawal}/verify', [WithdrawalController::class, 'verifyGuestPayment']);

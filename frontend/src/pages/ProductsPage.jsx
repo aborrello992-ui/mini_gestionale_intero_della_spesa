@@ -94,7 +94,7 @@ export default function ProductsPage() {
     try {
       // L'attesa mostra l'avatar di chi sta prendendo il prodotto.
       const taker = isPersonal ? user : members.find((member) => String(member.id) === String(takeForm.member_id))
-      const { data } = await runWithScene(paymentStatus === 'coppone' ? 'coppone' : 'pay', taker, () => api.post('/withdrawals', {
+      const { data } = await runWithScene(paymentStatus === 'coppone' ? 'coppone' : 'pay', taker, (idempotencyKey) => api.post('/withdrawals', {
         product_id: selected.id,
         // Chi è entrato con il proprio PIN preleva per sé senza ridigitarlo.
         member_id: isPersonal ? user.id : takeForm.member_id,
@@ -104,7 +104,7 @@ export default function ProductsPage() {
         notes: takeForm.notes,
         // Ospite: un socio presente fa da garante con il suo PIN.
         ...(isGuest ? { sponsor_id: takeForm.sponsor_id, sponsor_pin: takeForm.sponsor_pin } : {}),
-      }))
+      }, { headers: { 'Idempotency-Key': idempotencyKey } }))
       setMessage(data.payment_status === 'pending'
         ? `Acquisto registrato: metti ${money(data.total_amount_cents)} in cassa. Un amministratore verificherà il pagamento.`
         : `${paymentStatus === 'paid' ? 'Pagato' : 'Coppone'} registrato: ${money(data.total_amount_cents)}.`)

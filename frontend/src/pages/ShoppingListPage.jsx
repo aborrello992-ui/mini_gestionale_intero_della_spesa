@@ -52,13 +52,13 @@ export default function ShoppingListPage() {
     setMessage({ type: 'success', text: '' })
     const category = form.category === OTHER_CATEGORY ? form.customCategory.trim() : form.category
     try {
-      await runWithScene('suggest', user, () => api.post('/shopping-list', {
+      await runWithScene('suggest', user, (idempotencyKey) => api.post('/shopping-list', {
         ...(matchedProduct ? { product_id: matchedProduct.id } : { suggested_name: form.product.trim(), suggested_category: category || null }),
         suggested_quantity: form.suggested_quantity,
         priority: form.priority,
         estimated_price: form.estimated_price || null,
         note: form.note || null,
-      }))
+      }, { headers: { 'Idempotency-Key': idempotencyKey } }))
       setMessage({ type: 'success', text: `Grazie! «${form.product.trim()}» è nella lista della spesa.` })
       setForm(emptySuggestion)
       await load()

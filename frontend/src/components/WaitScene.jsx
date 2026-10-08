@@ -53,7 +53,7 @@ function props(kind, avatar) {
  * Scena d'attesa: l'avatar di chi sta facendo l'azione contro il boss, in loop finché il server risponde.
  * kind: pay (monete e timbro PAGATO) | coppone (taccuino) | suggest (sussurro) | generic (mossa personale del socio)
  */
-export default function WaitScene({ kind = 'generic', user, startedAt }) {
+export default function WaitScene({ kind = 'generic', user, startedAt, stalled = false, onRetry, onCancel }) {
   const [seconds, setSeconds] = useState(0)
   const avatar = avatarFor(user)
 
@@ -75,7 +75,17 @@ export default function WaitScene({ kind = 'generic', user, startedAt }) {
       <div className="ws-card">
         <div className="ws-names"><span>{avatar.name}</span><strong>VS</strong><span>BOSS</span></div>
         <svg className="ws-scene" viewBox="0 0 400 220" aria-hidden="true" focusable="false" dangerouslySetInnerHTML={{ __html: scene }} />
-        <p className="ws-caption">{caption(kind, seconds)}</p>
+        {stalled ? (
+          <div className="ws-stalled">
+            <p className="ws-caption">Il server non risponde da un minuto. Puoi riprovare: l'operazione non verrà registrata due volte.</p>
+            <div className="ws-actions">
+              <button type="button" className="btn btn-primary" onClick={onRetry}>Riprova</button>
+              <button type="button" className="btn btn-outline-light" onClick={onCancel}>Chiudi</button>
+            </div>
+          </div>
+        ) : (
+          <p className="ws-caption">{caption(kind, seconds)}</p>
+        )}
       </div>
     </div>
   )
