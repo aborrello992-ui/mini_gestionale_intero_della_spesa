@@ -13,6 +13,24 @@ function hair(look) {
       <path d="M44 28 C50 17 68 15 79 25 C68 23 56 25 46 33 Z" fill="${c}"/>
       <path d="M48 27 C56 20 68 19 76 24" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="2.2" stroke-linecap="round"/>`
   }
+  if (look.hairStyle === 'wavy') {
+    // chioma folta e mossa (castano scuro), fronte alta
+    return `<g fill="${c}">
+      <path d="M36 47 C31 30 40 17 60 15 C80 14 91 28 84 47 C82 38 76 32 70 30 C62 28 50 28 44 32 C40 35 37 41 36 47 Z"/>
+      <circle cx="41" cy="29" r="8.5"/><circle cx="51" cy="21" r="9.5"/><circle cx="63" cy="17.5" r="10"/>
+      <circle cx="75" cy="21" r="9.5"/><circle cx="83" cy="31" r="8"/><circle cx="37" cy="40" r="5.5"/>
+      <circle cx="86" cy="41" r="5"/>
+    </g>
+    <path d="M44 24 Q50 17 58 20 M62 15 Q70 13 77 19 M70 27 Q78 25 82 31" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="2.2" stroke-linecap="round"/>`
+  }
+  if (look.hairStyle === 'cap-back') {
+    // cappellino nero portato al contrario (si vede la fascia con la chiusura davanti)
+    return `<path d="M37.5 45 C36 38 36.5 33 38 31 L41 40 Z M82.5 45 C84 38 83.5 33 82 31 L79 40 Z" fill="${c}"/>
+      <path d="M38 43 C34 22 46 13 60 13 C74 13 86 22 82 43 C79 36 73 32.5 60 32.5 C47 32.5 41 36 38 43 Z" fill="${look.cap}" stroke="rgba(0,0,0,.35)" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M40 38 Q60 29 80 38" fill="none" stroke="${look.capBand || '#f1f5f9'}" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="3 3.4"/>
+      <rect x="55" y="29.2" width="10" height="4.6" rx="1.4" fill="#6b7280" stroke="#374151" stroke-width="1"/>
+      <path d="M46 17 Q58 12 70 16" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="2.4" stroke-linecap="round"/>`
+  }
   // 'spiky'
   return `<path d="M37 47 C33 26 46 16 61 16 C79 16 88 29 83 47 C80 37 72 31 61 31 C50 31 42 37 37 47 Z" fill="${c}"/>
     <path d="M40 30 L36 18 L50 24 Z M50 22 L50 8 L62 19 Z M62 19 L70 7 L76 21 Z M74 22 L86 14 L84 30 Z" fill="${c}"/>`
@@ -27,6 +45,17 @@ function glasses(look) {
       <path d="M58 44 Q60 42 62 44" fill="none" stroke="#0b0b0f" stroke-width="3"/>
       <path d="M44 44 L52 42" stroke="rgba(255,255,255,.45)" stroke-width="2" stroke-linecap="round"/>
       <path d="M38 43 L35 46 M81 43 L85 46" stroke="#0b0b0f" stroke-width="3" stroke-linecap="round"/>
+    </g>`
+  }
+  if (look.glasses === 'rect-thick') {
+    const f = look.frame || '#2f3b34'
+    return `<g>
+      <path d="M38.5 40.5 L58.5 40 L58 53.5 L40 54 Q38.5 53.5 38.5 51 Z" fill="${look.lens}" stroke="${f}" stroke-width="3.6" stroke-linejoin="round"/>
+      <path d="M61.5 40 L82 40.5 L82 51 Q82 53.5 80 54 L62 53.5 Z" fill="${look.lens}" stroke="${f}" stroke-width="3.6" stroke-linejoin="round"/>
+      <path d="M58.5 42.5 H61.5" stroke="${f}" stroke-width="3.6"/>
+      <path d="M38 38.8 L58.5 38.3 M61.5 38.3 L82.5 38.8" stroke="${f}" stroke-width="4.6" stroke-linecap="round"/>
+      <path d="M36.5 42 L34 47 M83.5 42 L86 47" stroke="${f}" stroke-width="3.2" stroke-linecap="round"/>
+      <path d="M43 45 L50 44 M67 44 L74 45" stroke="rgba(255,255,255,.55)" stroke-width="1.8" stroke-linecap="round"/>
     </g>`
   }
   // 'wayfarer-black'
@@ -46,6 +75,17 @@ function beard(look) {
     return `<path d="M38.5 50 C38 70 50 76 60 76 C70 76 82 70 81.5 50 C79 60 72 63 60 63 C48 63 41 60 38.5 50 Z" fill="${c}" opacity=".92"/>
       <path d="M50 61 Q60 57 70 61 Q60 64 50 61 Z" fill="${c}"/>`
   }
+  if (look.beardStyle === 'mustache-patch') {
+    // barba corta color sabbia, baffi folti e ciuffetto grigio sotto il labbro
+    return `<path d="M38.5 50 C38 69 49 75 60 75 C71 75 82 69 81.5 50 C79 60 72 63.5 60 63.5 C48 63.5 41 60 38.5 50 Z" fill="${c}" opacity=".5"/>
+      <path d="M45 58.5 C47 54.5 53 54 60 56.5 C67 54 73 54.5 75 58.5 C77 62 74 65 71 63.5 C67 61.5 63 60 60 60 C57 60 53 61.5 49 63.5 C46 65 43 62 45 58.5 Z" fill="${look.mustache || c}"/>
+      <path d="M54 68 C55 74.5 65 74.5 66 68 C63 70 57 70 54 68 Z" fill="${look.patch || '#b8b2a7'}"/>`
+  }
+  if (look.beardStyle === 'stubble') {
+    return `<path d="M39.5 51 C40 68 50 73.5 60 73.5 C70 73.5 80 68 80.5 51 C78 58 72 62.5 60 62.5 C48 62.5 42 58 39.5 51 Z" fill="${c}" opacity=".42"/>
+      <path d="M49 58.5 Q60 55 71 58.5 Q60 60.5 49 58.5 Z" fill="${c}" opacity=".6"/>
+      <g fill="${c}" opacity=".5"><circle cx="46" cy="64" r=".9"/><circle cx="51" cy="68" r=".9"/><circle cx="57" cy="70" r=".9"/><circle cx="63" cy="70.5" r=".9"/><circle cx="69" cy="68" r=".9"/><circle cx="74" cy="64" r=".9"/><circle cx="43" cy="58" r=".9"/><circle cx="77" cy="58" r=".9"/></g>`
+  }
   // 'goatee'
   return `<path d="M39 52 C39 68 48 72 55 73 L65 73 C72 72 81 68 81 52 C79 58 72 61 60 61 C48 61 41 58 39 52 Z" fill="${c}" opacity=".8"/>
     <path d="M52 66 Q60 79 68 66 Q60 70 52 66 Z" fill="${c}"/>
@@ -58,6 +98,14 @@ function mouth(look) {
       <path d="M52 61 L68 61" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
       <path d="M54 70 Q60 66 66 70 Q60 75 54 70Z" fill="#ef6b6b"/>`
   }
+  if (look.smile === 'lips') {
+    return `<path d="M51.5 63.6 Q60 61 68.5 63.6 Q60 69 51.5 63.6 Z" fill="#c98585" stroke="#7a3f3f" stroke-width="1.2" stroke-linejoin="round"/>
+      <path d="M52 63.8 Q60 65.4 68 63.8" fill="none" stroke="#7a3f3f" stroke-width="1.1"/>`
+  }
+  if (look.smile === 'soft') {
+    return `<path d="M50 63.5 Q60 69.5 71 62.5" fill="none" stroke="#6b3a2e" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M71 62.5 L73 60.8" stroke="#6b3a2e" stroke-width="1.6" stroke-linecap="round"/>`
+  }
   if (look.smile === 'big') {
     return `<path d="M47 61 Q60 77 73 61 Q60 64 47 61 Z" fill="#fff" stroke="#4a2a22" stroke-width="2" stroke-linejoin="round"/>
       <path d="M50 64 Q60 66 70 64" fill="none" stroke="#d9d2cc" stroke-width="1.4"/>`
@@ -65,8 +113,50 @@ function mouth(look) {
   return `<path d="M51 65 Q60 69 70 63" fill="none" stroke="#f0c6ad" stroke-width="3" stroke-linecap="round"/>`
 }
 
+/* Elettricista: camicia da lavoro grigia, gilet rosso/nero con strisce riflettenti, cintura porta-attrezzi */
+function vestOutfit(o) {
+  return `
+    <path d="M36 76 Q60 66 84 76 L88 128 Q60 135 32 128 Z" fill="${o.jacket}"/>
+    <path d="M50 71 Q60 83 70 71 Z" fill="${o.shirt}"/>
+    <path d="M40 76 L51 71 L58 100 L57 128 L33 126 Z" fill="${o.vest}" stroke="${o.vestDark}" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="M80 76 L69 71 L62 100 L63 128 L87 126 Z" fill="${o.vest}" stroke="${o.vestDark}" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="M39 108 L57.5 109 L57.5 114.5 L38 113.5 Z M81 108 L62.5 109 L62.5 114.5 L82 113.5 Z" fill="#e5e7eb" stroke="#facc15" stroke-width="1.2"/>
+    <path d="M44 83 L51 83 L47.5 90 L52 90 L43 102 L45.5 92 L41.5 92 Z" fill="#fde047" stroke="#a16207" stroke-width="1" stroke-linejoin="round"/>
+    <rect x="70" y="84" width="9" height="9" rx="1.5" fill="${o.vestDark}" opacity=".5"/>
+    <path d="M73 84 V80 M76 84 V81" stroke="#facc15" stroke-width="2" stroke-linecap="round"/>
+    <rect x="32" y="122" width="56" height="9" rx="3" fill="${o.belt}" stroke="rgba(0,0,0,.35)" stroke-width="1"/>
+    <rect x="56" y="123.5" width="9" height="6" rx="1.5" fill="#d1d5db" stroke="#6b7280" stroke-width="1"/>
+    <rect x="34" y="129" width="13" height="15" rx="2.5" fill="#3f2a14" stroke="#1f1409" stroke-width="1.2"/>
+    <rect x="36" y="119" width="3.4" height="11" rx="1" fill="#facc15"/><rect x="41" y="117" width="3.4" height="13" rx="1" fill="#dc2626"/>
+    <path d="M76 131 L80 131 L81 150 L75 150 Z" fill="#9ca3af" stroke="#4b5563" stroke-width="1"/>
+    <rect x="75" y="140" width="6.5" height="12" rx="2" fill="#dc2626"/>
+    <path d="M84 126 Q96 130 88 140 Q80 148 86 138" fill="none" stroke="#facc15" stroke-width="2.6" stroke-linecap="round"/>`
+}
+
+/* Commesso di ferramenta: maglietta chiara e grembiule in tela con tasche piene di attrezzi */
+function apronOutfit(o) {
+  return `
+    <path d="M36 76 Q60 66 84 76 L88 128 Q60 135 32 128 Z" fill="${o.jacket}"/>
+    <path d="M50 71 Q60 83 70 71 Z" fill="${o.shirt}"/>
+    <path d="M47 74 L41 78 M73 74 L79 78" stroke="${o.apronDark}" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M46 72 L74 72 L80 128 L40 128 Z" fill="${o.apron}" stroke="${o.apronDark}" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="52" y="82" width="14" height="8" rx="1.5" fill="#f8fafc" stroke="${o.apronDark}" stroke-width="1"/>
+    <path d="M54.5 86 H63.5" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round"/>
+    <rect x="45" y="104" width="30" height="20" rx="3" fill="${o.apronDark}" opacity=".55"/>
+    <path d="M60 104 V124" stroke="${o.apronDark}" stroke-width="1.6"/>
+    <rect x="50" y="94" width="4.4" height="14" rx="1.4" fill="#facc15" stroke="#854d0e" stroke-width=".8"/>
+    <rect x="56" y="97" width="3.2" height="11" rx="1" fill="#2563eb"/>
+    <path d="M63 100 L66 100 L66 108 L63 108 Z" fill="#ef4444"/>
+    <rect x="66.5" y="107" width="8" height="8" rx="1.6" fill="#facc15" stroke="#854d0e" stroke-width="1"/>
+    <path d="M70 107 V104" stroke="#9ca3af" stroke-width="1.5"/>
+    <path d="M40 115 H46" stroke="${o.apronDark}" stroke-width="1"/>
+    <rect x="33" y="125" width="54" height="5" rx="2.5" fill="${o.apronDark}"/>`
+}
+
 function outfit(look) {
   const o = look.outfit
+  if (o.style === 'vest') return vestOutfit(o)
+  if (o.style === 'apron') return apronOutfit(o)
   const tie = o.tie
     ? `<path d="M56 74 L64 74 L66 84 L60 112 L54 84 Z" fill="${o.tie}"/>
        <circle cx="58" cy="88" r="2.4" fill="#f59e0b"/><circle cx="62" cy="96" r="2.4" fill="#7c3aed"/>
@@ -86,6 +176,13 @@ function outfit(look) {
 export function fighterArt(look) {
   const o = look.outfit
   const handFront = look.gloves ? look.gloves : look.skin
+  const pillowHold = look.rearHold === 'pillow'
+    ? `<g transform="translate(22 110) rotate(-14)">
+         <path d="M-12 -8 Q0 -12 12 -8 Q14 0 12 8 Q0 12 -12 8 Q-14 0 -12 -8 Z" fill="#bfdbfe" stroke="#60a5fa" stroke-width="1.6" stroke-linejoin="round"/>
+         <path d="M-12 -8 L-15 -11 M12 -8 L15 -11 M-12 8 L-15 11 M12 8 L15 11" stroke="#f9a8d4" stroke-width="2.4" stroke-linecap="round"/>
+         <text x="-6" y="3.5" font-family="Impact, 'Arial Black', sans-serif" font-size="9" fill="#6366f1">Zz</text>
+       </g>`
+    : ''
   const rearHold = look.rearHold === 'flute'
     ? `<g transform="translate(24 106) rotate(-6)">
          <path d="M-6 -30 L6 -30 L5 -14 Q5 -7 0 -5 Q-5 -7 -5 -14 Z" fill="rgba(225,240,255,.8)" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>
@@ -105,9 +202,12 @@ export function fighterArt(look) {
     <path d="M60 158 h22 q5 4 0 8 h-19 q-6 0 -3 -8z" fill="${o.shoes}"/>
   </g>
   <g class="bb-rear-arm" style="transform-origin:38px 82px">
-    <path d="M38 82 L${look.rearHold ? 26 : 35} 108" ${SW(o.jacketDark)} stroke-width="13" fill="none"/>
+    ${o.sleeve === 'short'
+      ? `<path d="M38 82 L${look.rearHold ? 26 : 35} 108" ${SW(look.skin)} stroke-width="12" fill="none"/>
+         <path d="M38 82 L37 92" ${SW(o.jacketDark)} stroke-width="14" fill="none"/>`
+      : `<path d="M38 82 L${look.rearHold ? 26 : 35} 108" ${SW(o.jacketDark)} stroke-width="13" fill="none"/>`}
     <circle cx="${look.rearHold ? 25 : 35}" cy="111" r="7" fill="${look.glovesRear || look.skin}"/>
-    ${rearHold}
+    ${rearHold}${pillowHold}
   </g>
   <g class="bb-torso">
     ${outfit(look)}
@@ -119,14 +219,22 @@ export function fighterArt(look) {
       ${hair(look)}
       ${look.brows === 'angry'
         ? `<path d="M42 40 L57 35 M63 35 L78 40" stroke="${look.hair}" stroke-width="4" stroke-linecap="round"/><circle cx="51" cy="45" r="2.6" fill="#111827"/><circle cx="69" cy="45" r="2.6" fill="#111827"/>`
-        : `<path d="M44 37 L56 36 M64 36 L76 37" stroke="${look.hair}" stroke-width="3" stroke-linecap="round"/>`}
+        : `<ellipse cx="51" cy="46" rx="3.6" ry="3.2" fill="#fff"/><ellipse cx="69" cy="46" rx="3.6" ry="3.2" fill="#fff"/>
+           <circle cx="52" cy="46" r="2.2" fill="${look.eye || '#3b2a20'}"/><circle cx="70" cy="46" r="2.2" fill="${look.eye || '#3b2a20'}"/>
+           <circle cx="52.8" cy="45.2" r=".7" fill="#fff"/><circle cx="70.8" cy="45.2" r=".7" fill="#fff"/>
+           ${look.brows === 'thick'
+             ? `<path d="M42.5 38.5 Q49 33.5 57 36.5 M63 36.5 Q71 33.5 77.5 38.5" fill="none" stroke="${look.browColor || look.hair}" stroke-width="5.2" stroke-linecap="round"/>`
+             : `<path d="M44 37 L56 36 M64 36 L76 37" stroke="${look.hair}" stroke-width="3" stroke-linecap="round"/>`}`}
       ${glasses(look)}
       <path d="M60 46 L58 56 L62 56" fill="none" stroke="rgba(120,70,40,.45)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       ${mouth(look)}
     </g>
     <g class="bb-arm" style="transform-origin:82px 82px">
-      <path d="M82 82 L85 108" ${SW(o.jacket)} stroke-width="14" fill="none"/>
-      <path d="M82 82 L85 108" ${SW(o.jacketDark)} stroke-width="14" fill="none" opacity=".25"/>
+      ${o.sleeve === 'short'
+        ? `<path d="M82 82 L85 108" ${SW(look.skin)} stroke-width="12.5" fill="none"/>
+           <path d="M82 82 L83.4 93" ${SW(o.jacket)} stroke-width="15" fill="none"/>`
+        : `<path d="M82 82 L85 108" ${SW(o.jacket)} stroke-width="14" fill="none"/>
+           <path d="M82 82 L85 108" ${SW(o.jacketDark)} stroke-width="14" fill="none" opacity=".25"/>`}
       <circle cx="86" cy="112" r="${look.gloves ? 8 : 7}" fill="${handFront}"/>
     </g>
   </g>`
