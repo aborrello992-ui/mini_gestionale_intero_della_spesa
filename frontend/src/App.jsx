@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import AppLayout from './layouts/AppLayout'
-import { AdminRoute, ProtectedRoute } from './routes/ProtectedRoute'
+import { AdminRoute, MembersRoute, ProtectedRoute } from './routes/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
 import ProductsPage from './pages/ProductsPage'
 import ErrorBoundary from './components/feedback/ErrorBoundary'
@@ -30,10 +30,12 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route index element={<ProductsPage />} />
               <Route path="products" element={<ProductsPage />} />
-              <Route path="debts" element={<DebtsPage />} />
               <Route path="shopping-list" element={<ShoppingListPage />} />
-              <Route path="cash" element={<CashPage />} />
-              <Route path="movements" element={<HistoryPage />} />
+              <Route element={<MembersRoute />}>
+                <Route path="debts" element={<DebtsPage />} />
+                <Route path="cash" element={<CashPage />} />
+                <Route path="movements" element={<HistoryPage />} />
+              </Route>
               <Route element={<AdminRoute />}>
                 <Route path="admin/users" element={<UsersPage />} />
                 <Route path="admin/management" element={<ManagementPage />} />

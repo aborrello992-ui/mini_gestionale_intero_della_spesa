@@ -21,8 +21,7 @@ export default function LoginPage() {
   useEffect(() => {
     api.get('/members').then(({ data }) => {
       setMembers(data)
-      const admin = data.find((member) => member.role === 'admin')
-      if (admin) setForm((current) => ({ ...current, member_id: String(admin.id) }))
+      if (data.length === 1) setForm((current) => ({ ...current, member_id: String(data[0].id) }))
     }).catch((err) => setError(errorMessage(err)))
   }, [])
 
@@ -43,6 +42,9 @@ export default function LoginPage() {
       await play(async () => {
         const { data } = await api.post('/guest')
         localStorage.setItem('auth_token', data.token)
+        // Il PIN generato viene mostrato con l'animazione appena si entra.
+        sessionStorage.setItem('guest_pin', data.pin)
+        sessionStorage.setItem('guest_pin_reveal', '1')
       }, () => { window.location.href = '/products' })
     } catch (err) {
       setError(errorMessage(err))
@@ -73,25 +75,25 @@ export default function LoginPage() {
           <span className="brand-mark"><Store size={22} /></span>
           <h1>Gestionale Locale</h1>
           <p className="login-tagline mb-0" aria-hidden="true">Press start</p>
-          <p className="text-muted-app mb-0">Usa l’accesso ospite sul dispositivo condiviso oppure entra in area amministratore con il PIN personale.</p>
+          <p className="text-muted-app mb-0">Sei di passaggio? Entra come ospite e ricevi il tuo PIN. Sei un socio? Entra con il tuo nome e il tuo PIN.</p>
         </div>
         <AlertMessage>{error}</AlertMessage>
         {!showAdmin && <>
           <button className="btn btn-primary btn-lg w-100" type="button" onClick={guestLogin} disabled={playing}><UserRound size={19} /> Entra come ospite</button>
-          <button className="btn btn-outline-secondary btn-lg w-100 mt-2" type="button" onClick={() => setShowAdmin(true)} disabled={playing}><ShieldCheck size={19} /> Area amministratore</button>
+          <button className="btn btn-outline-secondary btn-lg w-100 mt-2" type="button" onClick={() => setShowAdmin(true)} disabled={playing}><ShieldCheck size={19} /> Area socio / amministratore</button>
         </>}
         {showAdmin && <form className="stack-md" onSubmit={adminLogin}>
-          <FormField label="Amministratore" htmlFor="login-admin">
+          <FormField label="Chi sei?" htmlFor="login-admin">
             <select id="login-admin" className="form-select form-select-lg" value={form.member_id} onChange={(e) => setForm({ ...form, member_id: e.target.value })}>
-              <option value="">Scegli amministratore</option>
-              {members.filter((member) => member.role === 'admin').map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+              <option value="">Scegli il tuo nome</option>
+              {members.map((member) => <option key={member.id} value={member.id}>{member.name}{member.role === 'admin' ? ' · amministratore' : ''}</option>)}
             </select>
           </FormField>
           <FormField label="PIN personale" help="3 cifre. Il PIN non viene salvato nel browser." htmlFor="login-pin">
             <input id="login-pin" className="form-control form-control-lg pin-input" type="password" inputMode="numeric" maxLength="3" autoComplete="one-time-code" value={form.pin} onChange={(e) => setForm({ ...form, pin: e.target.value.replace(/\D/g, '').slice(0, 3) })} />
           </FormField>
-          <button className="btn btn-primary btn-lg w-100" disabled={playing || !form.member_id || form.pin.length !== 3}><ShieldCheck size={19} /> Entra in area amministratore</button>
-          <button className="btn btn-link w-100 mt-2" type="button" onClick={() => setShowAdmin(false)} disabled={playing}>Torna all’accesso ospite</button>
+          <button className="btn btn-primary btn-lg w-100" disabled={playing || !form.member_id || form.pin.length !== 3}><ShieldCheck size={19} /> Entra</button>
+          <button className="btn btn-link w-100 mt-2" type="button" onClick={() => setShowAdmin(false)} disabled={playing}>Torna indietro</button>
         </form>}
       </div>
       {overlay}

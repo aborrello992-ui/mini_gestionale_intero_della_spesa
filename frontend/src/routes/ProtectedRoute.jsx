@@ -12,3 +12,9 @@ export function AdminRoute() {
   const { isAdmin } = useAuth()
   return isAdmin ? <Outlet /> : <Navigate to="/" replace />
 }
+
+/** Debiti, cassa e storico non sono visibili agli ospiti esterni. */
+export function MembersRoute() {
+  const { isGuest } = useAuth()
+  return isGuest ? <Navigate to="/" replace /> : <Outlet />
+}

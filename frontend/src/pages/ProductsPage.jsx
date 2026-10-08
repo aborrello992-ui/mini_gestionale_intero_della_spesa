@@ -13,6 +13,7 @@ import UserAvatar from '../components/ui/UserAvatar'
 import StatusBadge from '../components/ui/StatusBadge'
 import { stockLevel } from '../utils/stock'
 import CheckoutModal from '../components/CheckoutModal'
+import { useAuth } from '../hooks/useAuth'
 
 export default function ProductsPage() {
   const [products, setProducts] = useState(null)
@@ -23,6 +24,7 @@ export default function ProductsPage() {
   const [selected, setSelected] = useState(null)
   const [takeForm, setTakeForm] = useState({ member_id: '', pin: '', quantity: 1, notes: '' })
   const [message, setMessage] = useState('')
+  const { user, isPersonal, isGuest } = useAuth()
   const [combos, setCombos] = useState([])
   const [allProducts, setAllProducts] = useState([])
   const [checkout, setCheckout] = useState(null)
@@ -51,7 +53,7 @@ export default function ProductsPage() {
   const emptyProducts = useMemo(() => (products || []).filter((product) => Number(product.current_quantity || 0) <= 0), [products])
 
   useEffect(() => {
-    Promise.all([api.get('/categories'), api.get('/members')])
+    Promise.all([api.get('/categories'), api.get('/members?include_guests=1')])
       .then(([categoriesResponse, membersResponse]) => { setCategories(categoriesResponse.data); setMembers(membersResponse.data) })
       .catch((err) => setMessage(errorMessage(err)))
   }, [])
@@ -78,8 +80,9 @@ export default function ProductsPage() {
     try {
       const { data } = await api.post('/withdrawals', {
         product_id: selected.id,
-        member_id: takeForm.member_id,
-        pin: takeForm.pin,
+        // Chi è entrato con il proprio PIN preleva per sé senza ridigitarlo.
+        member_id: isPersonal ? user.id : takeForm.member_id,
+        pin: isPersonal ? undefined : takeForm.pin,
         quantity: takeForm.quantity,
         payment_status: paymentStatus,
         notes: takeForm.notes,
@@ -117,7 +120,7 @@ export default function ProductsPage() {
     )
   }
 
-  const canSubmit = selected && takeForm.member_id && takeForm.pin.length === 3 && Number(takeForm.quantity) >= 1
+  const canSubmit = selected && (isPersonal || (takeForm.member_id && takeForm.pin.length === 3)) && Number(takeForm.quantity) >= 1
 
   return (
     <section>
@@ -198,6 +201,9 @@ export default function ProductsPage() {
               <p className="text-muted-app mb-0">{money(selected.selling_price_cents)} cad. · disponibili {quantity(selected.current_quantity, selected.unit)}</p>
             </div>
 
+            {isPersonal
+              ? <div className="summary-box split"><span>Prendi come <strong>{user.name}</strong></span><UserAvatar name={user.name} size="sm" /></div>
+              : <>
             <FormField label="Membro">
               <div className="member-grid">
                 {members.map((member) => (
@@ -214,9 +220,11 @@ export default function ProductsPage() {
               </div>
             </FormField>
 
-            <FormField label="PIN personale" help="Inserisci 3 cifre. Il PIN non viene mostrato.">
+                <FormField label="PIN personale" help="Inserisci 3 cifre. Il PIN non viene mostrato.">
               <input className="form-control form-control-lg pin-input" inputMode="numeric" type="password" maxLength="3" autoComplete="one-time-code" value={takeForm.pin} onChange={(e) => setTakeForm({ ...takeForm, pin: e.target.value.replace(/\D/g, '').slice(0, 3) })} />
             </FormField>
+
+              </>}
 
             <FormField label="Quantità" help={`Massimo disponibile: ${quantity(selected.current_quantity, selected.unit)}`}>
               <div className="quantity-stepper">
@@ -237,9 +245,9 @@ export default function ProductsPage() {
               <button className="btn btn-success btn-lg choice-button" disabled={!canSubmit} onClick={() => take('paid')}>
                 <CheckCircle2 size={20} /> Pagato <small>Incassa subito</small>
               </button>
-              <button className="btn btn-warning btn-lg choice-button" disabled={!canSubmit} onClick={() => take('coppone')}>
+              {!isGuest && <button className="btn btn-warning btn-lg choice-button" disabled={!canSubmit} onClick={() => take('coppone')}>
                 <AlertTriangle size={20} /> Coppone <small>Aggiungi al debito</small>
-              </button>
+              </button>}
             </div>
             <button type="button" className="btn btn-outline-primary w-100" onClick={() => openCheckout([{ product_id: selected.id, quantity: Number(takeForm.quantity) || 1 }], 2)}><Users size={17} /> Dividi con un amico</button>
           </div>

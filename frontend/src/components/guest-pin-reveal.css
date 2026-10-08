@@ -1,0 +1,160 @@
+.gp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: radial-gradient(circle at 50% 45%, #2a0d0f 0, #0e1020 70%);
+  overflow: hidden;
+  animation: gp-fade 0.2s ease-out both;
+}
+
+.gp-stage {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  width: min(100%, 460px);
+  text-align: center;
+  animation: gp-shake 0.45s linear 0.35s both;
+}
+
+/* Raggi che ruotano dietro al PIN */
+.gp-rays {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 760px;
+  height: 760px;
+  margin: -380px 0 0 -380px;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 194, 26, 0.22) 0 8deg, transparent 8deg 22deg);
+  mask-image: radial-gradient(circle, #000 0 28%, transparent 62%);
+  animation: gp-rays 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both, gp-spin 14s linear 0.6s infinite;
+  pointer-events: none;
+}
+
+/* Onda d'urto */
+.gp-ring {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  border: 6px solid #ffc21a;
+  border-radius: 50%;
+  opacity: 0;
+  animation: gp-ring 0.7s ease-out 0.3s both;
+  pointer-events: none;
+}
+
+/* Scintille */
+.gp-sparks {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  pointer-events: none;
+}
+
+.gp-sparks i {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px;
+  background: #ffc21a;
+  box-shadow: 0 0 10px #ff7a1a;
+  transform: rotate(var(--a)) translateY(0) scale(0);
+  animation: gp-spark 0.75s cubic-bezier(0.1, 0.7, 0.3, 1) 0.3s both;
+}
+
+.gp-sparks i:nth-child(3n) {
+  background: #d62839;
+}
+
+.gp-label {
+  position: relative;
+  margin: 0;
+  color: #ffc21a;
+  font-family: var(--font-condensed);
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  animation: gp-drop 0.35s ease-out both;
+}
+
+.gp-pin {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.gp-pin span {
+  display: grid;
+  place-items: center;
+  width: clamp(76px, 22vw, 108px);
+  height: clamp(96px, 28vw, 136px);
+  background: linear-gradient(180deg, #ffffff, #ffe9a8);
+  color: #d62839;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(3.6rem, 13vw, 5.4rem);
+  line-height: 1;
+  border: 4px solid #0e1020;
+  border-radius: 6px;
+  box-shadow: 5px 5px 0 #d62839, 0 0 30px rgba(255, 194, 26, 0.6);
+  transform: skewX(-8deg);
+  animation: gp-slam 0.42s cubic-bezier(0.2, 1.4, 0.4, 1) calc(0.25s + var(--i) * 0.14s) both;
+}
+
+.gp-help {
+  position: relative;
+  max-width: 360px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  animation: gp-fade 0.4s ease-out 0.8s both;
+}
+
+.gp-actions {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  animation: gp-fade 0.4s ease-out 0.9s both;
+}
+
+@keyframes gp-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes gp-drop { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: none; } }
+@keyframes gp-rays { from { transform: scale(0.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes gp-spin { to { transform: rotate(360deg); } }
+@keyframes gp-ring { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(14); } }
+@keyframes gp-spark {
+  0% { transform: rotate(var(--a)) translateY(0) scale(0); opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: rotate(var(--a)) translateY(calc(-1 * var(--d))) scale(1); opacity: 0; }
+}
+@keyframes gp-slam {
+  0% { opacity: 0; transform: skewX(-8deg) scale(3.2) rotate(-12deg); filter: blur(6px); }
+  60% { opacity: 1; transform: skewX(-8deg) scale(0.9) rotate(2deg); filter: blur(0); }
+  100% { opacity: 1; transform: skewX(-8deg) scale(1) rotate(0); }
+}
+@keyframes gp-shake {
+  0%, 100% { translate: 0 0; }
+  20% { translate: -8px 5px; }
+  40% { translate: 7px -6px; }
+  60% { translate: -5px -3px; }
+  80% { translate: 4px 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gp-overlay, .gp-overlay * { animation: none !important; }
+  .gp-ring, .gp-sparks { display: none; }
+}

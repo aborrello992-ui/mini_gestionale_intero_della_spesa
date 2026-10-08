@@ -1438,3 +1438,7 @@ legend.form-label {
   width: 200%;
   cursor: zoom-out;
 }
+
+.choice-grid > :only-child {
+  grid-column: 1 / -1;
+}

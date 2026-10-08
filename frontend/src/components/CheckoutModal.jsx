@@ -4,6 +4,7 @@ import api from '../api/client'
 import AppModal from './ui/AppModal'
 import AlertMessage from './AlertMessage'
 import { errorMessage, money, quantity as formatQuantity } from '../utils/format'
+import { useAuth } from '../hooks/useAuth'
 
 const MAX_PEOPLE = 6
 const emptyPerson = () => ({ member_id: '', pin: '', payment_status: 'coppone' })
@@ -20,8 +21,13 @@ function splitCents(total, count) {
  */
 export default function CheckoutModal({ members, products, combos, initialLines = [], initialPeople = 2, onClose, onDone }) {
   const fieldId = useId()
+  const { user, isPersonal, isGuest } = useAuth()
   const [lines, setLines] = useState(initialLines)
-  const [people, setPeople] = useState(() => Array.from({ length: initialPeople }, emptyPerson))
+  // Chi è entrato con il proprio PIN è già la prima persona: non lo ridigita.
+  const [people, setPeople] = useState(() => {
+    const others = Array.from({ length: Math.max(0, initialPeople - (isPersonal ? 1 : 0)) }, emptyPerson)
+    return isPersonal ? [{ member_id: String(user.id), pin: '', payment_status: isGuest ? 'paid' : 'coppone', self: true }, ...others] : others.length ? others : [emptyPerson()]
+  })
   const [picker, setPicker] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -41,7 +47,8 @@ export default function CheckoutModal({ members, products, combos, initialLines 
   const shares = splitCents(total, people.length)
   const chosen = new Set(people.map((person) => String(person.member_id)).filter(Boolean))
   const overStock = detailed.find((line) => line.quantity > line.available)
-  const ready = lines.length > 0 && people.every((person) => person.member_id && /^\d{3}$/.test(person.pin)) && !overStock
+  const isGuestMember = (memberId) => members.find((member) => String(member.id) === String(memberId))?.role === 'guest' || (isGuest && String(memberId) === String(user?.id))
+  const ready = lines.length > 0 && people.every((person) => person.member_id && (person.self || /^\d{3}$/.test(person.pin))) && !overStock
 
   function addLine(value) {
     setPicker('')
@@ -70,7 +77,7 @@ export default function CheckoutModal({ members, products, combos, initialLines 
     try {
       const { data } = await api.post('/sales', {
         items: lines.map((line) => (line.combo_id ? { combo_id: line.combo_id, quantity: line.quantity } : { product_id: line.product_id, quantity: line.quantity })),
-        participants: people.map((person) => ({ member_id: Number(person.member_id), pin: person.pin, payment_status: person.payment_status })),
+        participants: people.map((person) => ({ member_id: Number(person.member_id), ...(person.self ? {} : { pin: person.pin }), payment_status: isGuestMember(person.member_id) ? 'paid' : person.payment_status })),
       })
       onDone?.(data)
     } catch (err) {
@@ -119,14 +126,17 @@ export default function CheckoutModal({ members, products, combos, initialLines 
               <div className="split">
                 <span className="player-tag">{index + 1}P</span>
                 <strong className="num">{money(shares[index] || 0)}</strong>
-                {people.length > 1 && <button type="button" className="btn btn-sm btn-outline-secondary ms-auto" onClick={() => setPeople(people.filter((_, i) => i !== index))} aria-label={`Togli persona ${index + 1}`}><Trash2 size={15} /></button>}
+                {people.length > 1 && !person.self && <button type="button" className="btn btn-sm btn-outline-secondary ms-auto" onClick={() => setPeople(people.filter((_, i) => i !== index))} aria-label={`Togli persona ${index + 1}`}><Trash2 size={15} /></button>}
               </div>
+              {person.self
+                ? <div className="small">Sei tu: <strong>{user.name}</strong> · nessun PIN da inserire</div>
+                : <>
               <div className="restock-two">
                 <div>
                   <label className="form-label" htmlFor={`${fieldId}-m${index}`}>Nome</label>
                   <select id={`${fieldId}-m${index}`} className="form-select" value={person.member_id} onChange={(e) => updatePerson(index, { member_id: e.target.value })} required>
                     <option value="">Chi sei?</option>
-                    {members.filter((member) => String(member.id) === String(person.member_id) || !chosen.has(String(member.id))).map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+                    {members.filter((member) => String(member.id) === String(person.member_id) || !chosen.has(String(member.id))).map((member) => <option key={member.id} value={member.id}>{member.name}{member.role === 'guest' ? ' (ospite)' : ''}</option>)}
                   </select>
                 </div>
                 <div>
@@ -134,9 +144,10 @@ export default function CheckoutModal({ members, products, combos, initialLines 
                   <input id={`${fieldId}-p${index}`} className="form-control pin-input" type="password" inputMode="numeric" autoComplete="off" maxLength="3" value={person.pin} onChange={(e) => updatePerson(index, { pin: e.target.value.replace(/\D/g, '').slice(0, 3) })} required />
                 </div>
               </div>
+                </>}
               <div className="segmented" role="group" aria-label={`Pagamento persona ${index + 1}`}>
-                <button type="button" className={`btn ${person.payment_status === 'paid' ? 'btn-success' : 'btn-outline-secondary'}`} aria-pressed={person.payment_status === 'paid'} onClick={() => updatePerson(index, { payment_status: 'paid' })}>Pagato</button>
-                <button type="button" className={`btn ${person.payment_status === 'coppone' ? 'btn-warning' : 'btn-outline-secondary'}`} aria-pressed={person.payment_status === 'coppone'} onClick={() => updatePerson(index, { payment_status: 'coppone' })}>Coppone</button>
+                <button type="button" className={`btn ${person.payment_status === 'paid' || isGuestMember(person.member_id) ? 'btn-success' : 'btn-outline-secondary'}`} aria-pressed={person.payment_status === 'paid' || isGuestMember(person.member_id)} onClick={() => updatePerson(index, { payment_status: 'paid' })}>{isGuestMember(person.member_id) ? 'Pagato (ospite)' : 'Pagato'}</button>
+                {!isGuestMember(person.member_id) && <button type="button" className={`btn ${person.payment_status === 'coppone' ? 'btn-warning' : 'btn-outline-secondary'}`} aria-pressed={person.payment_status === 'coppone'} onClick={() => updatePerson(index, { payment_status: 'coppone' })}>Coppone</button>}
               </div>
             </fieldset>
           ))}
@@ -147,7 +158,7 @@ export default function CheckoutModal({ members, products, combos, initialLines 
           <span>Totale{people.length > 1 ? ` · ${money(shares[0] || 0)} a testa circa` : ''}</span>
           <strong className="h4 mb-0 num">{money(total)}</strong>
         </div>
-        <button className="btn btn-primary btn-lg" disabled={!ready || saving}>{saving ? 'Registrazione…' : people.length > 1 ? `Conferma (${people.length} PIN)` : 'Conferma'}</button>
+        <button className="btn btn-primary btn-lg" disabled={!ready || saving}>{saving ? 'Registrazione…' : people.filter((person) => !person.self).length ? `Conferma (${people.filter((person) => !person.self).length} PIN)` : 'Conferma'}</button>
       </form>
     </AppModal>
   )

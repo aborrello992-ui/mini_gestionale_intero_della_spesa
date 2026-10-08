@@ -15,6 +15,9 @@ export function AuthProvider({ children }) {
     user,
     loading,
     isAdmin: user?.role === 'admin',
+    isGuest: user?.role === 'guest',
+    // Entrato con il proprio PIN: preleva per se stesso senza ridigitarlo.
+    isPersonal: ['admin', 'member', 'guest'].includes(user?.role),
     async login(credentials) {
       const { data } = await api.post('/login', credentials)
       localStorage.setItem('auth_token', data.token)
@@ -25,6 +28,8 @@ export function AuthProvider({ children }) {
         await api.post('/logout')
       } finally {
         localStorage.removeItem('auth_token')
+        sessionStorage.removeItem('guest_pin')
+        sessionStorage.removeItem('guest_pin_reveal')
         setUser(null)
       }
     },
