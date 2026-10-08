@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useState } from 'react'
-import { ArrowRightLeft, Plus } from 'lucide-react'
+import { ArrowRightLeft, Ban, Plus, Repeat } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from './AlertMessage'
 import AppModal from './ui/AppModal'
@@ -24,6 +24,30 @@ function effectPreview(withdrawal, newMember) {
   return lines
 }
 
+// Cosa succede correggendo Pagato/Coppone o annullando: mostrato prima di confermare.
+function fixPreview(withdrawal, mode) {
+  const who = withdrawal.member?.name || 'il socio'
+  const total = Number(withdrawal.total_amount_cents || 0)
+  const debt = activeDebt(withdrawal)
+  const paid = Number(debt?.paid_amount_cents || 0)
+  const missing = Number(debt?.remaining_amount_cents ?? total)
+  if (mode === 'payment') {
+    if (withdrawal.payment_status === 'paid') return [`L'entrata di ${money(total)} esce dalla cassa.`, `A ${who} nasce un coppone di ${money(total)}.`, 'Il magazzino non cambia.']
+    const lines = [`Il coppone di ${who} si chiude.`, `Entrano in cassa ${money(missing)}.`]
+    if (paid > 0) lines.push(`${money(paid)} erano già stati versati: non vengono contati due volte.`)
+    lines.push('Il magazzino non cambia.')
+    return lines
+  }
+  const lines = [`${quantity(withdrawal.quantity, withdrawal.product?.unit)} di ${withdrawal.product?.name} ${withdrawal.affects_stock === false ? 'non tornano in magazzino (non era stato scalato).' : 'tornano in magazzino.'}`]
+  if (withdrawal.payment_status === 'paid') lines.push(`L'entrata di ${money(total)} esce dalla cassa.`)
+  else {
+    lines.push(`Il coppone di ${who} si chiude.`)
+    if (paid > 0) lines.push(`${money(paid)} già versati tornano a ${who} come credito (usato subito per eventuali altri copponi).`)
+  }
+  lines.push('Il prelievo resta nello storico come annullato.')
+  return lines
+}
+
 export default function WithdrawalReassignPanel({ members, onChanged }) {
   const fieldId = useId()
   const [rows, setRows] = useState([])
@@ -32,6 +56,9 @@ export default function WithdrawalReassignPanel({ members, onChanged }) {
   const [message, setMessage] = useState({ type: 'success', text: '' })
   const [reassign, setReassign] = useState(null)
   const [reassignForm, setReassignForm] = useState({ member_id: '', reason: '' })
+  // Correzione Pagato/Coppone o annullamento: { row, mode: 'payment' | 'cancel' }
+  const [fix, setFix] = useState(null)
+  const [fixReason, setFixReason] = useState('')
   const [manualOpen, setManualOpen] = useState(false)
   const emptyManual = () => ({ member_id: '', product_id: '', quantity: '1', payment_status: 'coppone', withdrawn_date: localDate(), withdrawn_time: localTime(), affects_stock: true, notes: '' })
   const [manual, setManual] = useState(emptyManual)
@@ -56,6 +83,25 @@ export default function WithdrawalReassignPanel({ members, onChanged }) {
       await api.post(`/withdrawals/${reassign.id}/reassign`, reassignForm)
       setMessage({ type: 'success', text: 'Prelievo riassegnato.' })
       setReassign(null)
+      load()
+      onChanged?.()
+    } catch (err) { setMessage({ type: 'danger', text: errorMessage(err) }) } finally { setSaving(false) }
+  }
+
+  async function submitFix(event) {
+    event.preventDefault()
+    if (saving) return
+    setSaving(true)
+    try {
+      if (fix.mode === 'payment') {
+        const next = fix.row.payment_status === 'paid' ? 'coppone' : 'paid'
+        await api.post(`/withdrawals/${fix.row.id}/payment`, { payment_status: next, reason: fixReason })
+        setMessage({ type: 'success', text: next === 'paid' ? 'Corretto in Pagato.' : 'Corretto in Coppone.' })
+      } else {
+        await api.post(`/withdrawals/${fix.row.id}/cancel`, { reason: fixReason })
+        setMessage({ type: 'success', text: 'Prelievo annullato.' })
+      }
+      setFix(null)
       load()
       onChanged?.()
     } catch (err) { setMessage({ type: 'danger', text: errorMessage(err) }) } finally { setSaving(false) }
@@ -96,6 +142,8 @@ export default function WithdrawalReassignPanel({ members, onChanged }) {
               <strong className="text-break">{row.product?.name}</strong> · {quantity(row.quantity, row.product?.unit)}
               <div className="small text-muted-app">{row.member?.name} · {dateTime(row.withdrawn_at)}</div>
               {row.reassigned_at && <div className="small text-muted-app">Riassegnato da {row.original_member?.name || '-'}: {row.reassign_reason}</div>}
+              {row.payment_corrected_at && <div className="small text-muted-app">Pagamento corretto il {dateTime(row.payment_corrected_at)}: {row.payment_correction_reason}</div>}
+              {row.cancelled_at && <div className="small text-muted-app">Annullato il {dateTime(row.cancelled_at)}: {row.cancel_reason}</div>}
             </div>
             <div className="text-end">
               <strong className="num d-block">{money(row.total_amount_cents)}</strong>
@@ -106,7 +154,11 @@ export default function WithdrawalReassignPanel({ members, onChanged }) {
             {row.is_manual && <StatusBadge tone="info">Inserito a mano</StatusBadge>}
             {row.status !== 'active' && <StatusBadge status="annullato" />}
           </div>
-          {row.status === 'active' && <button type="button" className="btn btn-outline-primary" onClick={() => { setReassign(row); setReassignForm({ member_id: '', reason: '' }) }}><ArrowRightLeft size={17} /> Riassegna</button>}
+          {row.status === 'active' && row.payment_status !== 'pending' && <div className="withdrawal-actions">
+            <button type="button" className="btn btn-outline-primary" onClick={() => { setReassign(row); setReassignForm({ member_id: '', reason: '' }) }}><ArrowRightLeft size={17} /> Riassegna</button>
+            <button type="button" className="btn btn-outline-secondary" onClick={() => { setFix({ row, mode: 'payment' }); setFixReason('') }}><Repeat size={17} /> {row.payment_status === 'paid' ? 'Era Coppone' : 'Era Pagato'}</button>
+            <button type="button" className="btn btn-outline-danger" onClick={() => { setFix({ row, mode: 'cancel' }); setFixReason('') }}><Ban size={17} /> Annulla</button>
+          </div>}
         </div>
       ))}</div> : <p className="text-muted-app">Nessun prelievo con questi filtri.</p>}
 
@@ -116,6 +168,19 @@ export default function WithdrawalReassignPanel({ members, onChanged }) {
           <FormField label="Motivo" htmlFor={`${fieldId}-rr`}><input id={`${fieldId}-rr`} className="form-control" minLength={3} maxLength={255} value={reassignForm.reason} onChange={(e) => setReassignForm({ ...reassignForm, reason: e.target.value })} required placeholder="Es. preso per errore col nome sbagliato" /></FormField>
           {selectedMember && <div className="summary-box stack-sm" aria-live="polite">{effectPreview(reassign, selectedMember).map((line) => <div key={line}>{line}</div>)}</div>}
           <button className="btn btn-primary btn-lg" disabled={saving || !reassignForm.member_id || reassignForm.reason.trim().length < 3}>{saving ? 'Attendi…' : 'Conferma riassegnazione'}</button>
+        </form>
+      </AppModal>}
+
+      {fix && <AppModal
+        title={fix.mode === 'cancel' ? 'Annulla prelievo' : (fix.row.payment_status === 'paid' ? 'Correggi in Coppone' : 'Correggi in Pagato')}
+        subtitle={`${fix.row.product?.name} · ${money(fix.row.total_amount_cents)} · ${fix.row.member?.name}`}
+        onClose={() => !saving && setFix(null)} labelledBy="fix-title">
+        <form className="stack-md" onSubmit={submitFix}>
+          <FormField label="Motivo" htmlFor={`${fieldId}-xr`}><input id={`${fieldId}-xr`} className="form-control" minLength={3} maxLength={255} value={fixReason} onChange={(e) => setFixReason(e.target.value)} required placeholder={fix.mode === 'cancel' ? 'Es. toccato per sbaglio, non ha preso niente' : 'Es. ha premuto il pulsante sbagliato'} /></FormField>
+          <div className="summary-box stack-sm" aria-live="polite">{fixPreview(fix.row, fix.mode).map((line) => <div key={line}>{line}</div>)}</div>
+          <button className={`btn btn-lg ${fix.mode === 'cancel' ? 'btn-danger' : 'btn-primary'}`} disabled={saving || fixReason.trim().length < 3}>
+            {saving ? 'Attendi…' : fix.mode === 'cancel' ? 'Conferma annullamento' : 'Conferma correzione'}
+          </button>
         </form>
       </AppModal>}
 

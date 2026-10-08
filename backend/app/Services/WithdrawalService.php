@@ -239,6 +239,209 @@ class WithdrawalService
     }
 
     /**
+     * Corregge Pagato <-> Coppone quando qualcuno ha premuto il pulsante sbagliato. Il magazzino non cambia.
+     * Pagato -> Coppone: l'entrata in cassa viene stornata e nasce il debito.
+     * Coppone -> Pagato: il debito si chiude ed entra in cassa solo la parte non ancora versata.
+     */
+    public function correctPayment(Withdrawal $withdrawal, string $newStatus, User $admin, string $reason): Withdrawal
+    {
+        if (! in_array($newStatus, ['paid', 'coppone'], true)) {
+            throw new RuntimeException('Modalità di pagamento non valida.');
+        }
+
+        return DB::transaction(function () use ($withdrawal, $newStatus, $admin, $reason) {
+            $locked = $this->lockEditable($withdrawal);
+            if ($locked->payment_status === $newStatus) {
+                throw new RuntimeException('Il prelievo è già segnato così.');
+            }
+
+            $member = User::query()->findOrFail($locked->user_id);
+            $total = (int) $locked->total_amount_cents;
+            $label = $this->label($locked);
+            $effect = [];
+
+            if ($newStatus === 'coppone') {
+                $cash = CashMovement::query()->where('withdrawal_id', $locked->id)->where('type', 'prodotto_pagato')->where('status', 'active')->get();
+                foreach ($cash as $movement) {
+                    $this->cashService->reverse($movement, $admin)->update(['note' => "Corretto da pagato a coppone: {$reason}", 'withdrawal_id' => $locked->id]);
+                }
+                if ($total > 0) {
+                    MemberDebt::create([
+                        'withdrawal_id' => $locked->id,
+                        'user_id' => $member->id,
+                        'original_amount_cents' => $total,
+                        'remaining_amount_cents' => $total,
+                        'notes' => "Corretto da pagato a coppone: {$reason}",
+                    ]);
+                }
+                $effect = ['cash_reversed_cents' => (int) $cash->sum('amount_cents'), 'debt_cents' => $total];
+            } else {
+                $debt = $this->activeDebt($locked);
+                $missing = $debt ? (int) $debt->remaining_amount_cents : 0;
+                if ($debt) {
+                    $debt->update([
+                        'paid_amount_cents' => (int) $debt->paid_amount_cents + $missing,
+                        'remaining_amount_cents' => 0,
+                        'status' => 'settled',
+                        'notes' => trim(($debt->notes ? $debt->notes.' | ' : '')."Corretto da coppone a pagato: {$reason}"),
+                    ]);
+                }
+                if ($missing > 0) {
+                    $this->cashService->createFromCents([
+                        'amount_cents' => $missing,
+                        'direction' => 'entrata',
+                        'type' => 'prodotto_pagato',
+                        'category' => 'prodotti',
+                        'description' => "Pagamento {$label} (corretto da coppone)",
+                        'movement_date' => now()->toDateString(),
+                        'movement_time' => now()->format('H:i:s'),
+                        'member_id' => $member->id,
+                        'product_id' => $locked->product_id,
+                        'withdrawal_id' => $locked->id,
+                        'note' => $reason,
+                    ], $admin);
+                }
+                $effect = ['cash_in_cents' => $missing, 'debt_closed_id' => $debt?->id];
+            }
+
+            $locked->update([
+                'payment_status' => $newStatus,
+                'payment_corrected_at' => now(),
+                'payment_corrected_by' => $admin->id,
+                'payment_correction_reason' => $reason,
+            ]);
+            InventoryMovement::query()->where('withdrawal_id', $locked->id)->whereIn('type', ['prelievo_pagato', 'prelievo_coppone'])
+                ->update(['type' => $newStatus === 'paid' ? 'prelievo_pagato' : 'prelievo_coppone']);
+
+            $this->audit($admin, $member, 'withdrawal_payment_corrected', $locked, $reason, ['to' => $newStatus, ...$effect]);
+            $this->debtService->applyWalletCreditToOpenDebts($member, $admin, 'Credito usato dopo correzione prelievo');
+
+            return $this->fresh($locked);
+        });
+    }
+
+    /**
+     * Annulla un prelievo fatto per sbaglio. Non cancella nulla: aggiunge movimenti di correzione.
+     * Il prodotto torna in magazzino, l'entrata in cassa viene stornata oppure il coppone si chiude;
+     * quanto già versato sul coppone torna al socio come credito.
+     */
+    public function cancel(Withdrawal $withdrawal, User $admin, string $reason): Withdrawal
+    {
+        return DB::transaction(function () use ($withdrawal, $admin, $reason) {
+            $locked = $this->lockEditable($withdrawal);
+            $member = User::query()->findOrFail($locked->user_id);
+            $effect = ['stock_returned' => 0, 'cash_reversed_cents' => 0, 'credit_returned_cents' => 0];
+
+            // Magazzino: il prodotto torna disponibile.
+            $movements = InventoryMovement::query()->where('withdrawal_id', $locked->id)->where('status', 'active')
+                ->whereIn('type', InventoryMovement::WITHDRAWAL_TYPES)->get();
+            foreach ($movements as $movement) {
+                $product = Product::query()->whereKey($movement->product_id)->lockForUpdate()->firstOrFail();
+                $previous = (float) $product->current_quantity;
+                $back = $locked->affects_stock ? (float) $movement->quantity : 0.0;
+                $product->update(['current_quantity' => $previous + $back]);
+                $movement->update(['status' => 'reversed']);
+                InventoryMovement::create([
+                    'product_id' => $product->id,
+                    'user_id' => $admin->id,
+                    'withdrawal_id' => $locked->id,
+                    'reverses_movement_id' => $movement->id,
+                    'type' => 'annullamento',
+                    'quantity' => $back,
+                    'previous_quantity' => $previous,
+                    'resulting_quantity' => $previous + $back,
+                    'note' => "Prelievo #{$locked->id} annullato: {$reason}",
+                ]);
+                $effect['stock_returned'] += $back;
+            }
+
+            // Pagato: l'entrata in cassa viene stornata.
+            foreach (CashMovement::query()->where('withdrawal_id', $locked->id)->where('type', 'prodotto_pagato')->where('status', 'active')->get() as $cash) {
+                $this->cashService->reverse($cash, $admin)->update(['note' => "Prelievo annullato: {$reason}", 'withdrawal_id' => $locked->id]);
+                $effect['cash_reversed_cents'] += (int) $cash->amount_cents;
+            }
+
+            // Coppone: il debito si chiude; quanto già versato torna come credito.
+            $debt = $this->activeDebt($locked);
+            if ($debt) {
+                $paid = (int) $debt->paid_amount_cents;
+                $debt->update([
+                    'status' => 'cancelled',
+                    'remaining_amount_cents' => 0,
+                    'notes' => trim(($debt->notes ? $debt->notes.' | ' : '')."Prelievo annullato: {$reason}"),
+                ]);
+                if ($paid > 0) {
+                    // Il denaro e gia in cassa: il credito restituito non cambia il saldo reale.
+                    $this->cashService->createFromCents([
+                        'amount_cents' => $paid,
+                        'direction' => 'entrata',
+                        'type' => DebtService::REASSIGNMENT_CREDIT_TYPE,
+                        'category' => 'portafoglio',
+                        'description' => "Credito per prelievo #{$locked->id} annullato",
+                        'movement_date' => now()->toDateString(),
+                        'movement_time' => now()->format('H:i:s'),
+                        'member_id' => $member->id,
+                        'withdrawal_id' => $locked->id,
+                        'note' => $reason,
+                        'affects_current_balance' => false,
+                    ], $admin);
+                    $effect['credit_returned_cents'] = $paid;
+                }
+            }
+
+            $locked->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+                'cancelled_by' => $admin->id,
+                'cancel_reason' => $reason,
+            ]);
+
+            $this->audit($admin, $member, 'withdrawal_cancelled', $locked, $reason, $effect);
+            $this->debtService->applyWalletCreditToOpenDebts($member, $admin, 'Credito usato dopo annullamento prelievo');
+
+            return $this->fresh($locked);
+        });
+    }
+
+    private function lockEditable(Withdrawal $withdrawal): Withdrawal
+    {
+        $locked = Withdrawal::query()->whereKey($withdrawal->id)->lockForUpdate()->firstOrFail();
+        if ($locked->status !== 'active') {
+            throw new RuntimeException('Questo prelievo è già stato annullato.');
+        }
+        if ($locked->payment_status === Withdrawal::PAYMENT_PENDING) {
+            throw new RuntimeException('Prima verifica il pagamento dell\'ospite in Gestione › Incassi ospiti.');
+        }
+
+        return $locked;
+    }
+
+    private function activeDebt(Withdrawal $withdrawal): ?MemberDebt
+    {
+        return MemberDebt::query()->where('withdrawal_id', $withdrawal->id)->whereIn('status', ['open', 'settled'])->lockForUpdate()->first();
+    }
+
+    private function label(Withdrawal $withdrawal): string
+    {
+        return (string) (Product::query()->whereKey($withdrawal->product_id)->value('name') ?? 'prodotto');
+    }
+
+    private function audit(User $admin, User $member, string $action, Withdrawal $withdrawal, string $reason, array $effect): void
+    {
+        AdminAuditLog::create([
+            'admin_id' => $admin->id,
+            'target_user_id' => $member->id,
+            'action' => $action,
+            'changes' => ['withdrawal_id' => $withdrawal->id, 'reason' => $reason, ...$effect],
+        ]);
+    }
+
+    private function fresh(Withdrawal $withdrawal): Withdrawal
+    {
+        return $withdrawal->fresh()->load('member:id,name', 'originalMember:id,name', 'product:id,name,unit', 'debts');
+    }
+
+    /**
      * Verifica di un acquisto ospite: "paid" registra l'entrata in cassa,
      * "unpaid" trasforma l'importo in coppone del socio garante.
      */

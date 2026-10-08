@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'user_id', 'product_id', 'created_by', 'quantity', 'unit_price_cents',
     'total_amount_cents', 'payment_status', 'withdrawn_at', 'status', 'notes',
     'original_user_id', 'reassigned_at', 'reassigned_by', 'reassign_reason', 'is_manual', 'affects_stock', 'sale_id', 'combo_id', 'sponsor_id', 'payment_verified_at', 'payment_verified_by',
+    'cancelled_at', 'cancelled_by', 'cancel_reason', 'payment_corrected_at', 'payment_corrected_by', 'payment_correction_reason',
 ])]
 class Withdrawal extends Model
 {
@@ -25,6 +26,8 @@ class Withdrawal extends Model
             'withdrawn_at' => 'datetime',
             'reassigned_at' => 'datetime',
             'payment_verified_at' => 'datetime',
+            'cancelled_at' => 'datetime',
+            'payment_corrected_at' => 'datetime',
             'is_manual' => 'boolean',
             'affects_stock' => 'boolean',
         ];

@@ -73,6 +73,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/withdrawals', [WithdrawalController::class, 'index']);
         Route::post('/withdrawals/manual', [WithdrawalController::class, 'manual'])->middleware('idempotent');
         Route::post('/withdrawals/{withdrawal}/reassign', [WithdrawalController::class, 'reassign']);
+        Route::post('/withdrawals/{withdrawal}/payment', [WithdrawalController::class, 'correctPayment']);
+        Route::post('/withdrawals/{withdrawal}/cancel', [WithdrawalController::class, 'cancel']);
         Route::get('/guest-payments', [WithdrawalController::class, 'pendingGuestPayments']);
         Route::post('/withdrawals/{withdrawal}/verify', [WithdrawalController::class, 'verifyGuestPayment']);
         Route::get('/archive', [ArchiveController::class, 'index']);

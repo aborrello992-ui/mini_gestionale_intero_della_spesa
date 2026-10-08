@@ -93,6 +93,41 @@ class WithdrawalController extends Controller
         }
     }
 
+    /** Pagato <-> Coppone: per chi ha premuto il pulsante sbagliato (admin). */
+    public function correctPayment(Withdrawal $withdrawal, Request $request, WithdrawalService $withdrawalService)
+    {
+        $data = $request->validate([
+            'payment_status' => ['required', 'in:paid,coppone'],
+            'reason' => ['required', 'string', 'min:3', 'max:255'],
+        ], [
+            'reason.required' => 'Indica il motivo della correzione.',
+            'reason.min' => 'Il motivo deve avere almeno 3 caratteri.',
+        ]);
+
+        try {
+            return $withdrawalService->correctPayment($withdrawal, $data['payment_status'], $request->user(), $data['reason']);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    /** Annulla un prelievo fatto per sbaglio con movimenti di correzione (admin). */
+    public function cancel(Withdrawal $withdrawal, Request $request, WithdrawalService $withdrawalService)
+    {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:255'],
+        ], [
+            'reason.required' => 'Indica il motivo dell\'annullamento.',
+            'reason.min' => 'Il motivo deve avere almeno 3 caratteri.',
+        ]);
+
+        try {
+            return $withdrawalService->cancel($withdrawal, $request->user(), $data['reason']);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
     public function manual(Request $request, WithdrawalService $withdrawalService)
     {
         $data = $request->validate([

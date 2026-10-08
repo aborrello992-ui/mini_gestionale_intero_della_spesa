@@ -1540,3 +1540,14 @@ legend.form-label {
     order: 1;
   }
 }
+
+/* Azioni su un prelievo (riassegna, correggi pagamento, annulla): vanno a capo sul telefono */
+.withdrawal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.withdrawal-actions .btn {
+  flex: 1 1 140px;
+}
