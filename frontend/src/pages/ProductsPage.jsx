@@ -13,6 +13,7 @@ import UserAvatar from '../components/ui/UserAvatar'
 import StatusBadge from '../components/ui/StatusBadge'
 import { stockLevel } from '../utils/stock'
 import CheckoutModal from '../components/CheckoutModal'
+import ArcadeBurst from '../components/ArcadeBurst'
 import { useAuth } from '../hooks/useAuth'
 
 export default function ProductsPage() {
@@ -28,6 +29,15 @@ export default function ProductsPage() {
   const [combos, setCombos] = useState([])
   const [allProducts, setAllProducts] = useState([])
   const [checkout, setCheckout] = useState(null)
+  const [celebration, setCelebration] = useState(null)
+  const closeCelebration = useCallback(() => setCelebration(null), [])
+
+  // Pagato: festa dorata. Coppone: avvertimento rosso, stessa esplosione.
+  function celebrate(kind, subtitle) {
+    setCelebration(kind === 'coppone'
+      ? { tone: 'red', label: 'Coppone', words: ['RICORDATI,', 'NON TE NE', 'DIMENTICARE,', 'SENNÒ', 'TI VENGO', 'A PRENDERE!'], subtitle }
+      : { tone: 'gold', label: 'Pagato!', words: ['SEI', 'UN', 'BOMBONE!'], subtitle })
+  }
 
   const loadCombos = useCallback(() => api.get('/combos').then(({ data }) => setCombos(data)).catch(() => setCombos([])), [])
   useEffect(() => { loadCombos() }, [loadCombos])
@@ -45,6 +55,7 @@ export default function ProductsPage() {
     const label = { paid: 'pagato', coppone: 'a coppone', pending: 'da verificare (ospite)' }
     const parts = result.shares.map((share) => `${share.name} ${money(share.total_cents)} ${label[share.payment_status] || share.payment_status}`)
     setMessage(`Acquisto registrato: ${parts.join(' · ')}.`)
+    celebrate(result.shares.some((share) => share.payment_status === 'coppone') ? 'coppone' : 'paid', parts.join(' · '))
     load(meta?.current_page || 1)
     loadCombos()
   }
@@ -93,6 +104,9 @@ export default function ProductsPage() {
       setMessage(data.payment_status === 'pending'
         ? `Acquisto registrato: metti ${money(data.total_amount_cents)} in cassa. Un amministratore verificherà il pagamento.`
         : `${paymentStatus === 'paid' ? 'Pagato' : 'Coppone'} registrato: ${money(data.total_amount_cents)}.`)
+      celebrate(paymentStatus, data.payment_status === 'pending'
+        ? `${selected.name} · metti ${money(data.total_amount_cents)} in cassa`
+        : `${selected.name} · ${money(data.total_amount_cents)}${paymentStatus === 'coppone' ? ' segnati sul tuo conto' : ''}`)
       setSelected(null)
       setTakeForm({ member_id: '', pin: '', quantity: 1, notes: '' })
       load(meta?.current_page || 1)
@@ -270,6 +284,7 @@ export default function ProductsPage() {
           </div>
         </div>
       </div>}
+      {celebration && <ArcadeBurst tone={celebration.tone} label={celebration.label} words={celebration.words} subtitle={celebration.subtitle} autoCloseMs={celebration.tone === 'red' ? 7000 : 5000} onClose={closeCelebration} />}
       {checkout && <CheckoutModal members={members} products={allProducts} combos={combos} initialLines={checkout.lines} initialPeople={checkout.people} onClose={() => setCheckout(null)} onDone={checkoutDone} />}
     </section>
   )

@@ -158,3 +158,65 @@
   .gp-overlay, .gp-overlay * { animation: none !important; }
   .gp-ring, .gp-sparks { display: none; }
 }
+
+/* Frase che esplode parola per parola (Pagato / Coppone) */
+.gp-headline {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 12px;
+  max-width: 420px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.gp-headline span {
+  display: inline-block;
+  padding: 2px 10px;
+  background: linear-gradient(180deg, #ffffff, #ffe9a8);
+  color: #d62839;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(1.9rem, 8vw, 3rem);
+  line-height: 1.15;
+  border: 3px solid #0e1020;
+  border-radius: 4px;
+  box-shadow: 4px 4px 0 #d62839, 0 0 26px rgba(255, 194, 26, 0.55);
+  transform: skewX(-8deg);
+  animation: gp-slam 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) calc(0.25s + var(--i) * 0.12s) both;
+}
+
+.gp-full {
+  grid-column: 1 / -1;
+}
+
+/* Tono rosso per gli avvertimenti (coppone) */
+.gp-red {
+  background: radial-gradient(circle at 50% 45%, #5a0b14 0, #0e1020 72%);
+}
+
+.gp-red .gp-rays {
+  background: repeating-conic-gradient(from 0deg, rgba(214, 40, 57, 0.32) 0 8deg, transparent 8deg 22deg);
+}
+
+.gp-red .gp-ring {
+  border-color: #d62839;
+}
+
+.gp-red .gp-label {
+  color: #ff7a1a;
+}
+
+.gp-red .gp-headline span {
+  background: linear-gradient(180deg, #ffd84a, #ff9f1a);
+  color: #0e1020;
+  box-shadow: 4px 4px 0 #0e1020, 0 0 26px rgba(214, 40, 57, 0.7);
+}
+
+.gp-red .gp-stage {
+  animation: gp-shake 0.5s linear 0.35s 2 both;
+}
