@@ -1468,3 +1468,20 @@ legend.form-label {
   width: 100%;
   justify-content: flex-end;
 }
+
+/* Pulsanti disattivati: restano nel loro colore, attenuati (Bootstrap li renderebbe blu). */
+.btn-primary {
+  --bs-btn-disabled-bg: var(--color-primary);
+  --bs-btn-disabled-border-color: var(--color-primary);
+  --bs-btn-disabled-color: #ffffff;
+}
+
+.btn-success {
+  --bs-btn-disabled-bg: var(--color-success);
+  --bs-btn-disabled-border-color: var(--color-success);
+}
+
+.btn:disabled,
+.btn.disabled {
+  --bs-btn-disabled-opacity: 0.45;
+}

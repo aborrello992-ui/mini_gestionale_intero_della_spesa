@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ShieldCheck, Store, UserRound } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
@@ -12,7 +12,11 @@ import { useKickEntrance } from '../hooks/useKickEntrance'
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [showAdmin, setShowAdmin] = useState(false)
+  // Ospite: prima scrive il nome, poi entra e riceve il suo PIN personale.
+  const [showGuest, setShowGuest] = useState(searchParams.has('ospite'))
+  const [guestName, setGuestName] = useState('')
   const [members, setMembers] = useState([])
   const [form, setForm] = useState({ member_id: '', pin: '' })
   const [error, setError] = useState('')
@@ -36,11 +40,12 @@ export default function LoginPage() {
     }
   }
 
-  async function guestLogin() {
+  async function guestLogin(event) {
+    event.preventDefault()
     setError('')
     try {
       await play(async () => {
-        const { data } = await api.post('/guest')
+        const { data } = await api.post('/guest', { name: guestName.trim() })
         localStorage.setItem('auth_token', data.token)
         // Il PIN generato viene mostrato con l'animazione appena si entra.
         sessionStorage.setItem('guest_pin', data.pin)
@@ -78,10 +83,17 @@ export default function LoginPage() {
           <p className="text-muted-app mb-0">Sei di passaggio? Entra come ospite e ricevi il tuo PIN. Sei un socio? Entra con il tuo nome e il tuo PIN.</p>
         </div>
         <AlertMessage>{error}</AlertMessage>
-        {!showAdmin && <>
-          <button className="btn btn-primary btn-lg w-100" type="button" onClick={guestLogin} disabled={playing}><UserRound size={19} /> Entra come ospite</button>
-          <button className="btn btn-outline-secondary btn-lg w-100 mt-2" type="button" onClick={() => setShowAdmin(true)} disabled={playing}><ShieldCheck size={19} /> Area socio / amministratore</button>
+        {!showAdmin && !showGuest && <>
+          <button className="btn btn-primary btn-lg w-100" type="button" onClick={() => { setError(''); setShowGuest(true) }} disabled={playing}><UserRound size={19} /> Entra come ospite</button>
+          <button className="btn btn-outline-secondary btn-lg w-100 mt-2" type="button" onClick={() => { setError(''); setShowAdmin(true) }} disabled={playing}><ShieldCheck size={19} /> Area socio / amministratore</button>
         </>}
+        {showGuest && <form className="stack-md" onSubmit={guestLogin}>
+          <FormField label="Come ti chiami?" htmlFor="guest-name" help="Il nome appare ai soci; riceverai un PIN solo per te.">
+            <input id="guest-name" className="form-control form-control-lg" autoComplete="given-name" maxLength={40} placeholder="Es. Marco" value={guestName} onChange={(e) => setGuestName(e.target.value)} autoFocus />
+          </FormField>
+          <button className="btn btn-primary btn-lg w-100" disabled={playing || guestName.trim().length < 2}><UserRound size={19} /> Entra e ricevi il PIN</button>
+          <button className="btn btn-link w-100" type="button" onClick={() => setShowGuest(false)} disabled={playing}>Torna indietro</button>
+        </form>}
         {showAdmin && <form className="stack-md" onSubmit={adminLogin}>
           <FormField label="Chi sei?" htmlFor="login-admin">
             <select id="login-admin" className="form-select form-select-lg" value={form.member_id} onChange={(e) => setForm({ ...form, member_id: e.target.value })}>

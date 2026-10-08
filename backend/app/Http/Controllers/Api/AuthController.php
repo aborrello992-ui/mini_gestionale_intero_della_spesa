@@ -38,10 +38,18 @@ class AuthController extends Controller
     }
 
     /** Ospite esterno: accesso temporaneo con PIN generato, mostrato una sola volta. */
-    public function guest(GuestAccessService $guests)
+    public function guest(Request $request, GuestAccessService $guests)
     {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'min:2', 'max:40', 'regex:/^[\pL\pM\s\'.-]+$/u'],
+        ], [
+            'name.required' => 'Scrivi il tuo nome per entrare come ospite.',
+            'name.min' => 'Il nome deve avere almeno 2 lettere.',
+            'name.regex' => 'Il nome può contenere solo lettere, spazi, apostrofi e trattini.',
+        ]);
+
         try {
-            $access = $guests->create();
+            $access = $guests->create($data['name']);
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 503);
         }

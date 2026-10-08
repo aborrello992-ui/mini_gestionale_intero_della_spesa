@@ -37,7 +37,7 @@ class GuestAndMemberAccessTest extends TestCase
 
     private function guest(): array
     {
-        $response = $this->postJson('/api/guest')->assertOk();
+        $response = $this->postJson('/api/guest', ['name' => 'Marco'])->assertOk();
 
         return [User::findOrFail($response->json('user.id')), $response->json('pin')];
     }
@@ -52,7 +52,21 @@ class GuestAndMemberAccessTest extends TestCase
             $pins[] = $pin;
         }
         $this->assertCount(5, array_unique($pins));
-        $this->assertSame('Ospite 5', $guest->name);
+        // Stesso nome per piu ospiti attivi: numerato per distinguerli.
+        $this->assertSame('Marco 5', $guest->name);
+    }
+
+    public function test_guest_must_write_a_valid_name(): void
+    {
+        $this->postJson('/api/guest')->assertUnprocessable()->assertJsonValidationErrors('name');
+        $this->postJson('/api/guest', ['name' => 'x'])->assertUnprocessable();
+        $this->postJson('/api/guest', ['name' => '<script>'])->assertUnprocessable();
+
+        $first = $this->postJson('/api/guest', ['name' => '  giulia   rossi '])->assertOk();
+        $second = $this->postJson('/api/guest', ['name' => 'Anna'])->assertOk();
+        $this->assertSame('Giulia Rossi', $first->json('user.name'));
+        $this->assertSame('Anna', $second->json('user.name'));
+        $this->assertNotSame($first->json('pin'), $second->json('pin'));
     }
 
     public function test_guest_cannot_see_debts_cash_or_history(): void

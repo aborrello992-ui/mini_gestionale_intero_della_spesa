@@ -17,15 +17,14 @@ class GuestAccessService
     public const HOURS = 12;
 
     /** @return array{user: User, pin: string, token: string} */
-    public function create(): array
+    public function create(string $name): array
     {
-        return DB::transaction(function () {
+        return DB::transaction(function () use ($name) {
             $this->expireOld();
             $pin = $this->uniquePin();
-            $number = User::query()->where('role', User::ROLE_GUEST)->count() + 1;
 
             $guest = User::create([
-                'name' => "Ospite {$number}",
+                'name' => $this->uniqueName($name),
                 'email' => 'ospite-'.Str::lower(Str::random(12)).'@locale.test',
                 'password' => Str::password(32),
                 'role' => User::ROLE_GUEST,
@@ -49,6 +48,19 @@ class GuestAccessService
     private function expireOld(): void
     {
         User::query()->where('role', User::ROLE_GUEST)->where('is_active', true)->where('guest_expires_at', '<=', now())->update(['is_active' => false]);
+    }
+
+    /** Nome scritto dall'ospite; se un altro ospite attivo ha lo stesso nome diventa "Marco 2". */
+    private function uniqueName(string $name): string
+    {
+        $base = Str::of($name)->squish()->limit(40, '')->title()->toString();
+        $taken = User::query()->consumers()->pluck('name')->map(fn ($existing) => Str::lower($existing));
+        $candidate = $base;
+        for ($i = 2; $taken->contains(Str::lower($candidate)); $i++) {
+            $candidate = "{$base} {$i}";
+        }
+
+        return $candidate;
     }
 
     /** PIN diverso da quello di ogni socio e ospite attivo. */

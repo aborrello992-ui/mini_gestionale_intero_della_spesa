@@ -20,7 +20,7 @@ class GuestUsersAndRestockTest extends TestCase
 
     public function test_guest_access_without_password_and_admin_functions_are_blocked(): void
     {
-        $response = $this->postJson('/api/guest')->assertOk();
+        $response = $this->postJson('/api/guest', ['name' => 'Marco'])->assertOk();
         $this->assertNotEmpty($response->json('token'));
         $this->assertMatchesRegularExpression('/^\d{3}$/', $response->json('pin'));
 
