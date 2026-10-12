@@ -54,14 +54,17 @@ export default function ManagementPage() {
   }, [period.from, period.to])
 
   const load = useCallback(async () => {
-    const [membersResponse, personal, generic, receiptRows] = await Promise.all([
+    const [membersResponse, personal, credits, generic, receiptRows] = await Promise.all([
       api.get('/members'),
       api.get('/cash/movements?category=movimento_personale&per_page=100'),
+      // Accrediti nati in automatico da un versamento più alto del debito (pagina Debiti).
+      api.get('/cash/movements?type=accredito&per_page=100'),
       api.get('/cash/movements?category=spesa_generica&per_page=100'),
       api.get('/receipts?per_page=100'),
     ])
     setMembers(membersResponse.data)
-    setPersonalRows(personal.data.data)
+    const byId = new Map([...personal.data.data, ...credits.data.data].map((row) => [row.id, row]))
+    setPersonalRows([...byId.values()].sort((a, b) => `${b.movement_date} ${b.movement_time}`.localeCompare(`${a.movement_date} ${a.movement_time}`) || b.id - a.id))
     setGenericRows(generic.data.data)
     setReceipts(receiptRows.data.data)
     loadSummary()
@@ -101,7 +104,7 @@ export default function ManagementPage() {
   const personalColumns = [
     { key: 'date', header: 'Data', render: (row) => shortDate(row.movement_date) },
     { key: 'time', header: 'Ora', render: (row) => String(row.movement_time || '').slice(0, 5) },
-    { key: 'movement', header: 'Movimento', render: (row) => <strong>{row.type?.replaceAll('_', ' ')}</strong> },
+    { key: 'movement', header: 'Movimento', render: (row) => <div><strong>{row.type?.replaceAll('_', ' ')}</strong>{row.category === 'portafoglio' && <div className="small text-muted-app">resto di un versamento in Debiti</div>}</div> },
     { key: 'person', header: 'Persona', render: (row) => row.member?.name || '-' },
     { key: 'amount', header: 'Importo', align: 'right', render: (row) => `${row.direction === 'entrata' ? '+' : '−'}${money(row.amount_cents)}` },
     { key: 'user', header: 'Registrato da', render: (row) => row.user?.name || '-' },
@@ -182,7 +185,7 @@ export default function ManagementPage() {
           {personalForm.type === 'correzione' && <FormField label="Motivo breve"><input className="form-control" value={personalForm.reason} onChange={(e) => setPersonalForm({ ...personalForm, reason: e.target.value })} /></FormField>}
           <button className="btn btn-primary"><Plus size={17} /> Salva</button>
         </form>
-        <DataTable columns={personalColumns} rows={personalRows} getKey={(row) => row.id} emptyTitle="Nessun movimento personale" renderMobile={(row) => <><div className="split"><strong>{row.type?.replaceAll('_', ' ')}</strong><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{row.member?.name} · {movementDateTime(row)} · {movementStatusLabel(row.status)}</div><CashCancelButton row={row} isAdmin onClick={setCancelRow} className="mt-1" /></>} />
+        <DataTable columns={personalColumns} rows={personalRows} getKey={(row) => row.id} emptyTitle="Nessun movimento personale" renderMobile={(row) => <><div className="split"><strong>{row.type?.replaceAll('_', ' ')}</strong><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{row.member?.name} · {movementDateTime(row)} · {movementStatusLabel(row.status)}</div>{row.category === 'portafoglio' && <div className="small text-muted-app">Resto di un versamento in Debiti</div>}<CashCancelButton row={row} isAdmin onClick={setCancelRow} className="mt-1" /></>} />
       </>}
 
       {tab === 'generiche' && <>
