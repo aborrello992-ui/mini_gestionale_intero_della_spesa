@@ -89,6 +89,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/shopping-list/restock-sessions', [ShoppingListController::class, 'registerRestock']);
         Route::get('/receipts', [ReceiptController::class, 'index']);
         Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);
+        Route::post('/debts/collective', [DebtController::class, 'collective'])->middleware('idempotent');
         Route::post('/debts/{member}/adjustments', [DebtController::class, 'adjust']);
         Route::post('/debts/{member}/payments', [DebtController::class, 'pay']);
         // Prelievo senza pagamento ne coppone: solo admin (i soci usano /withdrawals con PIN).

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AdminAuditLog;
 use App\Models\CashMovement;
 use App\Models\DebtPayment;
 use App\Models\MemberDebt;
@@ -124,6 +125,77 @@ class DebtService
             $this->applyWalletCreditToOpenDebts($member, $admin, 'Credito usato automaticamente dopo rettifica debito');
 
             return $debt->fresh();
+        });
+    }
+
+    public const COLLECTIVE_TYPE = 'coppone_collettivo';
+
+    public const SHORTFALL_CASH_TYPE = 'ammanco_cassa';
+
+    /**
+     * Coppone collettivo: un ammanco di cassa (l'app conta più soldi di quelli nel cassetto) viene diviso
+     * fra i soci scelti. La cassa registra l'ammanco come uscita, così il saldo torna uguale ai contanti;
+     * ogni socio riceve un coppone con la sua parte e, quando paga, i soldi rientrano in cassa.
+     *
+     * @param  array<int, User>  $members
+     * @return array{cash_movement_id: int, debts: array<int, array{user_id: int, name: string, amount_cents: int}>}
+     */
+    public function collectiveDebt(array $members, User $admin, int $amountCents, string $reason): array
+    {
+        if ($amountCents <= 0) {
+            throw new RuntimeException('Importo non valido.');
+        }
+        if ($members === []) {
+            throw new RuntimeException('Scegli almeno un socio.');
+        }
+        if ($amountCents < count($members)) {
+            throw new RuntimeException('L\'importo è troppo piccolo per dividerlo fra tutti questi soci.');
+        }
+
+        return DB::transaction(function () use ($members, $admin, $amountCents, $reason) {
+            $count = count($members);
+            $names = implode(', ', array_map(fn (User $member) => $member->name, $members));
+
+            $cash = $this->cashService->createFromCents([
+                'amount_cents' => $amountCents,
+                'direction' => 'uscita',
+                'type' => self::SHORTFALL_CASH_TYPE,
+                'category' => 'correzione',
+                'description' => "Ammanco di cassa diviso fra {$count} soci",
+                'movement_date' => now()->toDateString(),
+                'movement_time' => now()->format('H:i:s'),
+                'note' => "{$reason} | {$names}",
+            ], $admin);
+
+            // Parti uguali; i centesimi avanzati vanno ai primi della lista.
+            $base = intdiv($amountCents, $count);
+            $remainder = $amountCents % $count;
+            $debts = [];
+            foreach (array_values($members) as $index => $member) {
+                $share = $base + ($index < $remainder ? 1 : 0);
+                MemberDebt::create([
+                    'user_id' => $member->id,
+                    'original_amount_cents' => $share,
+                    'remaining_amount_cents' => $share,
+                    'type' => self::COLLECTIVE_TYPE,
+                    'description' => 'Coppone collettivo (ammanco di cassa)',
+                    'notes' => $reason,
+                ]);
+                $debts[] = ['user_id' => $member->id, 'name' => $member->name, 'amount_cents' => $share];
+            }
+
+            AdminAuditLog::create([
+                'admin_id' => $admin->id,
+                'action' => 'collective_debt_created',
+                'changes' => ['cash_movement_id' => $cash->id, 'amount_cents' => $amountCents, 'reason' => $reason, 'debts' => $debts],
+            ]);
+
+            // Chi ha un credito lo usa subito per la sua parte, come per ogni altro coppone.
+            foreach ($members as $member) {
+                $this->applyWalletCreditToOpenDebts($member, $admin, 'Credito usato per il coppone collettivo');
+            }
+
+            return ['cash_movement_id' => $cash->id, 'debts' => $debts];
         });
     }
 

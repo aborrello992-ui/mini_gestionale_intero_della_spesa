@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\CashService;
 use App\Services\DebtService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class DebtController extends Controller
@@ -73,6 +74,37 @@ class DebtController extends Controller
 
         try {
             return response()->json($service->pay($member, $request->user(), $cashService->toCents($data['amount']), $data['note'] ?? null), 201);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    /** Coppone collettivo: divide un ammanco di cassa fra i soci scelti (admin). */
+    public function collective(Request $request, DebtService $service, CashService $cashService)
+    {
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'member_ids' => ['required', 'array', 'min:1'],
+            'member_ids.*' => ['integer', 'distinct', 'exists:users,id'],
+            'reason' => ['required', 'string', 'min:3', 'max:255'],
+        ], [
+            'member_ids.required' => 'Scegli i soci fra cui dividere il coppone.',
+            'reason.required' => 'Indica il motivo del coppone collettivo.',
+            'reason.min' => 'Il motivo deve avere almeno 3 caratteri.',
+        ]);
+
+        $members = User::query()
+            ->whereIn('id', $data['member_ids'])
+            ->whereIn('role', [User::ROLE_ADMIN, User::ROLE_MEMBER])
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+        if ($members->count() !== count($data['member_ids'])) {
+            throw ValidationException::withMessages(['member_ids' => 'Il coppone collettivo si divide solo fra soci attivi (non ospiti).']);
+        }
+
+        try {
+            return response()->json($service->collectiveDebt($members->all(), $request->user(), $cashService->toCents($data['amount']), $data['reason']), 201);
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }

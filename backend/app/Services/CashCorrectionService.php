@@ -34,6 +34,7 @@ class CashCorrectionService
             in_array($movement->type, self::INTERNAL_TYPES, true) || ! $movement->affects_current_balance => 'Movimento interno collegato ad altre operazioni: non si annulla da solo.',
             $movement->withdrawal_id !== null => 'È il pagamento di un prelievo: correggilo da Gestione › Riassegna prelievi.',
             $movement->debt_payment_id !== null => 'È il pagamento di un coppone: non si annulla dalla cassa.',
+            $movement->type === DebtService::SHORTFALL_CASH_TYPE => 'È un coppone collettivo: i copponi dei soci restano aperti, non si annulla dalla cassa.',
             default => null,
         };
     }

@@ -24,6 +24,7 @@ class ManagementSummaryService
         'prodotto_pagato' => 'Pagamenti prodotti',
         'pagamento_debito' => 'Saldo copponi',
         'acquisto_prodotti' => 'Spese da scontrino',
+        'ammanco_cassa' => 'Ammanchi divisi fra i soci',
     ];
 
     public function __construct(private CashService $cashService, private DebtService $debtService) {}

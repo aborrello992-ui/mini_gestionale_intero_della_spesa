@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ArrowRightLeft, BarChart3, Camera, FileText, HandCoins, Plus, UserRound, WalletCards } from 'lucide-react'
+import { Archive, ArrowRightLeft, BarChart3, Camera, FileText, HandCoins, Plus, UserRound, Users, WalletCards } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import { errorMessage, localDate, localTime, money, movementDateTime, movementStatusLabel, quantity, shortDate } from '../utils/format'
@@ -14,6 +14,7 @@ import WithdrawalReassignPanel from '../components/WithdrawalReassignPanel'
 import ArchivePanel from '../components/ArchivePanel'
 import GuestPaymentsPanel from '../components/GuestPaymentsPanel'
 import CashCancelModal, { CashCancelButton } from '../components/CashCancelModal'
+import CollectiveDebtModal from '../components/CollectiveDebtModal'
 
 const TABS = [
   ['riepilogo', 'Riepilogo', BarChart3],
@@ -40,6 +41,7 @@ export default function ManagementPage() {
   const [guestPayments, setGuestPayments] = useState([])
   const [message, setMessage] = useState('')
   const [cancelRow, setCancelRow] = useState(null)
+  const [collectiveOpen, setCollectiveOpen] = useState(false)
   const now = new Date()
   const [personalForm, setPersonalForm] = useState({ type: 'accredito', member_id: '', direction: 'entrata', amount: '', reason: '', movement_date: localDate(now), movement_time: localTime(now) })
   const [genericForm, setGenericForm] = useState({ type: 'spesa_generica', direction: 'uscita', amount: '', reason: '', movement_date: localDate(now), movement_time: localTime(now) })
@@ -175,6 +177,10 @@ export default function ManagementPage() {
       </>}
 
       {tab === 'personali' && <>
+        <div className="app-card split mb-3">
+          <div className="min-0"><strong>Mancano soldi nel cassetto?</strong><div className="small text-muted-app">Dividi l'ammanco fra i soci con un coppone collettivo.</div></div>
+          <button type="button" className="btn btn-warning" onClick={() => setCollectiveOpen(true)}><Users size={17} /> Coppone collettivo</button>
+        </div>
         <form className="app-card form-grid mb-3" onSubmit={submitPersonal}>
           <FormField label="Movimento"><select className="form-select" value={personalForm.type} onChange={(e) => setPersonalForm({ ...personalForm, type: e.target.value })}>{personalTypes.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></FormField>
           <FormField label="Persona"><select className="form-select" value={personalForm.member_id} onChange={(e) => setPersonalForm({ ...personalForm, member_id: e.target.value })} required><option value="">Scegli persona</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></FormField>
@@ -235,6 +241,7 @@ export default function ManagementPage() {
         </div>
       </AppModal>}
       {cancelRow && <CashCancelModal row={cancelRow} onClose={() => setCancelRow(null)} onDone={(text) => { setCancelRow(null); setMessage(text); load() }} />}
+      {collectiveOpen && <CollectiveDebtModal members={members} onClose={() => setCollectiveOpen(false)} onDone={(text) => { setCollectiveOpen(false); setMessage(text); load() }} />}
     </section>
   )
 }
