@@ -141,4 +141,20 @@ class CashCorrectionTest extends TestCase
         Sanctum::actingAs(User::factory()->create(['role' => User::ROLE_MEMBER]));
         $this->cancel($movement)->assertForbidden();
     }
+
+    public function test_stock_can_be_added_or_removed_without_touching_the_cash(): void
+    {
+        $this->postJson('/api/inventory/adjust', ['product_id' => $this->crocchette->id, 'quantity' => 7, 'type' => 'correzione_positiva'])
+            ->assertUnprocessable()->assertJsonValidationErrors('note');
+
+        $this->postJson('/api/inventory/adjust', ['product_id' => $this->crocchette->id, 'quantity' => 7, 'type' => 'correzione_positiva', 'note' => 'Già pagate nella spesa da 45,52'])
+            ->assertCreated();
+        $this->postJson('/api/inventory/adjust', ['product_id' => $this->crocchette->id, 'quantity' => 2, 'type' => 'correzione_negativa', 'note' => 'Bustine rotte'])
+            ->assertCreated();
+
+        $this->assertSame('5.000', $this->crocchette->fresh()->current_quantity);
+        $this->assertSame(0, $this->balance());
+        $this->assertDatabaseCount('cash_movements', 0);
+        $this->assertDatabaseHas('inventory_movements', ['type' => 'correzione_positiva', 'note' => 'Già pagate nella spesa da 45,52']);
+    }
 }

@@ -34,7 +34,11 @@ class InventoryController extends Controller
             'product_id' => ['required', 'exists:products,id'],
             'quantity' => ['required', 'numeric', 'min:0.001'],
             'type' => ['required', 'in:correzione_positiva,correzione_negativa'],
-            'note' => ['nullable', 'string'],
+            // Carico/scarico senza cassa: il motivo resta nello storico del magazzino.
+            'note' => ['required', 'string', 'min:3', 'max:255'],
+        ], [
+            'note.required' => 'Indica il motivo della correzione.',
+            'note.min' => 'Il motivo deve avere almeno 3 caratteri.',
         ]);
 
         try {

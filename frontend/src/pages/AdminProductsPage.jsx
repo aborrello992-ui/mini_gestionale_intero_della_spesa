@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Archive, ImagePlus, ImageOff, Layers, Package, RotateCcw, Stethoscope, Trash2, Upload } from 'lucide-react'
+import { Archive, ImagePlus, ImageOff, Layers, Package, PackagePlus, RotateCcw, Stethoscope, Trash2, Upload } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from '../components/AlertMessage'
 import PageHeader from '../components/layout/PageHeader'
@@ -23,6 +23,9 @@ export default function AdminProductsPage() {
   const [busy, setBusy] = useState(false)
   const [storageCheck, setStorageCheck] = useState(null)
   const [tab, setTab] = useState('prodotti')
+  // Carico/scarico di magazzino senza toccare la cassa (es. merce già pagata in una spesa registrata).
+  const [stockFix, setStockFix] = useState(null)
+  const [stockForm, setStockForm] = useState({ direction: 'add', quantity: '', note: '' })
 
   async function runStorageCheck() {
     setStorageCheck({ loading: true })
@@ -124,6 +127,31 @@ export default function AdminProductsPage() {
     } catch (err) { setMessage(errorMessage(err)) }
   }
 
+  function startStockFix(product) {
+    setStockFix(product)
+    setStockForm({ direction: 'add', quantity: '', note: '' })
+  }
+
+  const stockAmount = Number(String(stockForm.quantity).replace(',', '.')) || 0
+  const stockAfter = stockFix ? Number(stockFix.current_quantity || 0) + (stockForm.direction === 'add' ? stockAmount : -stockAmount) : 0
+
+  async function saveStockFix(event) {
+    event.preventDefault()
+    if (busy) return
+    setBusy(true)
+    try {
+      await api.post('/inventory/adjust', {
+        product_id: stockFix.id,
+        quantity: stockAmount,
+        type: stockForm.direction === 'add' ? 'correzione_positiva' : 'correzione_negativa',
+        note: stockForm.note,
+      })
+      setMessage(`Quantità di ${stockFix.name} aggiornata: ora ${quantity(stockAfter, stockFix.unit)}. La cassa non è cambiata.`)
+      setStockFix(null)
+      load()
+    } catch (err) { setMessage(errorMessage(err)) } finally { setBusy(false) }
+  }
+
   const isSuccess = /aggiornat|rimossa|archiviato|ripristinato|eliminato/.test(message)
 
   function renderActions(product, large = false) {
@@ -131,6 +159,7 @@ export default function AdminProductsPage() {
     const icon = large ? 17 : 15
     return <div className={large ? 'product-admin-actions' : 'cluster'}>
       <button type="button" className={`btn ${size} btn-outline-primary`} onClick={() => startImageEdit(product)}><ImagePlus size={icon} /> {large ? 'Modifica nome/immagine' : 'Modifica'}</button>
+      {!product.archived_at && <button type="button" className={`btn ${size} btn-outline-primary`} onClick={() => startStockFix(product)}><PackagePlus size={icon} /> Correggi quantità</button>}
       {product.image_path && <button type="button" className={`btn ${size} btn-outline-secondary`} onClick={() => removeImage(product)}><ImageOff size={icon} /> Rimuovi immagine</button>}
       {product.archived_at
         ? <button type="button" className={`btn ${size} btn-outline-primary`} onClick={() => restore(product)}><RotateCcw size={icon} /> Ripristina</button>
@@ -206,6 +235,25 @@ export default function AdminProductsPage() {
             <button type="button" className={`btn btn-lg ${confirm.type === 'delete' ? 'btn-danger' : 'btn-warning'}`} onClick={confirmAction} disabled={busy} autoFocus>{busy ? 'Attendi…' : confirm.type === 'delete' ? `Elimina ${confirm.product.name}` : 'Archivia'}</button>
           </div>
         </div>
+      </AppModal>}
+      {stockFix && <AppModal title="Correggi quantità" subtitle={`${stockFix.name} · ora ${quantity(stockFix.current_quantity, stockFix.unit)}`} onClose={() => !busy && setStockFix(null)} labelledBy="stock-fix-title">
+        <form className="stack-md" onSubmit={saveStockFix}>
+          <fieldset>
+            <legend className="form-label">Cosa fai</legend>
+            <div className="choice-grid">
+              <button type="button" className={`btn btn-lg ${stockForm.direction === 'add' ? 'btn-success' : 'btn-outline-success'}`} aria-pressed={stockForm.direction === 'add'} onClick={() => setStockForm({ ...stockForm, direction: 'add' })}>Aggiungi</button>
+              <button type="button" className={`btn btn-lg ${stockForm.direction === 'remove' ? 'btn-danger' : 'btn-outline-danger'}`} aria-pressed={stockForm.direction === 'remove'} onClick={() => setStockForm({ ...stockForm, direction: 'remove' })}>Togli</button>
+            </div>
+          </fieldset>
+          <FormField label={`Quantità (${stockFix.unit})`} htmlFor="stock-fix-quantity"><input id="stock-fix-quantity" className="form-control form-control-lg" inputMode="decimal" value={stockForm.quantity} onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })} required autoFocus /></FormField>
+          <FormField label="Motivo" htmlFor="stock-fix-note"><input id="stock-fix-note" className="form-control" minLength={3} maxLength={255} value={stockForm.note} onChange={(e) => setStockForm({ ...stockForm, note: e.target.value })} required placeholder="Es. crocchette già pagate nella spesa da 45,52 €" /></FormField>
+          {stockAmount > 0 && <div className="summary-box stack-sm" aria-live="polite">
+            <div>Da {quantity(stockFix.current_quantity, stockFix.unit)} a <strong>{quantity(stockAfter, stockFix.unit)}</strong>.</div>
+            <div>La cassa non cambia: nessuna entrata né uscita.</div>
+            {stockAfter < 0 && <div className="text-danger">Non puoi togliere più di quanto c'è in magazzino.</div>}
+          </div>}
+          <button className="btn btn-primary btn-lg" disabled={busy || stockAmount <= 0 || stockAfter < 0 || stockForm.note.trim().length < 3}>{busy ? 'Attendi…' : 'Salva quantità'}</button>
+        </form>
       </AppModal>}
       {imageEdit && <AppModal title="Modifica prodotto" subtitle={imageEdit.name} onClose={() => !imageForm.saving && setImageEdit(null)} labelledBy="product-edit-title">
         <form className="stack-md" onSubmit={saveImage}>
