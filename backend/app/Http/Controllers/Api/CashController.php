@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\CashMovement;
+use App\Services\CashCorrectionService;
 use App\Services\CashService;
 use Illuminate\Http\Request;
 use RuntimeException;
@@ -15,9 +16,9 @@ class CashController extends Controller
         return $service->counters();
     }
 
-    public function index(Request $request)
+    public function index(Request $request, CashCorrectionService $corrections)
     {
-        return CashMovement::with('user:id,name', 'member:id,name', 'product:id,name')
+        $page = CashMovement::with('user:id,name', 'member:id,name', 'product:id,name')
             ->when($request->direction, fn ($q, $direction) => $q->where('direction', $direction))
             ->when($request->type, fn ($q, $type) => $q->where('type', $type))
             ->when($request->category, fn ($q, $category) => $q->where('category', $category))
@@ -26,6 +27,18 @@ class CashController extends Controller
             ->when($request->date_to, fn ($q, $date) => $q->whereDate('movement_date', '<=', $date))
             ->latest()
             ->paginate($request->integer('per_page', 20));
+
+        // Per il pulsante "Annulla": se si può annullare e quale merce era stata caricata insieme.
+        $page->getCollection()->each(function (CashMovement $movement) use ($corrections) {
+            $movement->setAttribute('cancel_block_reason', $corrections->blockReason($movement));
+            $movement->setAttribute('stock_loads', $corrections->stockLoads($movement)->map(fn ($load) => [
+                'product' => $load->product?->name,
+                'unit' => $load->product?->unit,
+                'quantity' => (float) $load->quantity,
+            ])->values());
+        });
+
+        return $page;
     }
 
     public function store(Request $request, CashService $service)
@@ -46,10 +59,19 @@ class CashController extends Controller
         return response()->json($service->create($data, $request->user()), 201);
     }
 
-    public function reverse(CashMovement $movement, Request $request, CashService $service)
+    /** Annulla un'entrata o un'uscita registrata per sbaglio (admin), con movimento di compensazione. */
+    public function reverse(CashMovement $movement, Request $request, CashCorrectionService $corrections)
     {
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:3', 'max:255'],
+            'remove_stock' => ['sometimes', 'boolean'],
+        ], [
+            'reason.required' => 'Indica il motivo dell\'annullamento.',
+            'reason.min' => 'Il motivo deve avere almeno 3 caratteri.',
+        ]);
+
         try {
-            return response()->json($service->reverse($movement, $request->user()), 201);
+            return response()->json($corrections->cancel($movement, $request->user(), $data['reason'], $request->boolean('remove_stock')), 201);
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }

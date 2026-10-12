@@ -120,7 +120,7 @@ class LocaleManagementTest extends TestCase
         $this->getJson('/api/cash/balance')->assertJsonPath('balance_cents', 1000);
         $movement = CashMovement::first();
 
-        $this->postJson("/api/cash/movements/{$movement->id}/reverse")->assertCreated();
+        $this->postJson("/api/cash/movements/{$movement->id}/reverse", ["reason" => "Prova"])->assertCreated();
         $this->getJson('/api/cash/balance')->assertJsonPath('balance_cents', 0);
     }
 
