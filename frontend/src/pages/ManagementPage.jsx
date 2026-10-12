@@ -13,6 +13,7 @@ import AppModal from '../components/ui/AppModal'
 import WithdrawalReassignPanel from '../components/WithdrawalReassignPanel'
 import ArchivePanel from '../components/ArchivePanel'
 import GuestPaymentsPanel from '../components/GuestPaymentsPanel'
+import CashCancelModal, { CashCancelButton } from '../components/CashCancelModal'
 
 const TABS = [
   ['riepilogo', 'Riepilogo', BarChart3],
@@ -38,6 +39,7 @@ export default function ManagementPage() {
   const [photo, setPhoto] = useState(null)
   const [guestPayments, setGuestPayments] = useState([])
   const [message, setMessage] = useState('')
+  const [cancelRow, setCancelRow] = useState(null)
   const now = new Date()
   const [personalForm, setPersonalForm] = useState({ type: 'accredito', member_id: '', direction: 'entrata', amount: '', reason: '', movement_date: localDate(now), movement_time: localTime(now) })
   const [genericForm, setGenericForm] = useState({ type: 'spesa_generica', direction: 'uscita', amount: '', reason: '', movement_date: localDate(now), movement_time: localTime(now) })
@@ -104,6 +106,7 @@ export default function ManagementPage() {
     { key: 'amount', header: 'Importo', align: 'right', render: (row) => `${row.direction === 'entrata' ? '+' : '−'}${money(row.amount_cents)}` },
     { key: 'user', header: 'Registrato da', render: (row) => row.user?.name || '-' },
     { key: 'status', header: 'Stato', render: (row) => <StatusBadge status={row.status === 'active' ? 'active' : 'annullato'}>{movementStatusLabel(row.status)}</StatusBadge> },
+    { key: 'actions', header: '', align: 'right', render: (row) => <CashCancelButton row={row} isAdmin onClick={setCancelRow} /> },
   ]
   const genericColumns = [
     { key: 'date', header: 'Data', render: (row) => shortDate(row.movement_date) },
@@ -112,6 +115,7 @@ export default function ManagementPage() {
     { key: 'amount', header: 'Importo', align: 'right', render: (row) => `${row.direction === 'entrata' ? '+' : '−'}${money(row.amount_cents)}` },
     { key: 'user', header: 'Registrato da', render: (row) => row.user?.name || '-' },
     { key: 'status', header: 'Stato', render: (row) => <StatusBadge status={row.status === 'active' ? 'active' : 'annullato'}>{movementStatusLabel(row.status)}</StatusBadge> },
+    { key: 'actions', header: '', align: 'right', render: (row) => <CashCancelButton row={row} isAdmin onClick={setCancelRow} /> },
   ]
   const receiptColumns = [
     { key: 'date', header: 'Data', render: (row) => `${shortDate(row.purchased_at)} ${String(row.purchased_time || '').slice(0, 5)}` },
@@ -128,7 +132,7 @@ export default function ManagementPage() {
   return (
     <section>
       <PageHeader title="Gestione" subtitle="Situazione della cassa, movimenti dei soci, scontrini e correzioni." />
-      <AlertMessage type={message.includes('registrat') ? 'success' : 'danger'}>{message}</AlertMessage>
+      <AlertMessage type={/registrat|annullat/.test(message) ? 'success' : 'danger'}>{message}</AlertMessage>
       <div className="scoreboard" aria-label="Situazione attuale">
         <div><span>Saldo cassa</span><strong className="num">{money(summary?.balance_cents || 0)}</strong></div>
         <div><span>Copponi aperti</span><strong className="num">{money(summary?.open_coppone_cents || 0)}</strong></div>
@@ -178,7 +182,7 @@ export default function ManagementPage() {
           {personalForm.type === 'correzione' && <FormField label="Motivo breve"><input className="form-control" value={personalForm.reason} onChange={(e) => setPersonalForm({ ...personalForm, reason: e.target.value })} /></FormField>}
           <button className="btn btn-primary"><Plus size={17} /> Salva</button>
         </form>
-        <DataTable columns={personalColumns} rows={personalRows} getKey={(row) => row.id} emptyTitle="Nessun movimento personale" renderMobile={(row) => <><div className="split"><strong>{row.type}</strong><strong>{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{row.member?.name} · {movementDateTime(row)}</div></>} />
+        <DataTable columns={personalColumns} rows={personalRows} getKey={(row) => row.id} emptyTitle="Nessun movimento personale" renderMobile={(row) => <><div className="split"><strong>{row.type?.replaceAll('_', ' ')}</strong><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{row.member?.name} · {movementDateTime(row)} · {movementStatusLabel(row.status)}</div><CashCancelButton row={row} isAdmin onClick={setCancelRow} className="mt-1" /></>} />
       </>}
 
       {tab === 'generiche' && <>
@@ -190,7 +194,7 @@ export default function ManagementPage() {
           <FormField label="Motivo facoltativo"><input className="form-control" value={genericForm.reason} onChange={(e) => setGenericForm({ ...genericForm, reason: e.target.value })} /></FormField>
           <button className="btn btn-primary"><Plus size={17} /> Salva</button>
         </form>
-        <DataTable columns={genericColumns} rows={genericRows} getKey={(row) => row.id} emptyTitle="Nessuna spesa generica" renderMobile={(row) => <><div className="split"><StatusBadge status={row.direction}>{row.direction}</StatusBadge><strong>{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{movementDateTime(row)} · {row.user?.name}</div></>} />
+        <DataTable columns={genericColumns} rows={genericRows} getKey={(row) => row.id} emptyTitle="Nessuna spesa generica" renderMobile={(row) => <><div className="split"><StatusBadge status={row.direction}>{row.direction}</StatusBadge><strong className="num">{row.direction === 'entrata' ? '+' : '−'}{money(row.amount_cents)}</strong></div><div className="small text-muted-app">{movementDateTime(row)} · {row.user?.name} · {movementStatusLabel(row.status)}</div><CashCancelButton row={row} isAdmin onClick={setCancelRow} className="mt-1" /></>} />
       </>}
 
       {tab === 'scontrini' && <DataTable columns={receiptColumns} rows={activeRows} getKey={(row) => row.id} emptyTitle="Nessuno scontrino registrato" emptyMessage="Gli scontrini si registrano dalla Lista spesa." renderMobile={(row) => <><div className="split"><strong className={row.status === 'cancelled' ? 'text-decoration-line-through text-muted-app' : ''}>{money(row.total_cents)}</strong><StatusBadge tone={row.status === 'cancelled' ? 'neutral' : 'success'}>{movementStatusLabel(row.status)}</StatusBadge></div><div className="small text-muted-app">{shortDate(row.purchased_at)} · {row.items_count} prodotti</div><div className="product-admin-actions">{row.receipt_image_url ? <button type="button" className="btn btn-outline-primary" onClick={() => setPhoto(row)}><Camera size={16} /> Foto</button> : <span className="small text-muted-app align-self-center">Senza foto</span>}<button type="button" className="btn btn-outline-primary" onClick={() => openReceipt(row)}>Dettaglio</button></div></>} />}
@@ -227,6 +231,7 @@ export default function ManagementPage() {
           })}
         </div>
       </AppModal>}
+      {cancelRow && <CashCancelModal row={cancelRow} onClose={() => setCancelRow(null)} onDone={(text) => { setCancelRow(null); setMessage(text); load() }} />}
     </section>
   )
 }
