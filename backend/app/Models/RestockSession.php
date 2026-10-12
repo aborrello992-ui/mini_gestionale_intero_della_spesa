@@ -37,4 +37,29 @@ class RestockSession extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Scontrini da considerare annullati: segnati come tali, oppure con l'uscita di cassa annullata
+     * (es. spesa registrata per sbaglio, annullata dalla pagina Cassa lasciando la merce in magazzino).
+     *
+     * @param  iterable<int>  $ids
+     * @return array<int, int>
+     */
+    public static function cancelledIds(iterable $ids): array
+    {
+        $ids = collect($ids)->map(fn ($id) => (int) $id)->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $byStatus = static::withArchived()->whereIn('id', $ids)->where('status', 'cancelled')->pluck('id');
+        $byCash = CashMovement::withArchived()
+            ->where('status', 'reversed')
+            ->where('type', 'acquisto_prodotti')
+            ->whereIn('description', $ids->map(fn ($id) => 'Spesa prodotti #'.$id))
+            ->pluck('description')
+            ->map(fn ($description) => (int) substr($description, strlen('Spesa prodotti #')));
+
+        return $byStatus->merge($byCash)->map(fn ($id) => (int) $id)->unique()->values()->all();
+    }
 }

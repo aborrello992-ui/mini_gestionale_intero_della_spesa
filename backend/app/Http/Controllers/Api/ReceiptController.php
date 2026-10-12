@@ -10,7 +10,7 @@ class ReceiptController extends Controller
 {
     public function index(Request $request)
     {
-        return RestockSession::query()
+        $page = RestockSession::query()
             ->with('user:id,name')
             ->withCount('items')
             ->withSum('items as total_quantity', 'quantity')
@@ -20,6 +20,12 @@ class ReceiptController extends Controller
             ->when($request->photo === 'without', fn ($q) => $q->where(fn ($sub) => $sub->whereNull('receipt_image_path')->orWhere('receipt_image_path', '')))
             ->latest('purchased_at')
             ->paginate($request->integer('per_page', 20));
+
+        // Scontrino con l'uscita di cassa annullata: si mostra come annullato.
+        $cancelled = RestockSession::cancelledIds($page->getCollection()->pluck('id'));
+        $page->getCollection()->each(fn (RestockSession $session) => in_array($session->id, $cancelled, true) && $session->setAttribute('status', 'cancelled'));
+
+        return $page;
     }
 
     public function show(RestockSession $receipt)

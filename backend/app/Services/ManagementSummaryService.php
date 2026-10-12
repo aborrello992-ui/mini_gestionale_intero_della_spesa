@@ -110,6 +110,9 @@ class ManagementSummaryService
         $sessions = RestockSession::query()
             ->when($from, fn ($q) => $q->whereDate('purchased_at', '>=', $from))
             ->when($to, fn ($q) => $q->whereDate('purchased_at', '<=', $to));
+        // Gli scontrini annullati non contano nei totali.
+        $allIds = (clone $sessions)->pluck('id');
+        $sessions->whereNotIn('id', RestockSession::cancelledIds($allIds));
         $sessionIds = (clone $sessions)->pluck('id');
         $items = RestockSessionItem::query()->whereIn('restock_session_id', $sessionIds);
 

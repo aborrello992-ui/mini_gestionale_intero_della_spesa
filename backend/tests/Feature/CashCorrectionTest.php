@@ -76,23 +76,30 @@ class CashCorrectionTest extends TestCase
 
     public function test_crocchette_case_cancelling_the_three_wrong_movements_restores_the_cash(): void
     {
-        $this->spesa('52.45', 10);              // spesa vera, crocchette comprese
+        $this->spesa('45.52', 10);              // spesa vera, crocchette comprese
         $double = $this->spesa('1.59', 1);       // crocchette aggiunte di nuovo: uscita doppia
         $wrongOut = $this->manual('uscita', '1.59');
         $wrongIn = $this->manual('entrata', '3.18');
-        $this->assertSame(-5245, $this->balance());
+        $this->assertSame(-4552, $this->balance());
 
         // Si annullano i tre movimenti sbagliati; le crocchette restano in magazzino.
         $this->cancel($double)->assertCreated();
         $this->cancel($wrongOut)->assertCreated();
         $this->cancel($wrongIn)->assertCreated();
 
-        $this->assertSame(-5245, $this->balance());
+        $this->assertSame(-4552, $this->balance());
         $this->assertSame('11.000', $this->crocchette->fresh()->current_quantity);
         $this->assertSame(3, CashMovement::where('status', 'reversed')->count());
         $this->assertSame(3, CashMovement::where('type', 'annullamento')->count());
         $this->assertDatabaseHas('admin_audit_logs', ['action' => 'cash_movement_cancelled']);
         $this->artisan('locale:check')->assertSuccessful();
+
+        // Lo scontrino da 1,59 resta in elenco come annullato e non conta più nei totali degli scontrini.
+        $receipts = collect($this->getJson('/api/receipts')->assertOk()->json('data'));
+        $this->assertSame('cancelled', $receipts->firstWhere('total_cents', 159)['status']);
+        $this->getJson('/api/management/summary')->assertOk()
+            ->assertJsonPath('receipts.count', 1)
+            ->assertJsonPath('receipts.total_cents', 4552);
 
         // Lo stesso movimento non si annulla due volte.
         $this->cancel($wrongIn)->assertUnprocessable()->assertJsonPath('message', 'Movimento già annullato.');

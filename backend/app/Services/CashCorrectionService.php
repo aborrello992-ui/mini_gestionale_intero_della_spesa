@@ -89,10 +89,11 @@ class CashCorrectionService
                     $stock[] = ['product_id' => $product->id, 'quantity' => (float) $load->quantity];
                 }
 
-                // Spesa registrata annullata per intero: lo scontrino resta visibile come annullato.
-                if ($stock !== [] && preg_match('/^Spesa prodotti #(\d+)$/', (string) $locked->description, $match)) {
-                    RestockSession::query()->whereKey($match[1])->update(['status' => 'cancelled']);
-                }
+            }
+
+            // Uscita di una spesa registrata: lo scontrino resta visibile come annullato e non conta più nei totali.
+            if ($locked->type === 'acquisto_prodotti' && preg_match('/^Spesa prodotti #(\d+)$/', (string) $locked->description, $match)) {
+                RestockSession::query()->whereKey($match[1])->update(['status' => 'cancelled']);
             }
 
             $reversal = $this->cashService->reverse($locked, $admin);
