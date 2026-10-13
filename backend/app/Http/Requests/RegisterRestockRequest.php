@@ -13,6 +13,8 @@ class RegisterRestockRequest extends FormRequest
 {
     public const DIFFERENCE_REASONS = ['arrotondamento', 'sacchetto', 'sconto', 'altro_costo', 'errore'];
 
+    public const VAT_RATES = [4, 5, 10, 22];
+
     public const EXPENSE_CATEGORIES = ['pulizia', 'stoviglie_posate', 'sacchetti', 'altro'];
 
     public function authorize(): bool
@@ -29,6 +31,7 @@ class RegisterRestockRequest extends FormRequest
             'purchased_time' => ['required', 'date_format:H:i'],
             'receipt_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'note' => ['nullable', 'string', 'max:1000'],
+            'vat_amount' => ['nullable', 'numeric', 'min:0'],
             'difference_reason' => ['nullable', 'in:'.implode(',', self::DIFFERENCE_REASONS)],
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_type' => ['nullable', 'in:product,expense'],
@@ -49,6 +52,7 @@ class RegisterRestockRequest extends FormRequest
             'items.*.cost_amount' => ['nullable', 'numeric', 'min:0'],
             'items.*.location' => ['nullable', 'string', 'max:255'],
             'items.*.note' => ['nullable', 'string', 'max:255'],
+            'items.*.vat_rate' => ['nullable', 'in:'.implode(',', self::VAT_RATES)],
             'items.*.image' => ['exclude_if:items.*.item_type,expense', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ];
     }

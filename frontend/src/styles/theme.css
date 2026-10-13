@@ -1551,3 +1551,39 @@ legend.form-label {
 .withdrawal-actions .btn {
   flex: 1 1 140px;
 }
+
+/* Registra spesa: aliquota IVA della riga e contatore righe/scontrino */
+.restock-vat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.restock-progress {
+  position: sticky;
+  top: 72px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 14px;
+  background: var(--ink);
+  color: #ffffff;
+  border-left: 4px solid var(--gold);
+  border-radius: var(--radius-sm);
+}
+
+.restock-progress.is-ok {
+  border-left-color: var(--color-success);
+}
+
+.summary-box.is-ok {
+  border-color: var(--color-success);
+}
+
+.summary-box.is-diff {
+  border-color: var(--color-danger, #c0392b);
+}

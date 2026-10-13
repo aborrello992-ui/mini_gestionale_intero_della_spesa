@@ -26,16 +26,30 @@ const toNumber = (value) => {
   const parsed = Number(String(value ?? '').replace(',', '.'))
   return Number.isFinite(parsed) ? parsed : 0
 }
-const emptyReceipt = () => ({ total_amount: '', purchased_at: localDate(), purchased_time: localTime(), receipt_image: null, receipt_preview: '', difference_reason: '', note: '' })
+const emptyReceipt = () => ({ total_amount: '', vat_amount: '', purchased_at: localDate(), purchased_time: localTime(), receipt_image: null, receipt_preview: '', difference_reason: '', note: '' })
 let rowCounter = 0
 const rowId = () => { rowCounter += 1; return `row-${rowCounter}` }
 
-const baseProductRow = { quantity: '1', package_count: '', pieces_per_package: '', costMode: 'line', unit_cost: '', line_cost: '', selling_price: '' }
+const baseProductRow = { vat_rate: '', quantity: '1', package_count: '', pieces_per_package: '', costMode: 'line', unit_cost: '', line_cost: '', selling_price: '' }
 
 function rowQuantity(row) {
   const direct = toNumber(row.quantity)
   if (direct > 0) return direct
   return toNumber(row.package_count) * toNumber(row.pieces_per_package)
+}
+
+// Aliquote stampate sugli scontrini (colonna IVA). Servono solo da controllo: i costi restano IVA inclusa.
+const VAT_RATES = [4, 5, 10, 22]
+
+/** IVA contenuta in un importo IVA inclusa, come la calcola la cassa: totale per aliquota × aliquota / (100 + aliquota). */
+function vatByRate(rows) {
+  const totals = new Map()
+  rows.forEach((row) => {
+    if (!row.vat_rate) return
+    const rate = Number(row.vat_rate)
+    totals.set(rate, (totals.get(rate) || 0) + lineCostCents(row))
+  })
+  return [...totals.entries()].sort((a, b) => a[0] - b[0]).map(([rate, total]) => ({ rate, total, vat: Math.round((total * rate) / (100 + rate)) }))
 }
 
 function hasCost(row) {
@@ -113,6 +127,19 @@ export default function RestockForm({ products, listItems, reminders = [], categ
   const costedTotal = costedRows.reduce((sum, row) => sum + lineCostCents(row), 0)
   const canSpread = difference !== 0 && costedTotal > 0 && costedTotal + difference > 0
 
+  // Controllo IVA: ricalcolata dalle righe e confrontata con il «di cui IVA» dello scontrino.
+  const vatGroups = vatByRate(rows)
+  const vatCheck = (() => {
+    if (!vatGroups.length && receipt.vat_amount === '') return null
+    const computed = vatGroups.reduce((sum, group) => sum + group.vat, 0)
+    const receiptVat = receipt.vat_amount === '' ? null : toCents(receipt.vat_amount)
+    const missing = rows.filter((row) => !row.vat_rate).length
+    // La cassa arrotonda per aliquota: si tollera un centesimo per aliquota.
+    const tolerance = Math.max(1, vatGroups.length)
+    const status = receiptVat === null || missing > 0 ? 'partial' : Math.abs(computed - receiptVat) <= tolerance ? 'ok' : 'diff'
+    return { computed, receipt: receiptVat, byRate: vatGroups, missing, status }
+  })()
+
   function spreadDifference() {
     if (!canSpread) return
     const target = costedTotal + difference
@@ -187,6 +214,8 @@ export default function RestockForm({ products, listItems, reminders = [], categ
       shopping_list_item_id: listItem?.id || null,
       quantity: listItem ? String(Number(listItem.suggested_quantity || 1)) : '1',
       selling_price: product.selling_price_cents ? centsToInput(product.selling_price_cents) : '',
+      // L'aliquota usata l'ultima volta per questo prodotto.
+      vat_rate: product.vat_rate ? String(product.vat_rate) : '',
     }])
     setSearch('')
     setMessage({ type: 'danger', text: '' })
@@ -207,7 +236,7 @@ export default function RestockForm({ products, listItems, reminders = [], categ
   }
 
   function addExpense() {
-    setRows((current) => [...current, { id: rowId(), kind: 'expense', expense_category: 'sacchetti', description: '', line_cost: '' }])
+    setRows((current) => [...current, { id: rowId(), kind: 'expense', expense_category: 'sacchetti', description: '', line_cost: '', vat_rate: '22' }])
   }
 
   async function pickReceiptPhoto(file) {
@@ -268,6 +297,7 @@ export default function RestockForm({ products, listItems, reminders = [], categ
     if (receipt.receipt_image) data.append('receipt_image', receipt.receipt_image)
     if (difference !== 0 && receipt.difference_reason) data.append('difference_reason', receipt.difference_reason)
     if (receipt.note.trim()) data.append('note', receipt.note.trim())
+    if (receipt.vat_amount !== '') data.append('vat_amount', centsToInput(toCents(receipt.vat_amount)))
 
     rows.forEach((row, index) => {
       const put = (key, value) => { if (value !== null && value !== undefined && value !== '') data.append(`items[${index}][${key}]`, value) }
@@ -276,9 +306,11 @@ export default function RestockForm({ products, listItems, reminders = [], categ
         put('expense_category', row.expense_category)
         put('description', row.description.trim())
         put('line_cost', centsToInput(toCents(row.line_cost)))
+        put('vat_rate', row.vat_rate)
         return
       }
       put('item_type', 'product')
+      put('vat_rate', row.vat_rate)
       put('quantity', rowQuantity(row))
       put('package_count', row.package_count)
       put('pieces_per_package', row.pieces_per_package)
@@ -331,6 +363,14 @@ export default function RestockForm({ products, listItems, reminders = [], categ
 
   const fieldId = (row, name) => `${formId}-${row.id}-${name}`
 
+  // Aliquota IVA della riga, da copiare dalla colonna IVA dello scontrino.
+  function renderVat(row) {
+    return <div className="restock-vat" role="group" aria-label={`Aliquota IVA di ${rowLabel(row)}`}>
+      <span className="small text-muted-app">IVA sullo scontrino</span>
+      {VAT_RATES.map((rate) => <button type="button" key={rate} className={`btn btn-sm ${Number(row.vat_rate) === rate ? 'btn-primary' : 'btn-outline-primary'}`} aria-pressed={Number(row.vat_rate) === rate} onClick={() => updateRow(row.id, { vat_rate: Number(row.vat_rate) === rate ? '' : String(rate) })}>{rate}%</button>)}
+    </div>
+  }
+
   function renderCostAndPrice(row, errors) {
     const unitCost = unitCostCents(row)
     const sellingCents = toCents(row.selling_price)
@@ -345,7 +385,8 @@ export default function RestockForm({ products, listItems, reminders = [], categ
         {row.costMode === 'line'
           ? <><label className="visually-hidden" htmlFor={fieldId(row, 'line_cost')}>Totale pagato per {rowLabel(row)}</label><input id={fieldId(row, 'line_cost')} className="form-control form-control-lg" inputMode="decimal" placeholder="Totale riga €" value={row.line_cost} onChange={(e) => updateRow(row.id, { line_cost: e.target.value })} /></>
           : <><label className="visually-hidden" htmlFor={fieldId(row, 'unit_cost')}>Costo a pezzo per {rowLabel(row)}</label><input id={fieldId(row, 'unit_cost')} className="form-control form-control-lg" inputMode="decimal" placeholder="Costo a pezzo €" value={row.unit_cost} onChange={(e) => updateRow(row.id, { unit_cost: e.target.value })} /></>}
-        <div className="field-help">{hasCost(row) ? `Totale riga ${money(lineCostCents(row))} · ${row.portion_note ? 'a porzione' : 'a pezzo'} ${money(Math.round(unitCost))}` : 'Usa 0 per un omaggio.'}</div>
+        <div className="field-help">{hasCost(row) ? `Totale riga ${money(lineCostCents(row))} · ${row.portion_note ? 'a porzione' : 'a pezzo'} ${money(Math.round(unitCost))}` : 'Scrivi l\'importo della colonna EURO dello scontrino (IVA già compresa). Usa 0 per un omaggio.'}</div>
+        {renderVat(row)}
         {showErrors && errors.cost && <div className="field-error">{errors.cost}</div>}
       </fieldset>
 
@@ -433,6 +474,7 @@ export default function RestockForm({ products, listItems, reminders = [], categ
           <label className="form-label" htmlFor={fieldId(row, 'line_cost')}>Importo pagato</label>
           <input id={fieldId(row, 'line_cost')} className="form-control form-control-lg" inputMode="decimal" placeholder="€" value={row.line_cost} onChange={(e) => updateRow(row.id, { line_cost: e.target.value })} />
           {showErrors && errors.line_cost && <div className="field-error">{errors.line_cost}</div>}
+          {renderVat(row)}
         </div>
       </article>
     }
@@ -520,6 +562,11 @@ export default function RestockForm({ products, listItems, reminders = [], categ
           <label className="form-label" htmlFor={`${formId}-total`}>Totale scontrino (€)</label>
           <input id={`${formId}-total`} className="form-control form-control-lg" inputMode="decimal" placeholder="Es. 45,52" value={receipt.total_amount} onChange={(e) => updateReceipt('total_amount', e.target.value)} aria-invalid={showErrors && receiptTotal <= 0} />
         </div>
+        <div>
+          <label className="form-label" htmlFor={`${formId}-vat`}>Di cui IVA (facoltativo)</label>
+          <input id={`${formId}-vat`} className="form-control" inputMode="decimal" placeholder="Es. 6,54" value={receipt.vat_amount} onChange={(e) => updateReceipt('vat_amount', e.target.value)} />
+          <div className="field-help">La riga «DI CUI IVA» sotto il totale. Serve a controllare di aver copiato bene le righe: è già compresa nel totale, non si aggiunge.</div>
+        </div>
         <div className="restock-two">
           <div><label className="form-label" htmlFor={`${formId}-date`}>Data</label><input id={`${formId}-date`} className="form-control" type="date" value={receipt.purchased_at} onChange={(e) => updateReceipt('purchased_at', e.target.value)} /></div>
           <div><label className="form-label" htmlFor={`${formId}-time`}>Ora</label><input id={`${formId}-time`} className="form-control" type="time" value={receipt.purchased_time} onChange={(e) => updateReceipt('purchased_time', e.target.value)} /></div>
@@ -555,6 +602,10 @@ export default function RestockForm({ products, listItems, reminders = [], categ
           </div>
         </div>
 
+        {rows.length > 0 && receiptTotal > 0 && <div className={`restock-progress ${difference === 0 ? 'is-ok' : ''}`} aria-live="polite">
+          <span>Righe <strong className="num">{money(productsTotal + expensesTotal)}</strong> su {money(receiptTotal)}</span>
+          <strong>{difference === 0 ? 'Torna con lo scontrino ✓' : difference > 0 ? `Mancano ${money(difference)}` : `Superi di ${money(-difference)}`}</strong>
+        </div>}
         {rows.map(renderRow)}
         {!rows.length && <p className="text-muted-app text-center my-3">Nessuna riga ancora. Cerca un prodotto o aggiungine uno nuovo.</p>}
       </section>}
@@ -569,6 +620,14 @@ export default function RestockForm({ products, listItems, reminders = [], categ
           <div className={difference === 0 ? 'is-ok' : 'is-diff'}><dt>Differenza</dt><dd className="num">{money(difference)}</dd></div>
         </dl>
         {expenseRows.length > 0 && <ul className="small text-muted-app mb-0 ps-3">{expenseRows.map((row) => <li key={row.id}>{rowLabel(row)}: {money(lineCostCents(row))}</li>)}</ul>}
+        {vatCheck && <div className={`summary-box stack-sm ${vatCheck.status === 'ok' ? 'is-ok' : vatCheck.status === 'diff' ? 'is-diff' : ''}`} aria-live="polite">
+          <div className="split"><span>IVA calcolata dalle righe</span><strong className="num">{money(vatCheck.computed)}</strong></div>
+          {vatCheck.byRate.map((group) => <div className="split small text-muted-app" key={group.rate}><span>{group.rate}% su {money(group.total)}</span><span className="num">{money(group.vat)}</span></div>)}
+          {vatCheck.receipt !== null && <div className="split"><span>«Di cui IVA» dello scontrino</span><strong className="num">{money(vatCheck.receipt)}</strong></div>}
+          {vatCheck.missing > 0 && <div className="small">{vatCheck.missing} {vatCheck.missing === 1 ? 'riga senza aliquota' : 'righe senza aliquota'}: sceglila per un controllo completo.</div>}
+          {vatCheck.status === 'ok' && <strong>L'IVA torna con lo scontrino: hai copiato bene le righe.</strong>}
+          {vatCheck.status === 'diff' && <strong>L'IVA non torna di {money(Math.abs(vatCheck.computed - vatCheck.receipt))}: controlla importi e aliquote delle righe.</strong>}
+        </div>}
         {canSpread && <div className="summary-box stack-sm">
           <div><strong>{difference > 0 ? 'La differenza è l\'IVA?' : 'La differenza è uno sconto?'}</strong> Se nei prodotti hai scritto i prezzi {difference > 0 ? 'senza IVA' : 'prima dello sconto'}, ripartisci {money(Math.abs(difference))} sui prodotti in proporzione al loro importo: le righe tornano uguali allo scontrino e il costo a pezzo diventa quello vero.</div>
           <button type="button" className="btn btn-primary" onClick={spreadDifference}>Ripartisci {money(difference)} sui prodotti</button>

@@ -14,8 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'category_id', 'location_id', 'name', 'normalized_name', 'description', 'unit',
     'image_path', 'image_alt', 'current_quantity', 'minimum_threshold',
     'stock_reference_quantity', 'selling_price_cents', 'average_price_cents',
-    'last_purchase_price_cents', 'is_active', 'archived_at', 'archived_by', 'archive_reason',
-])]
+    'last_purchase_price_cents', 'is_active', 'archived_at', 'archived_by', 'archive_reason', 'vat_rate'])]
 class Product extends Model
 {
     use HasFactory;

@@ -75,6 +75,7 @@ class RestockSessionService
             'purchased_time' => $data['purchased_time'],
             'receipt_image_path' => $data['receipt_image_path'] ?? null,
             'note' => $data['note'] ?? null,
+            'vat_cents' => blank($data['vat_amount'] ?? null) ? null : $this->cashService->toCents($data['vat_amount']),
         ]);
 
         // La cassa scala una sola volta il totale ufficiale dello scontrino.
@@ -97,6 +98,7 @@ class RestockSessionService
                     'expense_category' => $item['expense_category'],
                     'description' => $item['description'] ?? null,
                     'cost_cents' => RestockLine::lineCostCents($item),
+                    'vat_rate' => blank($item['vat_rate'] ?? null) ? null : (int) $item['vat_rate'],
                 ]);
 
                 continue;
@@ -132,6 +134,10 @@ class RestockSessionService
         if (! blank($item['selling_price'] ?? null)) {
             $updates['selling_price_cents'] = $this->cashService->toCents($item['selling_price']);
         }
+        // Il prodotto ricorda l'aliquota dello scontrino: la prossima spesa la propone già.
+        if (! blank($item['vat_rate'] ?? null)) {
+            $updates['vat_rate'] = (int) $item['vat_rate'];
+        }
         if ($unitCostCents !== null) {
             $updates['last_purchase_price_cents'] = $unitCostCents;
             $updates['average_price_cents'] = $newAverage;
@@ -150,6 +156,7 @@ class RestockSessionService
             'previous_average_cost_cents' => $previousAverage,
             'new_average_cost_cents' => $newAverage,
             'note' => $item['note'] ?? null,
+            'vat_rate' => blank($item['vat_rate'] ?? null) ? null : (int) $item['vat_rate'],
         ]);
 
         InventoryMovement::create([
