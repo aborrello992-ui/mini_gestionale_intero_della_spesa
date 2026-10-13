@@ -95,6 +95,8 @@ export default function RestockForm({ products, listItems, reminders = [], categ
   const [preparingPhoto, setPreparingPhoto] = useState(false)
   const [message, setMessage] = useState({ type: 'danger', text: '' })
   const [showErrors, setShowErrors] = useState(false)
+  // Righe prima della ripartizione della differenza, per poterla annullare.
+  const [spreadUndo, setSpreadUndo] = useState(null)
 
   useEffect(() => () => {
     if (receipt.receipt_preview) URL.revokeObjectURL(receipt.receipt_preview)
@@ -106,6 +108,39 @@ export default function RestockForm({ products, listItems, reminders = [], categ
   const expensesTotal = expenseRows.reduce((sum, row) => sum + lineCostCents(row), 0)
   const receiptTotal = toCents(receipt.total_amount)
   const difference = receiptTotal - productsTotal - expensesTotal
+  // Prodotti con un costo: la differenza (IVA, sconti, arrotondamenti) si ripartisce su di loro in proporzione.
+  const costedRows = productRows.filter((row) => lineCostCents(row) > 0)
+  const costedTotal = costedRows.reduce((sum, row) => sum + lineCostCents(row), 0)
+  const canSpread = difference !== 0 && costedTotal > 0 && costedTotal + difference > 0
+
+  function spreadDifference() {
+    if (!canSpread) return
+    const target = costedTotal + difference
+    // Quote esatte arrotondate per difetto; i centesimi avanzati vanno alle righe con la parte decimale più alta.
+    const exact = costedRows.map((row) => (lineCostCents(row) * target) / costedTotal)
+    const cents = exact.map(Math.floor)
+    let left = target - cents.reduce((sum, value) => sum + value, 0)
+    exact.map((value, index) => [value - Math.floor(value), index]).sort((a, b) => b[0] - a[0]).forEach(([, index]) => {
+      if (left > 0) { cents[index] += 1; left -= 1 }
+    })
+    const updates = new Map(costedRows.map((row, index) => [row.id, cents[index]]))
+    if ([...updates.values()].some((cents) => cents < 0)) return
+    setSpreadUndo({ rows, note: receipt.note, reason: receipt.difference_reason })
+    setRows((current) => current.map((row) => updates.has(row.id) ? { ...row, costMode: 'line', line_cost: centsToInput(updates.get(row.id)) } : row))
+    setReceipt((current) => ({
+      ...current,
+      difference_reason: '',
+      note: [current.note, `Differenza di ${money(difference)} (IVA, sconti o arrotondamenti) ripartita sui prodotti.`].filter(Boolean).join(' '),
+    }))
+  }
+
+  function undoSpread() {
+    if (!spreadUndo) return
+    setRows(spreadUndo.rows)
+    setReceipt((current) => ({ ...current, note: spreadUndo.note, difference_reason: spreadUndo.reason }))
+    setSpreadUndo(null)
+  }
+
   const categories = useMemo(() => {
     const names = categoryList.length ? categoryList.map((category) => category.name) : products.map((product) => product.category?.name)
     return [...new Set(names.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'it'))
@@ -281,6 +316,7 @@ export default function RestockForm({ products, listItems, reminders = [], categ
       const response = await runWithScene('generic', user, () => api.post('/shopping-list/restock-sessions', payload(), { headers: { 'Content-Type': 'multipart/form-data' } }))
       rows.forEach((row) => row.imagePreview && URL.revokeObjectURL(row.imagePreview))
       setRows([])
+      setSpreadUndo(null)
       setReceipt(emptyReceipt())
       setStep(0)
       setIdempotencyKey(newUuid())
@@ -533,8 +569,16 @@ export default function RestockForm({ products, listItems, reminders = [], categ
           <div className={difference === 0 ? 'is-ok' : 'is-diff'}><dt>Differenza</dt><dd className="num">{money(difference)}</dd></div>
         </dl>
         {expenseRows.length > 0 && <ul className="small text-muted-app mb-0 ps-3">{expenseRows.map((row) => <li key={row.id}>{rowLabel(row)}: {money(lineCostCents(row))}</li>)}</ul>}
+        {canSpread && <div className="summary-box stack-sm">
+          <div><strong>{difference > 0 ? 'La differenza è l\'IVA?' : 'La differenza è uno sconto?'}</strong> Se nei prodotti hai scritto i prezzi {difference > 0 ? 'senza IVA' : 'prima dello sconto'}, ripartisci {money(Math.abs(difference))} sui prodotti in proporzione al loro importo: le righe tornano uguali allo scontrino e il costo a pezzo diventa quello vero.</div>
+          <button type="button" className="btn btn-primary" onClick={spreadDifference}>Ripartisci {money(difference)} sui prodotti</button>
+        </div>}
+        {spreadUndo && difference === 0 && <div className="split small">
+          <span className="text-muted-app">Differenza ripartita sui prodotti: i nuovi importi sono nelle righe.</span>
+          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={undoSpread}>Annulla ripartizione</button>
+        </div>}
         {difference !== 0 && <div>
-          <label className="form-label" htmlFor={`${formId}-reason`}>Motivo della differenza</label>
+          <label className="form-label" htmlFor={`${formId}-reason`}>{canSpread ? 'Oppure indica il motivo della differenza' : 'Motivo della differenza'}</label>
           <select id={`${formId}-reason`} className="form-select form-select-lg" value={receipt.difference_reason} onChange={(e) => updateReceipt('difference_reason', e.target.value)} aria-invalid={showErrors && !receipt.difference_reason}>
             <option value="">Scegli il motivo</option>
             {DIFFERENCE_REASONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
