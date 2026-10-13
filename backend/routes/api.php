@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AccountResetController;
 use App\Http\Controllers\Api\ArchiveController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CashController;
+use App\Http\Controllers\Api\CashCountController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\DashboardController;
@@ -49,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/inventory/movements', [InventoryController::class, 'movements']);
         Route::get('/cash/balance', [CashController::class, 'balance']);
         Route::get('/cash/movements', [CashController::class, 'index']);
+        Route::get('/cash/counts', [CashCountController::class, 'index']);
         Route::get('/debts', [DebtController::class, 'index']);
         Route::get('/debts/{member}', [DebtController::class, 'show']);
         Route::get('/history', HistoryController::class);
@@ -97,6 +99,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/inventory/adjust', [InventoryController::class, 'adjust']);
         Route::post('/inventory/movements/{movement}/reverse', [InventoryController::class, 'reverse']);
         Route::post('/cash/movements', [CashController::class, 'store']);
+        Route::post('/cash/counts', [CashCountController::class, 'store'])->middleware('idempotent');
         Route::post('/cash/movements/{movement}/reverse', [CashController::class, 'reverse']);
         Route::get('/users', [UserController::class, 'index']);
         Route::post('/users', [UserController::class, 'store']);

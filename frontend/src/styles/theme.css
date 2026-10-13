@@ -1587,3 +1587,38 @@ legend.form-label {
 .summary-box.is-diff {
   border-color: var(--color-danger, #c0392b);
 }
+
+/* Conteggio dei contanti nel cassetto */
+.cash-count-drift {
+  font-weight: 700;
+}
+
+.cash-count-drift.is-ok {
+  color: var(--color-success);
+}
+
+.cash-count-drift.is-diff {
+  color: var(--color-danger);
+}
+
+.cash-count-drift.is-warn {
+  color: var(--gold-strong);
+}
+
+.cash-count-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+  gap: 10px;
+}
+
+.cash-count-piece label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.cash-count-stepper {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 4px;
+}

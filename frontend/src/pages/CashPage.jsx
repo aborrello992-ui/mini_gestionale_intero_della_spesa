@@ -10,6 +10,7 @@ import LoadingSkeleton from '../components/feedback/LoadingSkeleton'
 import FormField from '../components/forms/FormField'
 import AlertMessage from '../components/AlertMessage'
 import CashCancelModal, { CashCancelButton } from '../components/CashCancelModal'
+import CashCountPanel from '../components/CashCountPanel'
 import { useAuth } from '../hooks/useAuth'
 
 const PER_PAGE = 30
@@ -22,6 +23,7 @@ export default function CashPage() {
   const [message, setMessage] = useState({ type: 'success', text: '' })
   const [cancelRow, setCancelRow] = useState(null)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
 
@@ -54,6 +56,7 @@ export default function CashPage() {
   function cancelled(text) {
     setCancelRow(null)
     setMessage({ type: 'success', text })
+    setRefreshKey((value) => value + 1)
     load()
   }
 
@@ -78,6 +81,7 @@ export default function CashPage() {
           <MetricCard icon={ReceiptText} tone="warning" label="Da incassare dai copponi" value={money(counters.open_coppone_cents || 0)} help="Crediti aperti, non inclusi nel saldo reale." />
         </div>
       )}
+      <CashCountPanel isAdmin={isAdmin} refreshKey={refreshKey} onCounted={(text) => setMessage({ type: 'success', text })} />
       <AlertMessage type={message.type}>{message.text}</AlertMessage>
       <div className="app-card filter-bar">
         <FormField label="Direzione">
