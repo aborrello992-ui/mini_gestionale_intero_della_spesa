@@ -18,6 +18,7 @@ export default function DebtsPage() {
   const [detail, setDetail] = useState(null)
   const [amount, setAmount] = useState('')
   const [adjustmentForm, setAdjustmentForm] = useState({ amount: '', note: '' })
+  const [bonusForm, setBonusForm] = useState({ amount: '', reason: '' })
   const [paymentForms, setPaymentForms] = useState({})
   const [payingMemberId, setPayingMemberId] = useState(null)
   const [message, setMessage] = useState('')
@@ -69,6 +70,32 @@ export default function DebtsPage() {
     } catch (err) { setMessage(errorMessage(err)) } finally { setPayingMemberId(null) }
   }
 
+  async function addBonus(event) {
+    event.preventDefault()
+    if (payingMemberId) return
+    setMessage('')
+    setPayingMemberId(detail.member.id)
+    try {
+      const { data } = await api.post(`/debts/${detail.member.id}/bonus-credit`, bonusForm)
+      setMessage(data.applied_to_debts_cents > 0 ? `Credito bonus registrato: ${money(data.applied_to_debts_cents)} hanno già saldato dei copponi.` : 'Credito bonus registrato.')
+      setBonusForm({ amount: '', reason: '' })
+      await open(detail.member)
+      await load()
+    } catch (err) { setMessage(errorMessage(err)) } finally { setPayingMemberId(null) }
+  }
+
+  async function revokeBonus(credit) {
+    const reason = window.prompt('Motivo dell\'annullamento del credito bonus?')
+    if (!reason || reason.trim().length < 3) return
+    setMessage('')
+    try {
+      await api.post(`/debts/bonus-credits/${credit.id}/revoke`, { reason: reason.trim() })
+      setMessage('Credito bonus annullato.')
+      await open(detail.member)
+      await load()
+    } catch (err) { setMessage(errorMessage(err)) }
+  }
+
   async function addManualDebt(event) {
     event.preventDefault()
     if (payingMemberId) return
@@ -91,7 +118,7 @@ export default function DebtsPage() {
   return (
     <section>
       <PageHeader title="Debiti" subtitle="Debiti aperti e accrediti personali lasciati in cassa." />
-      <AlertMessage type={['Movimento registrato.', 'Rettifica debito registrata.'].includes(message) ? 'success' : 'danger'}>{message}</AlertMessage>
+      <AlertMessage type={(['Movimento registrato.', 'Rettifica debito registrata.', 'Credito bonus annullato.'].includes(message) || message.startsWith('Credito bonus registrato')) ? 'success' : 'danger'}>{message}</AlertMessage>
       <div className="metric-grid mb-3">
         <MetricCard emphasis icon={ReceiptText} tone="warning" label="Da incassare" value={money(totalDebt)} help={`${debtorCount} ${debtorCount === 1 ? 'persona' : 'persone'} con copponi aperti.`} />
         <MetricCard icon={WalletCards} tone="success" label="Crediti dei soci" value={money(totalWallet)} help="Soldi lasciati in cassa da scalare dai prossimi copponi." />
@@ -152,6 +179,25 @@ export default function DebtsPage() {
               <input className="form-control" type="number" step="0.01" min="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </FormField>
             <button className="btn btn-primary" disabled={payingMemberId === detail.member.id}>{payingMemberId === detail.member.id ? 'Registrazione...' : 'Registra versamento'}</button>
+          </form>
+          <form className="manual-debt-form mt-3" onSubmit={addBonus}>
+            <div>
+              <h3 className="h6 mb-1">Credito bonus</h3>
+              <p className="small text-muted-app mb-0">Per chi fa un lavoro per il locale: il credito si scala dai prodotti che prende, ma non entra né esce dalla cassa.</p>
+            </div>
+            <FormField label="Importo credito">
+              <input className="form-control" type="number" step="0.01" min="0.01" value={bonusForm.amount} onChange={(e) => setBonusForm({ ...bonusForm, amount: e.target.value })} />
+            </FormField>
+            <FormField label="Motivo obbligatorio">
+              <input className="form-control" maxLength={255} value={bonusForm.reason} onChange={(e) => setBonusForm({ ...bonusForm, reason: e.target.value })} placeholder="Es. ha montato gli scaffali" />
+            </FormField>
+            <button className="btn btn-outline-primary" disabled={payingMemberId === detail.member.id || !bonusForm.amount || bonusForm.reason.trim().length < 3}>Dai credito bonus</button>
+            {detail.bonus_credits?.length > 0 && <ul className="row-list">{detail.bonus_credits.map((credit) => (
+              <li key={credit.id}>
+                <span className="min-0"><strong>{money(credit.amount_cents)}</strong><small>{credit.note} · {dateTime(credit.created_at)}</small></span>
+                <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => revokeBonus(credit)}>Annulla</button>
+              </li>
+            ))}</ul>}
           </form>
           <form className="manual-debt-form mt-3" onSubmit={addManualDebt}>
             <div>

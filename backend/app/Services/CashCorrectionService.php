@@ -19,7 +19,7 @@ use RuntimeException;
  */
 class CashCorrectionService
 {
-    private const INTERNAL_TYPES = ['annullamento', 'utilizzo_accredito', DebtService::REASSIGNMENT_CREDIT_TYPE];
+    private const INTERNAL_TYPES = ['annullamento', 'utilizzo_accredito', DebtService::REASSIGNMENT_CREDIT_TYPE, DebtService::BONUS_CREDIT_TYPE];
 
     public function __construct(private CashService $cashService, private DebtService $debtService) {}
 

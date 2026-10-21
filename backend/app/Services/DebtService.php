@@ -15,6 +15,9 @@ class DebtService
     /** Credito restituito a un socio quando un coppone gia pagato viene riassegnato (non tocca la cassa). */
     public const REASSIGNMENT_CREDIT_TYPE = 'credito_riassegnazione';
 
+    /** Credito regalato dall'admin (es. lavoro fatto per il locale): non entra in cassa, si scala dai copponi. */
+    public const BONUS_CREDIT_TYPE = 'credito_bonus';
+
     public function __construct(private CashService $cashService) {}
 
     public function pay(User $member, User $admin, int $amountCents, ?string $note = null): DebtPayment
@@ -199,6 +202,78 @@ class DebtService
         });
     }
 
+    /**
+     * Credito bonus: aumenta il portafoglio del socio senza muovere la cassa (nessun contante entra).
+     * Si usa come ogni altro credito: scala subito i copponi aperti e poi i prossimi acquisti.
+     */
+    public function addBonusCredit(User $member, User $admin, int $amountCents, string $reason): array
+    {
+        if ($amountCents <= 0) {
+            throw new RuntimeException('Importo non valido.');
+        }
+        if ($member->isGuest() || ! in_array($member->role, [User::ROLE_ADMIN, User::ROLE_MEMBER], true)) {
+            throw new RuntimeException('Il credito bonus si può dare solo ai soci.');
+        }
+
+        return DB::transaction(function () use ($member, $admin, $amountCents, $reason) {
+            $cash = $this->cashService->createFromCents([
+                'amount_cents' => $amountCents,
+                'direction' => 'entrata',
+                'type' => self::BONUS_CREDIT_TYPE,
+                'category' => 'portafoglio',
+                'description' => "Credito bonus {$member->name}",
+                'movement_date' => now()->toDateString(),
+                'movement_time' => now()->format('H:i:s'),
+                'member_id' => $member->id,
+                'note' => $reason,
+                'affects_current_balance' => false,
+            ], $admin);
+
+            $applied = $this->applyWalletCreditToOpenDebts($member, $admin, 'Credito bonus usato per saldare copponi aperti');
+
+            AdminAuditLog::create([
+                'admin_id' => $admin->id,
+                'target_user_id' => $member->id,
+                'action' => 'bonus_credit_added',
+                'changes' => ['cash_movement_id' => $cash->id, 'amount_cents' => $amountCents, 'reason' => $reason, 'applied_to_debts_cents' => $applied],
+            ]);
+
+            return [
+                'cash_movement_id' => $cash->id,
+                'applied_to_debts_cents' => $applied,
+                'wallet_credit_cents' => $this->walletCreditCents($member),
+            ];
+        });
+    }
+
+    /** Toglie un credito bonus dato per sbaglio, se non è già stato usato (la cassa non cambia). */
+    public function revokeBonusCredit(CashMovement $movement, User $admin, string $reason): CashMovement
+    {
+        return DB::transaction(function () use ($movement, $admin, $reason) {
+            $locked = CashMovement::query()->whereKey($movement->id)->lockForUpdate()->firstOrFail();
+            if ($locked->type !== self::BONUS_CREDIT_TYPE || $locked->status !== 'active') {
+                throw new RuntimeException('Questo non è un credito bonus attivo.');
+            }
+
+            $member = User::query()->findOrFail($locked->member_id);
+            if ($this->walletCreditCents($member) < (int) $locked->amount_cents) {
+                throw new RuntimeException("Il credito di {$member->name} è già stato usato in parte: non si può annullare tutto.");
+            }
+
+            $reversal = $this->cashService->reverse($locked, $admin);
+            $reversal->update(['note' => $reason, 'description' => 'Annullamento: '.$locked->description]);
+
+            AdminAuditLog::create([
+                'admin_id' => $admin->id,
+                'target_user_id' => $member->id,
+                'action' => 'bonus_credit_revoked',
+                'changes' => ['cash_movement_id' => $locked->id, 'amount_cents' => (int) $locked->amount_cents, 'reason' => $reason],
+            ]);
+
+            return $reversal->fresh();
+        });
+    }
+
     public function walletCreditCents(User $member): int
     {
         $credited = CashMovement::query()
@@ -207,7 +282,7 @@ class DebtService
             ->where('direction', 'entrata')
             ->where(fn ($q) => $q
                 ->where(fn ($sub) => $sub->where('type', 'accredito')->where('affects_current_balance', true))
-                ->orWhere(fn ($sub) => $sub->where('type', self::REASSIGNMENT_CREDIT_TYPE)->where('affects_current_balance', false)))
+                ->orWhere(fn ($sub) => $sub->whereIn('type', [self::REASSIGNMENT_CREDIT_TYPE, self::BONUS_CREDIT_TYPE])->where('affects_current_balance', false)))
             ->sum('amount_cents');
 
         $used = CashMovement::query()

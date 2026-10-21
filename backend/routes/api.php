@@ -95,6 +95,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/debts/collective', [DebtController::class, 'collective'])->middleware('idempotent');
         Route::post('/debts/{member}/adjustments', [DebtController::class, 'adjust']);
         Route::post('/debts/{member}/payments', [DebtController::class, 'pay']);
+        Route::post('/debts/{member}/bonus-credit', [DebtController::class, 'bonus']);
+        Route::post('/debts/bonus-credits/{movement}/revoke', [DebtController::class, 'revokeBonus']);
         // Prelievo senza pagamento ne coppone: solo admin (i soci usano /withdrawals con PIN).
         Route::post('/inventory/withdraw', [InventoryController::class, 'withdraw']);
         Route::post('/inventory/adjust', [InventoryController::class, 'adjust']);

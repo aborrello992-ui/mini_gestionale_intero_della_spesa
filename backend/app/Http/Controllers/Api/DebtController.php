@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CashMovement;
 use App\Models\MemberDebt;
 use App\Models\User;
 use App\Services\CashService;
@@ -45,6 +46,9 @@ class DebtController extends Controller
                 'wallet_credit_cents' => $service->walletCreditCents($member),
             ],
             'items' => $debts,
+            'bonus_credits' => CashMovement::query()
+                ->where('member_id', $member->id)->where('type', DebtService::BONUS_CREDIT_TYPE)->where('status', 'active')
+                ->latest('id')->limit(20)->get(['id', 'amount_cents', 'note', 'created_at']),
             'total_due_cents' => (int) $debts->sum('original_amount_cents'),
             'total_paid_cents' => (int) $debts->sum('paid_amount_cents'),
             'remaining_cents' => (int) $debts->sum('remaining_amount_cents'),
@@ -74,6 +78,38 @@ class DebtController extends Controller
 
         try {
             return response()->json($service->pay($member, $request->user(), $cashService->toCents($data['amount']), $data['note'] ?? null), 201);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    /** Credito bonus a un socio (es. ha fatto un lavoro per il locale): non tocca la cassa (admin). */
+    public function bonus(User $member, Request $request, DebtService $service, CashService $cashService)
+    {
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01', 'max:10000'],
+            'reason' => ['required', 'string', 'min:3', 'max:255'],
+        ], [
+            'reason.required' => 'Indica il motivo del credito (es. lavoro fatto per il locale).',
+            'reason.min' => 'Il motivo deve avere almeno 3 caratteri.',
+        ]);
+
+        try {
+            return response()->json($service->addBonusCredit($member, $request->user(), $cashService->toCents($data['amount']), $data['reason']), 201);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
+    /** Annulla un credito bonus dato per sbaglio, se non è già stato speso (admin). */
+    public function revokeBonus(CashMovement $movement, Request $request, DebtService $service)
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:255']], [
+            'reason.required' => 'Indica il motivo dell\'annullamento.',
+        ]);
+
+        try {
+            return response()->json($service->revokeBonusCredit($movement, $request->user(), $data['reason']));
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
         }
