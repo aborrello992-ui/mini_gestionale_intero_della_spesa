@@ -111,7 +111,10 @@ class SaleService
                 if (floor($quantity) != $quantity) {
                     throw new RuntimeException('Le combo si prendono intere.');
                 }
-                $components = [...$components, ...$this->comboComponents($combo, (int) $quantity)];
+                if ($quantity > 1 && $combo->items->contains(fn ($item) => $item->choice_group)) {
+                    throw new RuntimeException("«{$combo->name}» ha la bibita a scelta: prendila una alla volta.");
+                }
+                $components = [...$components, ...$this->comboComponents($combo, (int) $quantity, (array) ($line['choices'] ?? []))];
 
                 continue;
             }
@@ -133,9 +136,9 @@ class SaleService
     }
 
     /** Ripartisce il prezzo della combo sui prodotti in proporzione al loro prezzo normale. */
-    private function comboComponents(Combo $combo, int $times): array
+    private function comboComponents(Combo $combo, int $times, array $choices = []): array
     {
-        $items = $combo->items->filter(fn ($item) => $item->product)->values();
+        $items = $this->pickItems($combo, $choices);
         if ($items->isEmpty()) {
             throw new RuntimeException("La combo «{$combo->name}» non contiene prodotti.");
         }
@@ -164,6 +167,34 @@ class SaleService
         }
 
         return $components;
+    }
+
+    /** Un prodotto per ogni posto della combo: quelli fissi e, per i posti a scelta, l'alternativa scelta. */
+    private function pickItems(Combo $combo, array $choices): \Illuminate\Support\Collection
+    {
+        $picked = collect();
+        foreach ($combo->slots() as $key => $slot) {
+            $slot = $slot->filter(fn ($item) => $item->product)->values();
+            if (! str_starts_with($key, 'g')) {
+                if ($slot->isNotEmpty()) {
+                    $picked->push($slot->first());
+                }
+
+                continue;
+            }
+
+            $wanted = (int) ($choices[(int) substr($key, 1)] ?? $choices[substr($key, 1)] ?? 0);
+            $item = $slot->first(fn ($candidate) => (int) $candidate->product_id === $wanted);
+            if (! $item) {
+                throw new RuntimeException("Scegli la bibita per «{$combo->name}».");
+            }
+            if (! $item->product->is_active || $item->product->archived_at) {
+                throw new RuntimeException("«{$item->product->name}» non è più disponibile.");
+            }
+            $picked->push($item);
+        }
+
+        return $picked->values();
     }
 
     /** Divide i centesimi in parti uguali; i centesimi avanzati ruotano fra i partecipanti. */

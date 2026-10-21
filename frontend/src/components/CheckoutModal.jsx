@@ -6,6 +6,7 @@ import AlertMessage from './AlertMessage'
 import { errorMessage, money, quantity as formatQuantity } from '../utils/format'
 import { useAuth } from '../hooks/useAuth'
 import { useWaitScene } from '../hooks/useWaitScene'
+import { comboHasChoices, comboSlots } from '../utils/comboItems'
 
 const MAX_PEOPLE = 6
 const emptyPerson = () => ({ member_id: '', pin: '', payment_status: 'coppone' })
@@ -40,7 +41,9 @@ export default function CheckoutModal({ members, products, combos, initialLines 
   const detailed = lines.map((line) => {
     if (line.combo_id) {
       const combo = comboById.get(line.combo_id)
-      return { ...line, name: combo?.name || 'Combo', unitCents: combo?.price_cents || 0, listCents: combo?.list_price_cents || 0, available: combo?.available_count ?? 0, step: 1 }
+      const slots = comboSlots(combo).filter((slot) => slot.group)
+      const missingChoice = slots.some((slot) => !line.choices?.[slot.group])
+      return { ...line, slots, missingChoice, name: combo?.name || 'Combo', unitCents: combo?.price_cents || 0, listCents: combo?.list_price_cents || 0, available: combo?.available_count ?? 0, step: 1 }
     }
     const product = productById.get(line.product_id)
     return { ...line, name: product?.name || 'Prodotto', unitCents: Number(product?.selling_price_cents || 0), available: Number(product?.current_quantity || 0), unit: product?.unit, step: 1 }
@@ -50,7 +53,7 @@ export default function CheckoutModal({ members, products, combos, initialLines 
   const chosen = new Set(people.map((person) => String(person.member_id)).filter(Boolean))
   const overStock = detailed.find((line) => line.quantity > line.available)
   const isGuestMember = (memberId) => members.find((member) => String(member.id) === String(memberId))?.role === 'guest' || (isGuest && String(memberId) === String(user?.id))
-  const ready = lines.length > 0 && people.every((person) => person.member_id && (person.self || /^\d{3}$/.test(person.pin))) && !overStock
+  const ready = lines.length > 0 && !detailed.some((line) => line.missingChoice) && people.every((person) => person.member_id && (person.self || /^\d{3}$/.test(person.pin))) && !overStock
 
   function addLine(value) {
     setPicker('')
@@ -58,9 +61,18 @@ export default function CheckoutModal({ members, products, combos, initialLines 
     const [kind, rawId] = value.split(':')
     const id = Number(rawId)
     const key = kind === 'c' ? 'combo_id' : 'product_id'
+    // Una combo con bibita a scelta si prende una alla volta: ogni copia ha la sua scelta.
+    if (kind === 'c' && comboHasChoices(comboById.get(id))) {
+      setLines((current) => [...current, { combo_id: id, quantity: 1, choices: {} }])
+      return
+    }
     setLines((current) => current.some((line) => line[key] === id)
       ? current.map((line) => (line[key] === id ? { ...line, quantity: line.quantity + 1 } : line))
       : [...current, { [key]: id, quantity: 1 }])
+  }
+
+  function pickChoice(index, group, productId) {
+    setLines((current) => current.map((line, i) => (i === index ? { ...line, choices: { ...line.choices, [group]: productId ? Number(productId) : undefined } } : line)))
   }
 
   function changeQuantity(index, delta) {
@@ -80,7 +92,7 @@ export default function CheckoutModal({ members, products, combos, initialLines 
       const kind = people.some((person) => person.payment_status === 'coppone' && !isGuestMember(person.member_id)) ? 'coppone' : 'pay'
       const first = members.find((member) => String(member.id) === String(people[0]?.member_id)) || user
       const { data } = await runWithScene(kind, isPersonal ? user : first, (idempotencyKey) => api.post('/sales', {
-        items: lines.map((line) => (line.combo_id ? { combo_id: line.combo_id, quantity: line.quantity } : { product_id: line.product_id, quantity: line.quantity })),
+        items: lines.map((line) => (line.combo_id ? { combo_id: line.combo_id, quantity: line.quantity, ...(line.choices && Object.keys(line.choices).length ? { choices: line.choices } : {}) } : { product_id: line.product_id, quantity: line.quantity })),
         participants: people.map((person) => ({ member_id: Number(person.member_id), ...(person.self ? {} : { pin: person.pin }), payment_status: isGuestMember(person.member_id) ? 'paid' : person.payment_status })),
       }, { headers: { 'Idempotency-Key': idempotencyKey } }))
       onDone?.(data)
@@ -101,16 +113,27 @@ export default function CheckoutModal({ members, products, combos, initialLines 
         <section className="stack-sm" aria-labelledby={`${fieldId}-what`}>
           <h3 className="section-title mb-0" id={`${fieldId}-what`}>Cosa prendete</h3>
           {detailed.length ? <ul className="row-list">{detailed.map((line, index) => (
-            <li key={line.combo_id ? `c${line.combo_id}` : `p${line.product_id}`}>
+            <li key={`${line.combo_id ? `c${line.combo_id}` : `p${line.product_id}`}-${index}`}>
               <span className="min-0">
                 <strong className="text-break">{line.combo_id ? '★ ' : ''}{line.name}</strong>
                 <small>{money(line.unitCents)}{line.listCents > line.unitCents ? <> invece di <s>{money(line.listCents)}</s></> : null} · disponibili {line.combo_id ? line.available : formatQuantity(line.available, line.unit)}</small>
                 {line.quantity > line.available && <small className="text-danger fw-bold">Non ce ne sono abbastanza.</small>}
+                {line.slots?.map((slot) => (
+                  <span className="combo-choice" key={slot.group}>
+                    <label className="small fw-bold" htmlFor={`${fieldId}-c${index}-${slot.group}`}>Scegli il prodotto</label>
+                    <select id={`${fieldId}-c${index}-${slot.group}`} className="form-select" value={line.choices?.[slot.group] || ''} onChange={(e) => pickChoice(index, slot.group, e.target.value)} required>
+                      <option value="">Scegli…</option>
+                      {slot.items.map((item) => <option key={item.product_id} value={item.product_id} disabled={Number(item.product?.current_quantity || 0) < slot.quantity}>{item.product?.name}{Number(item.product?.current_quantity || 0) < slot.quantity ? ' (finito)' : ''}</option>)}
+                    </select>
+                  </span>
+                ))}
               </span>
               <span className="cluster flex-nowrap">
                 <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => (line.quantity > 1 ? changeQuantity(index, -1) : setLines(lines.filter((_, i) => i !== index)))} aria-label={line.quantity > 1 ? `Uno in meno di ${line.name}` : `Togli ${line.name}`}>{line.quantity > 1 ? <Minus size={15} /> : <Trash2 size={15} />}</button>
                 <strong className="num" aria-live="polite">{line.quantity}</strong>
-                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => changeQuantity(index, 1)} aria-label={`Uno in più di ${line.name}`}><Plus size={15} /></button>
+                {line.slots?.length
+                  ? <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setLines([...lines.slice(0, index + 1), { combo_id: line.combo_id, quantity: 1, choices: {} }, ...lines.slice(index + 1)])} aria-label={`Un'altra ${line.name}`}><Plus size={15} /></button>
+                  : <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => changeQuantity(index, 1)} aria-label={`Uno in più di ${line.name}`}><Plus size={15} /></button>}
               </span>
             </li>
           ))}</ul> : <p className="text-muted-app mb-0">Aggiungi un prodotto o una combo.</p>}

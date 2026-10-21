@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useState } from 'react'
-import { ArrowRightLeft, Ban, Plus, Repeat } from 'lucide-react'
+import { ArrowRightLeft, Ban, Plus, Repeat, Shuffle } from 'lucide-react'
 import api from '../api/client'
 import AlertMessage from './AlertMessage'
 import AppModal from './ui/AppModal'
@@ -59,6 +59,9 @@ export default function WithdrawalReassignPanel({ members, onChanged }) {
   // Correzione Pagato/Coppone o annullamento: { row, mode: 'payment' | 'cancel' }
   const [fix, setFix] = useState(null)
   const [fixReason, setFixReason] = useState('')
+  // Cambio del prodotto di un prelievo di combo (es. Coca-Cola al posto della Pepsi)
+  const [swap, setSwap] = useState(null)
+  const [swapForm, setSwapForm] = useState({ product_id: '', reason: '' })
   const [manualOpen, setManualOpen] = useState(false)
   const emptyManual = () => ({ member_id: '', product_id: '', quantity: '1', payment_status: 'coppone', withdrawn_date: localDate(), withdrawn_time: localTime(), affects_stock: true, notes: '' })
   const [manual, setManual] = useState(emptyManual)
@@ -102,6 +105,19 @@ export default function WithdrawalReassignPanel({ members, onChanged }) {
         setMessage({ type: 'success', text: 'Prelievo annullato.' })
       }
       setFix(null)
+      load()
+      onChanged?.()
+    } catch (err) { setMessage({ type: 'danger', text: errorMessage(err) }) } finally { setSaving(false) }
+  }
+
+  async function submitSwap(event) {
+    event.preventDefault()
+    if (saving) return
+    setSaving(true)
+    try {
+      await api.post(`/withdrawals/${swap.id}/product`, swapForm)
+      setMessage({ type: 'success', text: 'Prodotto cambiato: magazzino aggiornato, la cassa non cambia.' })
+      setSwap(null)
       load()
       onChanged?.()
     } catch (err) { setMessage({ type: 'danger', text: errorMessage(err) }) } finally { setSaving(false) }
@@ -151,11 +167,13 @@ export default function WithdrawalReassignPanel({ members, onChanged }) {
             </div>
           </div>
           <div className="cluster">
+            {row.combo_id && <StatusBadge tone="info">Combo</StatusBadge>}
             {row.is_manual && <StatusBadge tone="info">Inserito a mano</StatusBadge>}
             {row.status !== 'active' && <StatusBadge status="annullato" />}
           </div>
           {row.status === 'active' && row.payment_status !== 'pending' && <div className="withdrawal-actions">
             <button type="button" className="btn btn-outline-primary" onClick={() => { setReassign(row); setReassignForm({ member_id: '', reason: '' }) }}><ArrowRightLeft size={17} /> Riassegna</button>
+            {row.combo_id && <button type="button" className="btn btn-outline-primary" onClick={() => { setSwap(row); setSwapForm({ product_id: '', reason: '' }) }}><Shuffle size={17} /> Cambia prodotto</button>}
             <button type="button" className="btn btn-outline-secondary" onClick={() => { setFix({ row, mode: 'payment' }); setFixReason('') }}><Repeat size={17} /> {row.payment_status === 'paid' ? 'Era Coppone' : 'Era Pagato'}</button>
             <button type="button" className="btn btn-outline-danger" onClick={() => { setFix({ row, mode: 'cancel' }); setFixReason('') }}><Ban size={17} /> Annulla</button>
           </div>}
@@ -168,6 +186,23 @@ export default function WithdrawalReassignPanel({ members, onChanged }) {
           <FormField label="Motivo" htmlFor={`${fieldId}-rr`}><input id={`${fieldId}-rr`} className="form-control" minLength={3} maxLength={255} value={reassignForm.reason} onChange={(e) => setReassignForm({ ...reassignForm, reason: e.target.value })} required placeholder="Es. preso per errore col nome sbagliato" /></FormField>
           {selectedMember && <div className="summary-box stack-sm" aria-live="polite">{effectPreview(reassign, selectedMember).map((line) => <div key={line}>{line}</div>)}</div>}
           <button className="btn btn-primary btn-lg" disabled={saving || !reassignForm.member_id || reassignForm.reason.trim().length < 3}>{saving ? 'Attendi…' : 'Conferma riassegnazione'}</button>
+        </form>
+      </AppModal>}
+
+      {swap && <AppModal title="Cambia prodotto" subtitle={`${swap.product?.name} · ${money(swap.total_amount_cents)} · ${swap.member?.name}`} onClose={() => !saving && setSwap(null)} labelledBy="swap-title">
+        <form className="stack-md" onSubmit={submitSwap}>
+          <FormField label="Ha preso invece" htmlFor={`${fieldId}-sp`}>
+            <select id={`${fieldId}-sp`} className="form-select form-select-lg" value={swapForm.product_id} onChange={(e) => setSwapForm({ ...swapForm, product_id: e.target.value })} required>
+              <option value="">Scegli prodotto</option>
+              {products.filter((p) => p.id !== swap.product_id && p.unit === swap.product?.unit).map((p) => <option key={p.id} value={p.id} disabled={Number(p.current_quantity) < Number(swap.quantity)}>{p.name} ({quantity(p.current_quantity, p.unit)})</option>)}
+            </select>
+          </FormField>
+          <FormField label="Motivo" htmlFor={`${fieldId}-sr`}><input id={`${fieldId}-sr`} className="form-control" minLength={3} maxLength={255} value={swapForm.reason} onChange={(e) => setSwapForm({ ...swapForm, reason: e.target.value })} required placeholder="Es. non gli piaceva la Pepsi, ha preso la Coca-Cola" /></FormField>
+          <div className="summary-box stack-sm" aria-live="polite">
+            <div>{quantity(swap.quantity, swap.product?.unit)} di {swap.product?.name} tornano in magazzino{swapForm.product_id ? <>, ne esce lo stesso quantitativo di {products.find((p) => String(p.id) === String(swapForm.product_id))?.name}.</> : '.'}</div>
+            <div>Importo, socio e pagamento restano uguali: la cassa non cambia.</div>
+          </div>
+          <button className="btn btn-primary btn-lg" disabled={saving || !swapForm.product_id || swapForm.reason.trim().length < 3}>{saving ? 'Attendi…' : 'Conferma cambio'}</button>
         </form>
       </AppModal>}
 

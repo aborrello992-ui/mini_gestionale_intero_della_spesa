@@ -5,6 +5,7 @@ import AlertMessage from './AlertMessage'
 import AppModal from './ui/AppModal'
 import FormField from './forms/FormField'
 import StatusBadge from './ui/StatusBadge'
+import { comboLabel } from '../utils/comboItems'
 import { centsToInput, errorMessage, money, toCents } from '../utils/format'
 
 const DISCOUNTS = [10, 20, 30]
@@ -29,13 +30,17 @@ export default function ComboAdminPanel() {
   useEffect(() => { load() }, [load])
 
   const productById = new Map(products.map((product) => [product.id, product]))
-  const listPrice = form ? form.items.reduce((sum, item) => sum + Math.round(Number(item.quantity || 0) * Number(productById.get(Number(item.product_id))?.selling_price_cents || 0)), 0) : 0
+  const listPrice = form ? form.items.reduce((sum, item, index) => {
+    // Le alternative di una scelta contano una volta sola (la prima del gruppo).
+    if (item.choice_group && form.items.findIndex((other) => other.choice_group === item.choice_group) !== index) return sum
+    return sum + Math.round(Number(item.quantity || 0) * Number(productById.get(Number(item.product_id))?.selling_price_cents || 0))
+  }, 0) : 0
   const priceCents = form ? toCents(form.price) : 0
 
   function edit(combo) {
     setForm(combo
-      ? { id: combo.id, name: combo.name, description: combo.description || '', price: centsToInput(combo.price_cents), is_active: combo.is_active, items: combo.items.map((item) => ({ product_id: String(item.product_id), quantity: String(Number(item.quantity)) })) }
-      : { ...emptyForm, items: [{ product_id: '', quantity: '1' }, { product_id: '', quantity: '1' }] })
+      ? { id: combo.id, name: combo.name, description: combo.description || '', price: centsToInput(combo.price_cents), is_active: combo.is_active, items: combo.items.map((item) => ({ product_id: String(item.product_id), quantity: String(Number(item.quantity)), choice_group: item.choice_group ? String(item.choice_group) : '' })) }
+      : { ...emptyForm, items: [{ product_id: '', quantity: '1', choice_group: '' }, { product_id: '', quantity: '1', choice_group: '' }] })
   }
 
   function updateItem(index, patch) {
@@ -51,7 +56,7 @@ export default function ComboAdminPanel() {
       description: form.description.trim() || null,
       price: form.price,
       is_active: form.is_active,
-      items: form.items.filter((item) => item.product_id).map((item) => ({ product_id: Number(item.product_id), quantity: item.quantity })),
+      items: form.items.filter((item) => item.product_id).map((item) => ({ product_id: Number(item.product_id), quantity: item.quantity, choice_group: item.choice_group ? Number(item.choice_group) : null })),
     }
     try {
       if (form.id) await api.put(`/combos/${form.id}`, payload)
@@ -82,7 +87,7 @@ export default function ComboAdminPanel() {
       {combos.length ? <div className="combo-grid">{combos.map((combo) => (
         <article className={`combo-card ${combo.is_active ? '' : 'is-empty'}`} key={combo.id}>
           <div className="combo-card-head"><h3>{combo.name}</h3>{!combo.is_active && <StatusBadge tone="neutral">Disattivata</StatusBadge>}</div>
-          <p className="combo-items">{combo.items.map((item) => `${Number(item.quantity)}× ${item.product?.name}`).join(' + ')}</p>
+          <p className="combo-items">{comboLabel(combo)}</p>
           <div className="combo-price"><strong>{money(combo.price_cents)}</strong><s>{money(combo.list_price_cents)}</s></div>
           <div className="small">Disponibili: {combo.available_count}</div>
           <div className="product-admin-actions">
@@ -106,10 +111,16 @@ export default function ComboAdminPanel() {
                 </select>
                 <label className="visually-hidden" htmlFor={`${fieldId}-q${index}`}>Quantità prodotto {index + 1}</label>
                 <input id={`${fieldId}-q${index}`} className="form-control text-center" inputMode="decimal" value={item.quantity} onChange={(e) => updateItem(index, { quantity: e.target.value })} />
+                <label className="visually-hidden" htmlFor={`${fieldId}-g${index}`}>Tipo prodotto {index + 1}</label>
+                <select id={`${fieldId}-g${index}`} className="form-select" value={item.choice_group || ''} onChange={(e) => updateItem(index, { choice_group: e.target.value })}>
+                  <option value="">Fisso</option>
+                  {[1, 2, 3].map((group) => <option key={group} value={group}>A scelta {group}</option>)}
+                </select>
                 <button type="button" className="btn btn-outline-secondary" onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })} aria-label={`Togli prodotto ${index + 1}`}><Trash2 size={16} /></button>
               </div>
             ))}
-            {form.items.length < 10 && <button type="button" className="btn btn-outline-primary" onClick={() => setForm({ ...form, items: [...form.items, { product_id: '', quantity: '1' }] })}><Plus size={16} /> Aggiungi prodotto</button>}
+            {form.items.length < 10 && <button type="button" className="btn btn-outline-primary" onClick={() => setForm({ ...form, items: [...form.items, { product_id: '', quantity: '1', choice_group: '' }] })}><Plus size={16} /> Aggiungi prodotto</button>}
+            <p className="small text-muted-app mb-0">Con «A scelta 1» su più prodotti (es. Pepsi, Coca-Cola, Birra) chi compra la combo sceglie quale prendere: il prezzo resta lo stesso.</p>
           </fieldset>
           <div className="summary-box split"><span>Comprati separati</span><strong className="num">{money(listPrice)}</strong></div>
           <FormField label="Prezzo combo" htmlFor={`${fieldId}-price`} help={priceCents && listPrice ? (priceCents < listPrice ? `Sconto di ${money(listPrice - priceCents)} (${Math.round((1 - priceCents / listPrice) * 100)}%)` : 'Il prezzo non è più basso dei prodotti separati.') : 'Scegli un prezzo più basso del totale separato.'}>

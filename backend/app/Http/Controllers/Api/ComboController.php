@@ -30,7 +30,7 @@ class ComboController extends Controller
         $data = $this->validated($request);
         $combo = DB::transaction(function () use ($data) {
             $combo = Combo::create($this->attributes($data));
-            $combo->items()->createMany($data['items']);
+            $combo->items()->createMany($this->itemRows($data['items']));
 
             return $combo;
         });
@@ -44,7 +44,7 @@ class ComboController extends Controller
         DB::transaction(function () use ($combo, $data) {
             $combo->update($this->attributes($data));
             $combo->items()->delete();
-            $combo->items()->createMany($data['items']);
+            $combo->items()->createMany($this->itemRows($data['items']));
         });
 
         return $combo->fresh()->load(self::RELATIONS);
@@ -78,18 +78,43 @@ class ComboController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:10'],
             'items.*.product_id' => ['required', 'distinct', 'exists:products,id'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
+            'items.*.choice_group' => ['nullable', 'integer', 'between:1,5'],
         ], [
             'name.unique' => 'Esiste già una combo con questo nome.',
             'items.required' => 'Aggiungi almeno un prodotto alla combo.',
             'items.*.product_id.distinct' => 'Lo stesso prodotto è inserito due volte.',
+            'items.*.choice_group.between' => 'La scelta deve essere un numero da 1 a 5.',
         ]);
 
-        $totalPieces = collect($data['items'])->sum(fn ($item) => (float) $item['quantity']);
-        if (count($data['items']) === 1 && $totalPieces < 2) {
+        // Alternative a scelta: almeno due prodotti per gruppo, tutti con la stessa quantita.
+        $groups = collect($data['items'])->filter(fn ($item) => ! empty($item['choice_group']))->groupBy('choice_group');
+        foreach ($groups as $number => $alternatives) {
+            if ($alternatives->count() < 2) {
+                throw ValidationException::withMessages(['items' => "La scelta {$number} ha un solo prodotto: aggiungine almeno un altro o toglila."]);
+            }
+            if ($alternatives->pluck('quantity')->map(fn ($quantity) => (float) $quantity)->unique()->count() > 1) {
+                throw ValidationException::withMessages(['items' => 'I prodotti fra cui si sceglie devono avere la stessa quantità.']);
+            }
+        }
+
+        // Un posto a scelta conta come un solo prodotto.
+        $fixed = collect($data['items'])->filter(fn ($item) => empty($item['choice_group']));
+        $slots = $fixed->count() + $groups->count();
+        $totalPieces = $fixed->sum(fn ($item) => (float) $item['quantity']) + $groups->sum(fn ($alternatives) => (float) $alternatives->first()['quantity']);
+        if ($slots === 1 && $totalPieces < 2) {
             throw ValidationException::withMessages(['items' => 'Una combo deve avere almeno due pezzi (es. 2 prodotti diversi o 3 birre).']);
         }
 
         return $data;
+    }
+
+    private function itemRows(array $items): array
+    {
+        return array_map(fn (array $item) => [
+            'product_id' => $item['product_id'],
+            'quantity' => $item['quantity'],
+            'choice_group' => $item['choice_group'] ?? null,
+        ], $items);
     }
 
     private function attributes(array $data): array

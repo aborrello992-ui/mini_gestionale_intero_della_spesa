@@ -77,6 +77,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/withdrawals/{withdrawal}/reassign', [WithdrawalController::class, 'reassign']);
         Route::post('/withdrawals/{withdrawal}/payment', [WithdrawalController::class, 'correctPayment']);
         Route::post('/withdrawals/{withdrawal}/cancel', [WithdrawalController::class, 'cancel']);
+        Route::post('/withdrawals/{withdrawal}/product', [WithdrawalController::class, 'changeProduct']);
         Route::get('/guest-payments', [WithdrawalController::class, 'pendingGuestPayments']);
         Route::post('/withdrawals/{withdrawal}/verify', [WithdrawalController::class, 'verifyGuestPayment']);
         Route::get('/archive', [ArchiveController::class, 'index']);

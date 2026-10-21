@@ -111,6 +111,24 @@ class WithdrawalController extends Controller
         }
     }
 
+    /** Cambia il prodotto di un prelievo di una combo (es. Coca-Cola al posto della Pepsi): importo e cassa restano uguali. */
+    public function changeProduct(Withdrawal $withdrawal, Request $request, WithdrawalService $withdrawalService)
+    {
+        $data = $request->validate([
+            'product_id' => ['required', 'exists:products,id'],
+            'reason' => ['required', 'string', 'min:3', 'max:255'],
+        ], [
+            'reason.required' => 'Indica il motivo del cambio.',
+            'reason.min' => 'Il motivo deve avere almeno 3 caratteri.',
+        ]);
+
+        try {
+            return $withdrawalService->changeProduct($withdrawal, \App\Models\Product::query()->findOrFail($data['product_id']), $request->user(), $data['reason']);
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 422);
+        }
+    }
+
     /** Annulla un prelievo fatto per sbaglio con movimenti di correzione (admin). */
     public function cancel(Withdrawal $withdrawal, Request $request, WithdrawalService $withdrawalService)
     {

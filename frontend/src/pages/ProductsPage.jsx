@@ -1,3 +1,4 @@
+import { comboLabel } from '../utils/comboItems'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Minus, Plus, Search, ShoppingCart, Users } from 'lucide-react'
 import api from '../api/client'
@@ -167,7 +168,7 @@ export default function ProductsPage() {
               <h3>{combo.name}</h3>
               {saving > 0 && <span className="combo-badge">−{money(saving)}</span>}
             </div>
-            <p className="combo-items">{combo.items.map((item) => `${Number(item.quantity)}× ${item.product?.name}`).join(' + ')}</p>
+            <p className="combo-items">{comboLabel(combo)}</p>
             {combo.description && <p className="small text-muted-app mb-0">{combo.description}</p>}
             <div className="combo-price"><strong>{money(combo.price_cents)}</strong>{saving > 0 && <s>{money(combo.list_price_cents)}</s>}</div>
             <div className="product-admin-actions">

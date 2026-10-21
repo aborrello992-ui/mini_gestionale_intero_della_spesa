@@ -18,6 +18,8 @@ class SaleController extends Controller
             'items.*.product_id' => ['nullable', 'required_without:items.*.combo_id', 'exists:products,id'],
             'items.*.combo_id' => ['nullable', 'required_without:items.*.product_id', 'exists:combos,id'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
+            'items.*.choices' => ['nullable', 'array', 'max:5'],
+            'items.*.choices.*' => ['nullable', 'integer', 'exists:products,id'],
             'participants' => ['required', 'array', 'min:1', 'max:'.SaleService::MAX_PARTICIPANTS],
             'participants.*.member_id' => ['required', 'distinct', 'exists:users,id'],
             'participants.*.pin' => ['nullable', 'regex:/^\d{3}$/'],

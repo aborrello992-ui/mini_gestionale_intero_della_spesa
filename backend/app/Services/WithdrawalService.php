@@ -403,6 +403,92 @@ class WithdrawalService
         });
     }
 
+    /**
+     * Cambia il prodotto di un prelievo di una combo senza cancellare nulla.
+     * Il vecchio prodotto torna in magazzino, il nuovo viene scalato; importo, socio, cassa e debito non cambiano.
+     */
+    public function changeProduct(Withdrawal $withdrawal, Product $newProduct, User $admin, string $reason): Withdrawal
+    {
+        return DB::transaction(function () use ($withdrawal, $newProduct, $admin, $reason) {
+            $locked = $this->lockEditable($withdrawal);
+            if (! $locked->combo_id) {
+                throw new RuntimeException('Il prodotto si può cambiare solo nei prelievi di una combo.');
+            }
+            if ((int) $locked->product_id === (int) $newProduct->id) {
+                throw new RuntimeException('Il prelievo è già di questo prodotto.');
+            }
+
+            $old = Product::query()->whereKey($locked->product_id)->lockForUpdate()->firstOrFail();
+            $new = Product::query()->whereKey($newProduct->id)->lockForUpdate()->firstOrFail();
+            if (! $new->is_active || $new->archived_at) {
+                throw new RuntimeException("«{$new->name}» non è disponibile.");
+            }
+            if ($old->unit !== $new->unit) {
+                throw new RuntimeException('Il nuovo prodotto deve avere la stessa unità di misura.');
+            }
+
+            $quantity = (float) $locked->quantity;
+            $note = "Cambio prodotto prelievo #{$locked->id}: {$old->name} → {$new->name} ({$reason})";
+            $movements = InventoryMovement::query()->where('withdrawal_id', $locked->id)->where('status', 'active')
+                ->whereIn('type', InventoryMovement::WITHDRAWAL_TYPES)->get();
+
+            // Il vecchio prodotto torna disponibile.
+            $oldPrevious = (float) $old->current_quantity;
+            $back = $locked->affects_stock ? $quantity : 0.0;
+            $old->update(['current_quantity' => $oldPrevious + $back]);
+            foreach ($movements as $movement) {
+                $movement->update(['status' => 'reversed']);
+                InventoryMovement::create([
+                    'product_id' => $old->id,
+                    'user_id' => $admin->id,
+                    'withdrawal_id' => $locked->id,
+                    'reverses_movement_id' => $movement->id,
+                    'type' => 'annullamento',
+                    'quantity' => $back,
+                    'previous_quantity' => $oldPrevious,
+                    'resulting_quantity' => $oldPrevious + $back,
+                    'note' => $note,
+                ]);
+            }
+
+            // Il nuovo prodotto viene scalato.
+            $newPrevious = (float) $new->current_quantity;
+            $take = $locked->affects_stock ? $quantity : 0.0;
+            if ($newPrevious - $take < 0) {
+                throw new RuntimeException("Non basta «{$new->name}»: ne restano ".rtrim(rtrim(number_format($newPrevious, 3, ',', ''), '0'), ',').'.');
+            }
+            $new->update(['current_quantity' => $newPrevious - $take]);
+            $source = $movements->first();
+            InventoryMovement::create([
+                'product_id' => $new->id,
+                'user_id' => $locked->user_id,
+                'withdrawal_id' => $locked->id,
+                'cash_movement_id' => $source?->cash_movement_id,
+                'type' => $source?->type ?? 'prelievo_coppone',
+                'quantity' => $quantity,
+                'previous_quantity' => $newPrevious,
+                'resulting_quantity' => $newPrevious - $take,
+                'unit_price_cents' => $locked->unit_price_cents,
+                'total_amount_cents' => $locked->total_amount_cents,
+                'note' => $note,
+            ]);
+
+            // La cassa non cambia: si aggiorna solo l'etichetta del pagamento.
+            CashMovement::query()->where('withdrawal_id', $locked->id)->where('type', 'prodotto_pagato')->where('status', 'active')
+                ->update(['product_id' => $new->id, 'description' => "Pagamento {$new->name}"]);
+
+            $locked->update(['product_id' => $new->id]);
+
+            $member = User::query()->findOrFail($locked->user_id);
+            $this->audit($admin, $member, 'withdrawal_product_changed', $locked, $reason, [
+                'from_product_id' => $old->id,
+                'to_product_id' => $new->id,
+            ]);
+
+            return $this->fresh($locked);
+        });
+    }
+
     private function lockEditable(Withdrawal $withdrawal): Withdrawal
     {
         $locked = Withdrawal::query()->whereKey($withdrawal->id)->lockForUpdate()->firstOrFail();
