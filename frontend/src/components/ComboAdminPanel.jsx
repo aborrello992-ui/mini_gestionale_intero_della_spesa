@@ -5,11 +5,14 @@ import AlertMessage from './AlertMessage'
 import AppModal from './ui/AppModal'
 import FormField from './forms/FormField'
 import StatusBadge from './ui/StatusBadge'
-import { comboLabel } from '../utils/comboItems'
+import { comboLabel, comboSlots } from '../utils/comboItems'
 import { centsToInput, errorMessage, money, toCents } from '../utils/format'
 
 const DISCOUNTS = [10, 20, 30]
-const emptyForm = { id: null, name: '', description: '', price: '', is_active: true, items: [] }
+const emptyForm = { id: null, name: '', description: '', price: '', is_active: true, slots: [] }
+// Un posto della combo: un prodotto fisso, oppure una scelta fra più prodotti (chi la prende ne sceglie uno).
+const fixedSlot = () => ({ kind: 'fixed', product_id: '', quantity: '1' })
+const choiceSlot = () => ({ kind: 'choice', quantity: '1', product_ids: ['', ''] })
 
 export default function ComboAdminPanel() {
   const fieldId = useId()
@@ -30,21 +33,44 @@ export default function ComboAdminPanel() {
   useEffect(() => { load() }, [load])
 
   const productById = new Map(products.map((product) => [product.id, product]))
-  const listPrice = form ? form.items.reduce((sum, item, index) => {
-    // Le alternative di una scelta contano una volta sola (la prima del gruppo).
-    if (item.choice_group && form.items.findIndex((other) => other.choice_group === item.choice_group) !== index) return sum
-    return sum + Math.round(Number(item.quantity || 0) * Number(productById.get(Number(item.product_id))?.selling_price_cents || 0))
+  const priceOf = (productId) => Number(productById.get(Number(productId))?.selling_price_cents || 0)
+  const listPrice = form ? form.slots.reduce((sum, slot) => {
+    const id = slot.kind === 'fixed' ? slot.product_id : slot.product_ids.find(Boolean)
+    return sum + Math.round(Number(slot.quantity || 0) * priceOf(id))
   }, 0) : 0
   const priceCents = form ? toCents(form.price) : 0
+  const usedIds = form ? form.slots.flatMap((slot) => (slot.kind === 'fixed' ? [slot.product_id] : slot.product_ids)).filter(Boolean) : []
 
   function edit(combo) {
     setForm(combo
-      ? { id: combo.id, name: combo.name, description: combo.description || '', price: centsToInput(combo.price_cents), is_active: combo.is_active, items: combo.items.map((item) => ({ product_id: String(item.product_id), quantity: String(Number(item.quantity)), choice_group: item.choice_group ? String(item.choice_group) : '' })) }
-      : { ...emptyForm, items: [{ product_id: '', quantity: '1', choice_group: '' }, { product_id: '', quantity: '1', choice_group: '' }] })
+      ? {
+        id: combo.id, name: combo.name, description: combo.description || '', price: centsToInput(combo.price_cents), is_active: combo.is_active,
+        slots: comboSlots(combo).map((slot) => (slot.group
+          ? { kind: 'choice', quantity: String(slot.quantity), product_ids: slot.items.map((item) => String(item.product_id)) }
+          : { kind: 'fixed', quantity: String(slot.quantity), product_id: String(slot.items[0].product_id) })),
+      }
+      : { ...emptyForm, slots: [fixedSlot(), choiceSlot()] })
   }
 
-  function updateItem(index, patch) {
-    setForm({ ...form, items: form.items.map((item, i) => (i === index ? { ...item, ...patch } : item)) })
+  function updateSlot(index, patch) {
+    setForm({ ...form, slots: form.slots.map((slot, i) => (i === index ? { ...slot, ...patch } : slot)) })
+  }
+
+  function setChoiceProduct(slotIndex, productIndex, value) {
+    const slot = form.slots[slotIndex]
+    updateSlot(slotIndex, { product_ids: slot.product_ids.map((id, i) => (i === productIndex ? value : id)) })
+  }
+
+  // Le scelte diventano gruppi numerati (1, 2, 3…) per il server.
+  function toItems() {
+    let group = 0
+    return form.slots.flatMap((slot) => {
+      if (slot.kind === 'fixed') return slot.product_id ? [{ product_id: Number(slot.product_id), quantity: slot.quantity, choice_group: null }] : []
+      const ids = slot.product_ids.filter(Boolean)
+      if (!ids.length) return []
+      group += 1
+      return ids.map((id) => ({ product_id: Number(id), quantity: slot.quantity, choice_group: group }))
+    })
   }
 
   async function save(event) {
@@ -56,7 +82,7 @@ export default function ComboAdminPanel() {
       description: form.description.trim() || null,
       price: form.price,
       is_active: form.is_active,
-      items: form.items.filter((item) => item.product_id).map((item) => ({ product_id: Number(item.product_id), quantity: item.quantity, choice_group: item.choice_group ? Number(item.choice_group) : null })),
+      items: toItems(),
     }
     try {
       if (form.id) await api.put(`/combos/${form.id}`, payload)
@@ -101,26 +127,46 @@ export default function ComboAdminPanel() {
         <form className="stack-md" onSubmit={save}>
           <FormField label="Nome" htmlFor={`${fieldId}-name`}><input id={`${fieldId}-name`} className="form-control" maxLength={80} placeholder="Es. Salamini + tarallini" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></FormField>
           <fieldset className="stack-sm">
-            <legend className="form-label">Prodotti</legend>
-            {form.items.map((item, index) => (
+            <legend className="form-label">Cosa contiene</legend>
+            {form.slots.map((slot, index) => slot.kind === 'fixed' ? (
               <div className="combo-item-row" key={index}>
                 <label className="visually-hidden" htmlFor={`${fieldId}-p${index}`}>Prodotto {index + 1}</label>
-                <select id={`${fieldId}-p${index}`} className="form-select" value={item.product_id} onChange={(e) => updateItem(index, { product_id: e.target.value })}>
+                <select id={`${fieldId}-p${index}`} className="form-select" value={slot.product_id} onChange={(e) => updateSlot(index, { product_id: e.target.value })}>
                   <option value="">Scegli prodotto</option>
-                  {products.map((product) => <option key={product.id} value={product.id} disabled={form.items.some((other, i) => i !== index && other.product_id === String(product.id))}>{product.name} · {money(product.selling_price_cents)}</option>)}
+                  {products.map((product) => <option key={product.id} value={product.id} disabled={usedIds.includes(String(product.id)) && String(product.id) !== slot.product_id}>{product.name} · {money(product.selling_price_cents)}</option>)}
                 </select>
-                <label className="visually-hidden" htmlFor={`${fieldId}-q${index}`}>Quantità prodotto {index + 1}</label>
-                <input id={`${fieldId}-q${index}`} className="form-control text-center" inputMode="decimal" value={item.quantity} onChange={(e) => updateItem(index, { quantity: e.target.value })} />
-                <label className="visually-hidden" htmlFor={`${fieldId}-g${index}`}>Tipo prodotto {index + 1}</label>
-                <select id={`${fieldId}-g${index}`} className="form-select" value={item.choice_group || ''} onChange={(e) => updateItem(index, { choice_group: e.target.value })}>
-                  <option value="">Fisso</option>
-                  {[1, 2, 3].map((group) => <option key={group} value={group}>A scelta {group}</option>)}
-                </select>
-                <button type="button" className="btn btn-outline-secondary" onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== index) })} aria-label={`Togli prodotto ${index + 1}`}><Trash2 size={16} /></button>
+                <label className="visually-hidden" htmlFor={`${fieldId}-q${index}`}>Quantità {index + 1}</label>
+                <input id={`${fieldId}-q${index}`} className="form-control text-center" inputMode="decimal" value={slot.quantity} onChange={(e) => updateSlot(index, { quantity: e.target.value })} />
+                <button type="button" className="btn btn-outline-secondary" onClick={() => setForm({ ...form, slots: form.slots.filter((_, i) => i !== index) })} aria-label={`Togli prodotto ${index + 1}`}><Trash2 size={16} /></button>
+              </div>
+            ) : (
+              <div className="combo-choice-box stack-sm" key={index}>
+                <div className="split">
+                  <strong>Scelta fra più prodotti</strong>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setForm({ ...form, slots: form.slots.filter((_, i) => i !== index) })} aria-label="Togli questa scelta"><Trash2 size={15} /></button>
+                </div>
+                <p className="small text-muted-app mb-0">Chi prende la combo sceglie uno di questi prodotti (es. i gusti, o le bibite allo stesso prezzo).</p>
+                {slot.product_ids.map((productId, i) => (
+                  <div className="combo-item-row" key={i}>
+                    <label className="visually-hidden" htmlFor={`${fieldId}-c${index}-${i}`}>Alternativa {i + 1}</label>
+                    <select id={`${fieldId}-c${index}-${i}`} className="form-select" value={productId} onChange={(e) => setChoiceProduct(index, i, e.target.value)}>
+                      <option value="">Scegli prodotto</option>
+                      {products.map((product) => <option key={product.id} value={product.id} disabled={usedIds.includes(String(product.id)) && String(product.id) !== productId}>{product.name} · {money(product.selling_price_cents)}</option>)}
+                    </select>
+                    <span />
+                    <button type="button" className="btn btn-outline-secondary" disabled={slot.product_ids.length <= 2} onClick={() => updateSlot(index, { product_ids: slot.product_ids.filter((_, k) => k !== i) })} aria-label={`Togli alternativa ${i + 1}`}><Trash2 size={16} /></button>
+                  </div>
+                ))}
+                <div className="split">
+                  <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => updateSlot(index, { product_ids: [...slot.product_ids, ''] })}><Plus size={15} /> Aggiungi alternativa</button>
+                  <label className="cluster small">Quantità <input className="form-control form-control-sm text-center" style={{ width: 64 }} inputMode="decimal" value={slot.quantity} onChange={(e) => updateSlot(index, { quantity: e.target.value })} aria-label="Quantità della scelta" /></label>
+                </div>
               </div>
             ))}
-            {form.items.length < 10 && <button type="button" className="btn btn-outline-primary" onClick={() => setForm({ ...form, items: [...form.items, { product_id: '', quantity: '1', choice_group: '' }] })}><Plus size={16} /> Aggiungi prodotto</button>}
-            <p className="small text-muted-app mb-0">Con «A scelta 1» su più prodotti (es. Pepsi, Coca-Cola, Birra) chi compra la combo sceglie quale prendere: il prezzo resta lo stesso.</p>
+            <div className="cluster">
+              {form.slots.length < 8 && <button type="button" className="btn btn-outline-primary" onClick={() => setForm({ ...form, slots: [...form.slots, fixedSlot()] })}><Plus size={16} /> Prodotto fisso</button>}
+              {form.slots.filter((slot) => slot.kind === 'choice').length < 5 && <button type="button" className="btn btn-outline-primary" onClick={() => setForm({ ...form, slots: [...form.slots, choiceSlot()] })}><Plus size={16} /> Scelta fra più prodotti</button>}
+            </div>
           </fieldset>
           <div className="summary-box split"><span>Comprati separati</span><strong className="num">{money(listPrice)}</strong></div>
           <FormField label="Prezzo combo" htmlFor={`${fieldId}-price`} help={priceCents && listPrice ? (priceCents < listPrice ? `Sconto di ${money(listPrice - priceCents)} (${Math.round((1 - priceCents / listPrice) * 100)}%)` : 'Il prezzo non è più basso dei prodotti separati.') : 'Scegli un prezzo più basso del totale separato.'}>

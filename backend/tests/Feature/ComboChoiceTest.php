@@ -83,6 +83,25 @@ class ComboChoiceTest extends TestCase
         ]])->assertUnprocessable()->assertJsonValidationErrors('items');
     }
 
+    public function test_a_combo_can_be_made_only_of_choices_but_not_of_a_single_choice(): void
+    {
+        $pizza2 = Product::create(['category_id' => $this->pizza->category_id, 'location_id' => $this->pizza->location_id, 'name' => 'Pizza bianca', 'unit' => 'pezzi', 'current_quantity' => 4, 'minimum_threshold' => 1, 'selling_price_cents' => 300]);
+
+        // Un gusto a scelta + una bibita a scelta, nessun prodotto fisso.
+        $this->postJson('/api/combos', ['name' => 'Gusto + bibita', 'price' => '3,50', 'items' => [
+            ['product_id' => $this->pizza->id, 'quantity' => 1, 'choice_group' => 1],
+            ['product_id' => $pizza2->id, 'quantity' => 1, 'choice_group' => 1],
+            ['product_id' => $this->pepsi->id, 'quantity' => 1, 'choice_group' => 2],
+            ['product_id' => $this->coca->id, 'quantity' => 1, 'choice_group' => 2],
+        ]])->assertCreated()->assertJsonPath('list_price_cents', 400);
+
+        // Tutto nella stessa scelta: non è una combo.
+        $this->postJson('/api/combos', ['name' => 'Tutto insieme', 'price' => '3,50', 'items' => [
+            ['product_id' => $this->pizza->id, 'quantity' => 1, 'choice_group' => 1],
+            ['product_id' => $this->pepsi->id, 'quantity' => 1, 'choice_group' => 1],
+        ]])->assertUnprocessable()->assertJsonValidationErrors('items');
+    }
+
     public function test_the_chosen_drink_is_charged_and_taken_from_stock(): void
     {
         $this->buy($this->coca->id)->assertCreated()->assertJsonPath('total_cents', 350);

@@ -75,7 +75,7 @@ class ComboController extends Controller
             'description' => ['nullable', 'string', 'max:255'],
             'price' => ['required', 'numeric', 'min:0.01'],
             'is_active' => ['sometimes', 'boolean'],
-            'items' => ['required', 'array', 'min:1', 'max:10'],
+            'items' => ['required', 'array', 'min:1', 'max:20'],
             'items.*.product_id' => ['required', 'distinct', 'exists:products,id'],
             'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
             'items.*.choice_group' => ['nullable', 'integer', 'between:1,5'],
@@ -101,6 +101,9 @@ class ComboController extends Controller
         $fixed = collect($data['items'])->filter(fn ($item) => empty($item['choice_group']));
         $slots = $fixed->count() + $groups->count();
         $totalPieces = $fixed->sum(fn ($item) => (float) $item['quantity']) + $groups->sum(fn ($alternatives) => (float) $alternatives->first()['quantity']);
+        if ($slots === 1 && $groups->count() === 1 && $fixed->isEmpty() && $totalPieces < 2) {
+            throw ValidationException::withMessages(['items' => 'Con una sola scelta la combo non ha senso: aggiungi un prodotto fisso (es. la pizza) o una seconda scelta (es. il gusto e la bibita).']);
+        }
         if ($slots === 1 && $totalPieces < 2) {
             throw ValidationException::withMessages(['items' => 'Una combo deve avere almeno due pezzi (es. 2 prodotti diversi o 3 birre).']);
         }

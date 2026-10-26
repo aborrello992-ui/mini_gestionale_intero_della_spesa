@@ -120,7 +120,7 @@ export default function CheckoutModal({ members, products, combos, initialLines 
                 {line.quantity > line.available && <small className="text-danger fw-bold">Non ce ne sono abbastanza.</small>}
                 {line.slots?.map((slot) => (
                   <span className="combo-choice" key={slot.group}>
-                    <label className="small fw-bold" htmlFor={`${fieldId}-c${index}-${slot.group}`}>Scegli il prodotto</label>
+                    <label className="small fw-bold" htmlFor={`${fieldId}-c${index}-${slot.group}`}>Scegli: {slot.items.slice(0, 3).map((item) => item.product?.name).join(' / ')}{slot.items.length > 3 ? '…' : ''}</label>
                     <select id={`${fieldId}-c${index}-${slot.group}`} className="form-select" value={line.choices?.[slot.group] || ''} onChange={(e) => pickChoice(index, slot.group, e.target.value)} required>
                       <option value="">Scegli…</option>
                       {slot.items.map((item) => <option key={item.product_id} value={item.product_id} disabled={Number(item.product?.current_quantity || 0) < slot.quantity}>{item.product?.name}{Number(item.product?.current_quantity || 0) < slot.quantity ? ' (finito)' : ''}</option>)}
