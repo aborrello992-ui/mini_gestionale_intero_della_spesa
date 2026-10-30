@@ -36,7 +36,7 @@ export default function CashLoansPanel({ members, onChanged }) {
     try {
       await api.post('/cash-loans', form, { headers: { 'Idempotency-Key': loanKey.current } })
       loanKey.current = newKey()
-      setMessage({ type: 'success', text: 'Prestito registrato: i soldi sono usciti dalla cassa e il socio vedrà il promemoria.' })
+      setMessage({ type: 'success', text: 'Prestito registrato: il saldo non cambia, i contanti nel cassetto scendono e il socio vedrà il promemoria.' })
       setForm({ member_id: '', amount: '', note: '' })
       await load()
       onChanged?.()
@@ -49,7 +49,7 @@ export default function CashLoansPanel({ members, onChanged }) {
     setSaving(true)
     try {
       await api.post(`/cash-loans/${repay.id}/repay`, repayForm)
-      setMessage({ type: 'success', text: 'Restituzione registrata: i soldi sono rientrati in cassa.' })
+      setMessage({ type: 'success', text: 'Restituzione registrata: i soldi sono tornati nel cassetto.' })
       setRepay(null)
       await load()
       onChanged?.()
@@ -57,11 +57,11 @@ export default function CashLoansPanel({ members, onChanged }) {
   }
 
   async function cancel(loan) {
-    const reason = window.prompt('Motivo dell\'annullamento del prestito? (i soldi tornano in cassa)')
+    const reason = window.prompt('Motivo dell\'annullamento del prestito? (i soldi tornano nel cassetto)')
     if (!reason || reason.trim().length < 3) return
     try {
       await api.post(`/cash-loans/${loan.id}/cancel`, { reason: reason.trim() })
-      setMessage({ type: 'success', text: 'Prestito annullato: i soldi sono tornati in cassa.' })
+      setMessage({ type: 'success', text: 'Prestito annullato: i soldi sono tornati nel cassetto.' })
       await load()
       onChanged?.()
     } catch (err) { setMessage({ type: 'danger', text: errorMessage(err) }) }
@@ -74,7 +74,7 @@ export default function CashLoansPanel({ members, onChanged }) {
       <div className="split">
         <div>
           <h2 className="h5 mb-1" id={`${fieldId}-title`}><HandCoins size={18} aria-hidden="true" /> Prestiti dalla cassa</h2>
-          <p className="small text-muted-app mb-0">Soldi presi dalla cassa per un po': escono subito e il socio riceve un promemoria finché non li restituisce. Non sono copponi dei prodotti.</p>
+          <p className="small text-muted-app mb-0">Soldi presi dal cassetto per un po'. Il saldo dell'app non cambia: scendono i contanti che devono esserci nel cassetto (li vedi in Cassa › Contanti nel cassetto) e il socio riceve un promemoria finché non li restituisce. Non sono copponi dei prodotti.</p>
         </div>
         {totalOpen > 0 && <strong className="num">{money(totalOpen)}</strong>}
       </div>
@@ -110,7 +110,7 @@ export default function CashLoansPanel({ members, onChanged }) {
         <FormField label="Nota (facoltativa)" htmlFor={`${fieldId}-n`}>
           <input id={`${fieldId}-n`} className="form-control" maxLength={255} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Es. ha preso 20 € per il resto" />
         </FormField>
-        <button className="btn btn-outline-primary" disabled={saving || !form.member_id || !form.amount}>{saving ? 'Attendi…' : 'Togli dalla cassa'}</button>
+        <button className="btn btn-outline-primary" disabled={saving || !form.member_id || !form.amount}>{saving ? 'Attendi…' : 'Registra prestito'}</button>
       </form>
 
       {repay && <AppModal title="Restituzione" subtitle={`${repay.member?.name} · da restituire ${money(repay.remaining_cents)}`} onClose={() => !saving && setRepay(null)} labelledBy={`${fieldId}-repay`}>
@@ -118,7 +118,7 @@ export default function CashLoansPanel({ members, onChanged }) {
           <FormField label="Importo restituito" htmlFor={`${fieldId}-ra`} help="Se ne rimette solo una parte, il resto resta da restituire.">
             <input id={`${fieldId}-ra`} className="form-control form-control-lg" type="number" step="0.01" min="0.01" max={centsToInput(repay.remaining_cents)} value={repayForm.amount} onChange={(e) => setRepayForm({ ...repayForm, amount: e.target.value })} required />
           </FormField>
-          <div className="summary-box">I soldi rientrano in cassa.</div>
+          <div className="summary-box">I soldi rientrano nel cassetto.</div>
           <button className="btn btn-primary btn-lg" disabled={saving || !repayForm.amount}>{saving ? 'Attendi…' : 'Conferma restituzione'}</button>
         </form>
       </AppModal>}

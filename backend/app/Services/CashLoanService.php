@@ -10,8 +10,9 @@ use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 /**
- * Soldi presi in prestito dalla cassa da un socio: escono subito dalla cassa e il socio
- * riceve un promemoria finché non li restituisce. Non c'entrano con i copponi dei prodotti.
+ * Soldi presi in prestito dalla cassa da un socio. Il saldo dell'app NON cambia (i conti restano interi):
+ * cambiano i contanti che devono esserci nel cassetto, che scendono finché il prestito è aperto.
+ * Il socio riceve un promemoria a ogni accesso. Non c'entrano con i copponi dei prodotti.
  */
 class CashLoanService
 {
@@ -20,6 +21,12 @@ class CashLoanService
     public const REPAY_TYPE = 'restituzione_prestito';
 
     public function __construct(private CashService $cashService) {}
+
+    /** Soldi attualmente fuori dal cassetto: prestiti aperti, al netto di quanto già restituito. */
+    public function outstandingCents(): int
+    {
+        return (int) CashLoan::query()->where('status', 'open')->sum(DB::raw('amount_cents - repaid_cents'));
+    }
 
     public function lend(User $member, User $admin, int $amountCents, ?string $note = null): CashLoan
     {
@@ -31,9 +38,9 @@ class CashLoanService
         }
 
         return DB::transaction(function () use ($member, $admin, $amountCents, $note) {
-            $balance = $this->cashService->balanceCents();
-            if ($amountCents > $balance) {
-                throw new RuntimeException('In cassa ci sono solo '.number_format($balance / 100, 2, ',', '.').' €: non si può prestare di più.');
+            $inDrawer = $this->cashService->balanceCents() - $this->outstandingCents();
+            if ($amountCents > $inDrawer) {
+                throw new RuntimeException('Nel cassetto dovrebbero esserci solo '.number_format(max(0, $inDrawer) / 100, 2, ',', '.').' €: non si può prestare di più.');
             }
 
             $loan = CashLoan::create([
@@ -56,6 +63,8 @@ class CashLoanService
                 'member_id' => $member->id,
                 'cash_loan_id' => $loan->id,
                 'note' => $note,
+                // Traccia nello storico, ma il saldo dell'app resta com'è.
+                'affects_current_balance' => false,
             ], $admin);
 
             $this->audit($admin, $member, 'cash_loan_created', $loan, ['amount_cents' => $amountCents, 'note' => $note]);
@@ -64,7 +73,7 @@ class CashLoanService
         });
     }
 
-    /** Restituzione (anche parziale): i soldi rientrano in cassa. */
+    /** Restituzione (anche parziale): i soldi rientrano nel cassetto. */
     public function repay(CashLoan $loan, User $admin, int $amountCents, ?string $note = null): CashLoan
     {
         return DB::transaction(function () use ($loan, $admin, $amountCents, $note) {
@@ -88,6 +97,7 @@ class CashLoanService
                 'member_id' => $member->id,
                 'cash_loan_id' => $locked->id,
                 'note' => $note,
+                'affects_current_balance' => false,
             ], $admin);
 
             $locked->repaid_cents += $amountCents;
@@ -103,7 +113,7 @@ class CashLoanService
         });
     }
 
-    /** Prestito registrato per sbaglio: i soldi tornano in cassa. Solo se non c'è stata nessuna restituzione. */
+    /** Prestito registrato per sbaglio: i soldi tornano nel cassetto. Solo se non c'è stata nessuna restituzione. */
     public function cancel(CashLoan $loan, User $admin, string $reason): CashLoan
     {
         return DB::transaction(function () use ($loan, $admin, $reason) {

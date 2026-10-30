@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['user_id', 'counted_cents', 'app_balance_cents', 'breakdown', 'note', 'counted_at'])]
+#[Fillable(['user_id', 'counted_cents', 'app_balance_cents', 'loans_out_cents', 'breakdown', 'note', 'counted_at'])]
 class CashCount extends Model
 {
     /** Tagli accettati nel conteggio, in centesimi. */

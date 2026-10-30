@@ -84,9 +84,12 @@ export default function CashCountPanel({ isAdmin, refreshKey, onCounted }) {
         </div>
         {isAdmin && <button type="button" className="btn btn-primary" onClick={startCount}><Calculator size={17} /> Conta i contanti</button>}
       </div>
+      {Number(data.loans_out_cents) > 0 && <div className="small cash-count-loans">
+        <strong>{money(data.loans_out_cents)}</strong> sono fuori dal cassetto, in prestito a dei soci: sono già tolti da questa cifra e il saldo dell'app non cambia. Rientrano quando vengono restituiti.
+      </div>}
       {latestDrift && <div className={`cash-count-drift is-${latestDrift.tone}`}>Ultimo conteggio: {latestDrift.text}</div>}
-      {data.latest && data.latest.counted_cents - data.latest.app_balance_cents !== 0 && <div className="small text-muted-app">
-        Differenza fissa con il saldo dell'app: {money(data.latest.counted_cents - data.latest.app_balance_cents)} (es. spese pagate di tasca e non ancora rimborsate).
+      {data.latest && data.latest.counted_cents + Number(data.latest.loans_out_cents || 0) - data.latest.app_balance_cents !== 0 && <div className="small text-muted-app">
+        Differenza fissa con il saldo dell'app: {money(data.latest.counted_cents + Number(data.latest.loans_out_cents || 0) - data.latest.app_balance_cents)} (es. spese pagate di tasca e non ancora rimborsate).
       </div>}
       {data.counts.length > 1 && <button type="button" className="btn btn-link btn-sm p-0 align-self-start" onClick={() => setShowHistory((value) => !value)}>{showHistory ? 'Nascondi conteggi' : `Vedi gli ultimi ${data.counts.length} conteggi`}</button>}
       {showHistory && <ul className="list-unstyled small mb-0 stack-sm">
