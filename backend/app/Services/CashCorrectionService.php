@@ -33,6 +33,7 @@ class CashCorrectionService
             AccountReset::query()->where('opening_cash_movement_id', $movement->id)->exists() => 'È il saldo di apertura della cassa: non si annulla.',
             in_array($movement->type, self::INTERNAL_TYPES, true) || ! $movement->affects_current_balance => 'Movimento interno collegato ad altre operazioni: non si annulla da solo.',
             $movement->withdrawal_id !== null => 'È il pagamento di un prelievo: correggilo da Gestione › Riassegna prelievi.',
+            $movement->cash_loan_id !== null => 'È un prestito dalla cassa: gestiscilo da Debiti › Prestiti dalla cassa.',
             $movement->debt_payment_id !== null => 'È il pagamento di un coppone: non si annulla dalla cassa.',
             $movement->type === DebtService::SHORTFALL_CASH_TYPE => 'È un coppone collettivo: i copponi dei soci restano aperti, non si annulla dalla cassa.',
             default => null,

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable(['archived_at', 'archived_reason', 
-    'restoration_key', 'user_id', 'member_id', 'product_id', 'purchase_id', 'withdrawal_id', 'debt_payment_id',
+    'restoration_key', 'user_id', 'member_id', 'product_id', 'purchase_id', 'withdrawal_id', 'debt_payment_id', 'cash_loan_id',
     'reverses_movement_id', 'amount_cents', 'resulting_balance_cents', 'direction',
     'type', 'category', 'description', 'movement_date', 'movement_time', 'occurred_at',
     'occurred_at_is_approximate', 'note', 'status', 'affects_current_balance', 'is_opening_historical_record',

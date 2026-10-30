@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\CashCountController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\ComboController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\CashLoanController;
 use App\Http\Controllers\Api\DebtController;
 use App\Http\Controllers\Api\HistoryController;
 use App\Http\Controllers\Api\InventoryController;
@@ -38,6 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/categories', [CategoryController::class, 'index']);
     Route::get('/locations', [LocationController::class, 'index']);
     Route::post('/withdrawals', [WithdrawalController::class, 'store'])->middleware('idempotent');
+    Route::get('/cash-loans/mine', [CashLoanController::class, 'mine']);
     Route::get('/combos', [ComboController::class, 'index']);
     Route::post('/sales', [SaleController::class, 'store'])->middleware('idempotent');
     Route::get('/shopping-list', [ShoppingListController::class, 'index']);
@@ -92,6 +94,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/shopping-list/restock-sessions', [ShoppingListController::class, 'registerRestock']);
         Route::get('/receipts', [ReceiptController::class, 'index']);
         Route::get('/receipts/{receipt}', [ReceiptController::class, 'show']);
+        Route::get('/cash-loans', [CashLoanController::class, 'index']);
+        Route::post('/cash-loans', [CashLoanController::class, 'store'])->middleware('idempotent');
+        Route::post('/cash-loans/{loan}/repay', [CashLoanController::class, 'repay']);
+        Route::post('/cash-loans/{loan}/cancel', [CashLoanController::class, 'cancel']);
         Route::post('/debts/collective', [DebtController::class, 'collective'])->middleware('idempotent');
         Route::post('/debts/{member}/adjustments', [DebtController::class, 'adjust']);
         Route::post('/debts/{member}/payments', [DebtController::class, 'pay']);

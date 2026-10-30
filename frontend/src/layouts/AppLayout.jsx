@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import UserAvatar from '../components/ui/UserAvatar'
 import Loading from '../components/Loading'
 import GuestPinReveal from '../components/GuestPinReveal'
+import LoanReminder from '../components/LoanReminder'
 
 const links = [
   ['/', 'Prodotti', Boxes],
@@ -85,6 +86,7 @@ export default function AppLayout() {
       </main>
 
       {showPin && guestPin && <GuestPinReveal pin={guestPin} expiresAt={user?.guest_expires_at} onClose={closePin} />}
+      <LoanReminder />
 
       <nav className="mobile-nav" aria-label="Navigazione principale">
         <NavItems />

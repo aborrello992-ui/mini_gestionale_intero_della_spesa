@@ -10,6 +10,7 @@ import MetricCard from '../components/ui/MetricCard'
 import EmptyState from '../components/feedback/EmptyState'
 import FormField from '../components/forms/FormField'
 import UserAvatar from '../components/ui/UserAvatar'
+import CashLoansPanel from '../components/CashLoansPanel'
 import StatusBadge from '../components/ui/StatusBadge'
 
 export default function DebtsPage() {
@@ -123,6 +124,7 @@ export default function DebtsPage() {
         <MetricCard emphasis icon={ReceiptText} tone="warning" label="Da incassare" value={money(totalDebt)} help={`${debtorCount} ${debtorCount === 1 ? 'persona' : 'persone'} con copponi aperti.`} />
         <MetricCard icon={WalletCards} tone="success" label="Crediti dei soci" value={money(totalWallet)} help="Soldi lasciati in cassa da scalare dai prossimi copponi." />
       </div>
+      {isAdmin && <CashLoansPanel members={debtors} />}
       <div className="card-grid">
         {debtors.map((member) => {
           const openDebt = Number(member.open_debt_cents || 0)
