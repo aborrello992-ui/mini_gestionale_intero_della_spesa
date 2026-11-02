@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\CashLoan;
 use App\Models\CashMovement;
 use App\Models\User;
+use App\Services\CashCountService;
 use App\Services\CashLoanService;
 use App\Services\CashService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,6 +31,8 @@ class CashLoanTest extends TestCase
             'amount_cents' => 10000, 'direction' => 'entrata', 'type' => 'quota', 'category' => 'quote',
             'description' => 'Cassa di prova', 'movement_date' => now()->toDateString(),
         ], $this->admin);
+        // Cassetto contato: 100 € (il limite dei prestiti segue i contanti contati, non il saldo dell'app).
+        app(CashCountService::class)->record($this->admin, 10000, null, null);
     }
 
     private function balance(): int
@@ -92,6 +95,20 @@ class CashLoanTest extends TestCase
         $second = CashLoan::findOrFail($this->postJson('/api/cash-loans', ['member_id' => $this->luca->id, 'amount' => '10.00'])->json('id'));
         $this->postJson("/api/cash-loans/{$second->id}/repay", ['amount' => '1.00'])->assertOk();
         $this->postJson("/api/cash-loans/{$second->id}/cancel", ['reason' => 'Troppo tardi'])->assertUnprocessable();
+    }
+
+    public function test_the_limit_follows_the_counted_drawer_not_the_app_balance_and_there_is_none_without_a_count(): void
+    {
+        // Saldo dell'app a 0 ma 33 € contati nel cassetto: si può prestare fino a 33 €.
+        \App\Models\CashCount::query()->delete();
+        app(CashCountService::class)->record($this->admin, 3300, null, null);
+
+        $this->postJson('/api/cash-loans', ['member_id' => $this->luca->id, 'amount' => '33.01'])->assertUnprocessable();
+        $this->postJson('/api/cash-loans', ['member_id' => $this->luca->id, 'amount' => '5.00'])->assertCreated();
+
+        // Mai contato: nessun limite.
+        \App\Models\CashCount::query()->delete();
+        $this->postJson('/api/cash-loans', ['member_id' => $this->luca->id, 'amount' => '200.00'])->assertCreated();
     }
 
     public function test_cannot_lend_more_than_the_cash_or_to_non_members_and_only_admin_can_lend(): void

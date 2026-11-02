@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AdminAuditLog;
+use App\Models\CashCount;
 use App\Models\CashLoan;
 use App\Models\CashMovement;
 use App\Models\User;
@@ -28,6 +29,23 @@ class CashLoanService
         return (int) CashLoan::query()->where('status', 'open')->sum(DB::raw('amount_cents - repaid_cents'));
     }
 
+    /**
+     * Contanti che dovrebbero esserci nel cassetto adesso, partendo dall'ultimo conteggio fisico.
+     * Il saldo dell'app può essere diverso dai contanti veri (es. spese pagate di tasca): per questo non si usa lui.
+     * Null se il cassetto non è mai stato contato.
+     */
+    public function drawerEstimateCents(): ?int
+    {
+        $latest = CashCount::query()->latest('counted_at')->latest('id')->first();
+        if (! $latest) {
+            return null;
+        }
+
+        return (int) $latest->counted_cents
+            + ($this->cashService->balanceCents() - (int) $latest->app_balance_cents)
+            - ($this->outstandingCents() - (int) $latest->loans_out_cents);
+    }
+
     public function lend(User $member, User $admin, int $amountCents, ?string $note = null): CashLoan
     {
         if ($amountCents <= 0) {
@@ -38,9 +56,10 @@ class CashLoanService
         }
 
         return DB::transaction(function () use ($member, $admin, $amountCents, $note) {
-            $inDrawer = $this->cashService->balanceCents() - $this->outstandingCents();
-            if ($amountCents > $inDrawer) {
-                throw new RuntimeException('Nel cassetto dovrebbero esserci solo '.number_format(max(0, $inDrawer) / 100, 2, ',', '.').' €: non si può prestare di più.');
+            // Con almeno un conteggio del cassetto, non si può prestare più dei contanti attesi.
+            $inDrawer = $this->drawerEstimateCents();
+            if ($inDrawer !== null && $amountCents > $inDrawer) {
+                throw new RuntimeException('Nel cassetto dovrebbero esserci solo '.number_format(max(0, $inDrawer) / 100, 2, ',', '.').' € (da ultimo conteggio): non si può prestare di più.');
             }
 
             $loan = CashLoan::create([
